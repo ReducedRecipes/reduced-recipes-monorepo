@@ -314,7 +314,29 @@ describe('POST /api/v1/remove', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as any;
     expect(body.ok).toBe(true);
-    expect(consoleSpy).toHaveBeenCalledWith('REMOVAL_REQUEST', expect.any(String));
+    expect(consoleSpy).toHaveBeenCalledOnce();
+    const logged = JSON.parse(consoleSpy.mock.calls[0]![0] as string);
+    expect(logged.type).toBe('REMOVAL_REQUEST');
+    expect(logged.url).toBe('https://example.com/recipe');
+    expect(logged.email).toBe('test@test.com');
+    expect(logged.timestamp).toBeDefined();
+    consoleSpy.mockRestore();
+  });
+});
+
+// ── Error handler tests ─────────────────────────────────────────────────
+
+describe('Global error handler', () => {
+  it('does not leak error message in response', async () => {
+    const env = createEnv();
+    env.DB.batch = vi.fn().mockRejectedValue(new Error('sensitive DB info'));
+
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const res = await req('/api/v1/health', env);
+    expect(res.status).toBe(500);
+    const body = await res.json() as any;
+    expect(body.error.message).toBe('Internal server error');
+    expect(body.error.message).not.toContain('sensitive');
     consoleSpy.mockRestore();
   });
 });

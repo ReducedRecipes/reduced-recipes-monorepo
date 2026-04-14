@@ -241,16 +241,17 @@ app.get('/api/v1/search', async (c) => {
     );
   }
 
-  const sanitized = q.replace(/[*"():^~]/g, '').trim();
+  const sanitized = q.replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/[*"():^~\-:]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!sanitized) {
     return c.json([], 200);
   }
 
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
-            r.yields, r.cuisine, r.category
+            r.yields, r.cuisine, r.category,
+            snippet(recipes_fts, 0, '<b>', '</b>', '...', 32) as snippet
      FROM recipes_fts fts
-     JOIN recipes r ON r.id = fts.id
+     JOIN recipes r ON fts.rowid = r.rowid
      WHERE recipes_fts MATCH ?1
      LIMIT ?2`,
   )
@@ -341,15 +342,21 @@ app.post('/api/v1/remove', async (c) => {
     );
   }
 
-  console.log('REMOVAL_REQUEST', JSON.stringify(body));
-  return c.json({ ok: true, message: 'Removal request received. We will review it shortly.' });
+  console.log(JSON.stringify({
+    type: 'REMOVAL_REQUEST',
+    url: body.url,
+    email: body.email,
+    reason: body.reason ?? '',
+    timestamp: new Date().toISOString(),
+  }));
+  return c.json({ ok: true, message: 'Request logged' });
 });
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
   console.error('Unhandled error:', err);
   return c.json(
-    { error: { code: 'INTERNAL_ERROR', message: err.message } },
+    { error: { code: 'INTERNAL_ERROR', message: 'Internal server error' } },
     500,
   );
 });
