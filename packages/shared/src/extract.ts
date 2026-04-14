@@ -60,24 +60,24 @@ export function normaliseRecipe(
 
   return {
     id,
-    url: sourceUrl,
-    canonical_url: typeof raw.url === "string" ? raw.url : sourceUrl,
     source_url: sourceUrl,
     domain: new URL(sourceUrl).hostname.replace(/^www\./, ""),
     title: cleanText(String(raw.name ?? raw.headline ?? "")),
-    description: cleanText(String(raw.description ?? "")),
+    image_url: extractImageUrl(raw.image),
     author: extractAuthor(raw.author),
-    image_url: extractImageUrl(raw.image) ?? "",
+    yields: raw.recipeYield != null ? cleanText(String(raw.recipeYield)) || null : null,
     prep_time: parseDuration(String(raw.prepTime ?? "")),
     cook_time: parseDuration(String(raw.cookTime ?? "")),
     total_time: parseDuration(String(raw.totalTime ?? "")),
-    servings: raw.recipeYield != null ? cleanText(String(raw.recipeYield)) || null : null,
     ingredients: extractIngredients(raw.recipeIngredient),
     instructions: extractInstructions(raw.recipeInstructions),
     tags: extractTags(raw.keywords, raw.recipeCuisine, raw.recipeCategory),
     cuisine: raw.recipeCuisine != null ? cleanText(String(raw.recipeCuisine)) || null : null,
-    crawled_at: now,
-    updated_at: now,
+    category: raw.recipeCategory != null ? cleanText(String(raw.recipeCategory)) || null : null,
+    keywords: extractKeywords(raw.keywords),
+    schema_valid: true,
+    extracted_at: now,
+    last_checked: now,
   };
 }
 
@@ -164,15 +164,15 @@ export function extractTags(
  * Extract author name from Schema.org author field.
  * Handles string, object ({name}), and array formats.
  */
-export function extractAuthor(raw: unknown): string {
-  if (!raw) return "";
-  if (typeof raw === "string") return cleanText(raw);
+export function extractAuthor(raw: unknown): string | null {
+  if (!raw) return null;
+  if (typeof raw === "string") return cleanText(raw) || null;
   if (Array.isArray(raw)) return extractAuthor(raw[0]);
   if (typeof raw === "object") {
     const obj = raw as Record<string, unknown>;
-    return cleanText(String(obj.name ?? ""));
+    return cleanText(String(obj.name ?? "")) || null;
   }
-  return "";
+  return null;
 }
 
 /**

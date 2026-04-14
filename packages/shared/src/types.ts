@@ -1,24 +1,24 @@
 /** Full recipe document stored in KV (source of truth). */
 export interface RecipeDocument {
   id: string;
-  url: string;
-  canonical_url: string;
+  source_url: string;
   domain: string;
   title: string;
-  description: string;
-  author: string;
-  image_url: string;
+  image_url: string | null;
+  author: string | null;
+  yields: string | null;
   prep_time: number | null;
   cook_time: number | null;
   total_time: number | null;
-  servings: string | null;
   ingredients: string[];
   instructions: string[];
   tags: string[];
   cuisine: string | null;
-  source_url: string;
-  crawled_at: string;
-  updated_at: string;
+  category: string | null;
+  keywords: string[];
+  schema_valid: boolean;
+  extracted_at: string;
+  last_checked: string;
 }
 
 /** Lean recipe summary used for list/search views (projected into D1). */
@@ -26,10 +26,12 @@ export interface RecipeSummary {
   id: string;
   title: string;
   domain: string;
-  image_url: string;
+  image_url: string | null;
   cook_time: number | null;
   tags: string[];
   cuisine: string | null;
+  yields: string | null;
+  category: string | null;
 }
 
 /** Cloudflare Worker environment bindings. */
