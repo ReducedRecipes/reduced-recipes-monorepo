@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Layout from "./components/Layout";
+import RecipePage from "./pages/RecipePage";
 import "./index.css";
 
 // Lazy-loaded page placeholders (actual pages added in later stories)
@@ -11,7 +12,6 @@ const Placeholder = ({ name }: { name: string }) => (
 );
 
 const HomePage = () => <Placeholder name="Home" />;
-const RecipePage = () => <Placeholder name="Recipe" />;
 const SearchPage = () => <Placeholder name="Search" />;
 const TagPage = () => <Placeholder name="Tag" />;
 const CuisinePage = () => <Placeholder name="Cuisine" />;
