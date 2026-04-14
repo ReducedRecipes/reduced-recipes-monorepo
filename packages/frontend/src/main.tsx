@@ -1,22 +1,21 @@
-import React from "react";
+import React, { Suspense, lazy } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Layout from "./components/Layout";
 import "./index.css";
 
-// Lazy-loaded page placeholders (actual pages added in later stories)
-const Placeholder = ({ name }: { name: string }) => (
-  <div className="p-8 text-center text-gray-500">{name} — coming soon</div>
-);
+const HomePage = lazy(() => import("./pages/HomePage"));
+const RecipePage = lazy(() => import("./pages/RecipePage"));
+const SearchPage = lazy(() => import("./pages/SearchPage"));
+const TagPage = lazy(() => import("./pages/TagPage"));
+const CuisinePage = lazy(() => import("./pages/CuisinePage"));
+const DomainPage = lazy(() => import("./pages/DomainPage"));
+const RemovePage = lazy(() => import("./pages/RemovePage"));
 
-const HomePage = () => <Placeholder name="Home" />;
-const RecipePage = () => <Placeholder name="Recipe" />;
-const SearchPage = () => <Placeholder name="Search" />;
-const TagPage = () => <Placeholder name="Tag" />;
-const CuisinePage = () => <Placeholder name="Cuisine" />;
-const DomainPage = () => <Placeholder name="Domain" />;
-const RemovePage = () => <Placeholder name="Remove" />;
+const Loading = () => (
+  <div className="p-8 text-center text-gray-500">Loading...</div>
+);
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -33,13 +32,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <BrowserRouter>
         <Routes>
           <Route element={<Layout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/recipe/:id" element={<RecipePage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/tag/:tag" element={<TagPage />} />
-            <Route path="/cuisine/:cuisine" element={<CuisinePage />} />
-            <Route path="/site/:domain" element={<DomainPage />} />
-            <Route path="/remove" element={<RemovePage />} />
+            <Route path="/" element={<Suspense fallback={<Loading />}><HomePage /></Suspense>} />
+            <Route path="/recipe/:id" element={<Suspense fallback={<Loading />}><RecipePage /></Suspense>} />
+            <Route path="/search" element={<Suspense fallback={<Loading />}><SearchPage /></Suspense>} />
+            <Route path="/tag/:tag" element={<Suspense fallback={<Loading />}><TagPage /></Suspense>} />
+            <Route path="/cuisine/:cuisine" element={<Suspense fallback={<Loading />}><CuisinePage /></Suspense>} />
+            <Route path="/site/:domain" element={<Suspense fallback={<Loading />}><DomainPage /></Suspense>} />
+            <Route path="/remove" element={<Suspense fallback={<Loading />}><RemovePage /></Suspense>} />
           </Route>
         </Routes>
       </BrowserRouter>
