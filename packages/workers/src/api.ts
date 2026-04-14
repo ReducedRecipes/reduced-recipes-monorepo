@@ -4,6 +4,22 @@ import type { Env, RecipeDocument, RecipeSummary } from '@rr/shared';
 
 const app = new Hono<{ Bindings: Env }>();
 
+/** Map a D1 row to a RecipeSummary (without tags). */
+function toRecipeSummary(row: Record<string, unknown>, tags: string[] = []): RecipeSummary {
+  return {
+    id: row.id as string,
+    title: row.title as string,
+    domain: row.domain as string,
+    image_url: (row.image_url as string) ?? null,
+    total_time: (row.total_time as number) ?? null,
+    cook_time: (row.cook_time as number) ?? null,
+    yields: (row.yields as string) ?? null,
+    cuisine: (row.cuisine as string) ?? null,
+    category: (row.category as string) ?? null,
+    tags,
+  };
+}
+
 // ── CORS ────────────────────────────────────────────────────────────────
 app.use(
   '*',
@@ -106,18 +122,8 @@ app.get('/api/v1/recipes', async (c) => {
   for (const row of rows) {
     const r = row as Record<string, unknown>;
     const tagResult = await c.env.DB.prepare('SELECT tag FROM recipe_tags WHERE recipe_id = ?').bind(r.id).all();
-    items.push({
-      id: r.id as string,
-      title: r.title as string,
-      domain: r.domain as string,
-      image_url: (r.image_url as string) || null,
-      total_time: (r.total_time as number) ?? null,
-      cook_time: (r.cook_time as number) ?? null,
-      yields: (r.yields as string) || null,
-      cuisine: (r.cuisine as string) || null,
-      category: (r.category as string) || null,
-      tags: (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined),
-    });
+    const tags = (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined);
+    items.push(toRecipeSummary(r, tags));
   }
 
   return c.json({ items, next_cursor });
@@ -211,18 +217,8 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
   for (const row of rows) {
     const r = row as Record<string, unknown>;
     const tagResult = await c.env.DB.prepare('SELECT tag FROM recipe_tags WHERE recipe_id = ?').bind(r.id).all();
-    items.push({
-      id: r.id as string,
-      title: r.title as string,
-      domain: r.domain as string,
-      image_url: (r.image_url as string) || null,
-      total_time: (r.total_time as number) ?? null,
-      cook_time: (r.cook_time as number) ?? null,
-      yields: (r.yields as string) || null,
-      cuisine: (r.cuisine as string) || null,
-      category: (r.category as string) || null,
-      tags: (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined),
-    });
+    const tags = (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined);
+    items.push(toRecipeSummary(r, tags));
   }
 
   return c.json({ items, next_cursor });
@@ -258,18 +254,7 @@ app.get('/api/v1/search', async (c) => {
     .bind(sanitized, limit)
     .all();
 
-  const items: RecipeSummary[] = (results ?? []).map((row: Record<string, unknown>) => ({
-    id: row.id as string,
-    title: row.title as string,
-    domain: row.domain as string,
-    image_url: (row.image_url as string) ?? null,
-    total_time: (row.total_time as number) ?? null,
-    cook_time: (row.cook_time as number) ?? null,
-    yields: (row.yields as string) ?? null,
-    cuisine: (row.cuisine as string) ?? null,
-    category: (row.category as string) ?? null,
-    tags: [],
-  }));
+  const items: RecipeSummary[] = (results ?? []).map((row: Record<string, unknown>) => toRecipeSummary(row));
 
   return c.json(items);
 });
