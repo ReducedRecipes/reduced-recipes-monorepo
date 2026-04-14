@@ -118,7 +118,9 @@ describe('DLQ Worker', () => {
     await dlq.queue(batch, env);
 
     expect(consoleSpy).toHaveBeenCalledOnce();
-    const logged = JSON.parse(consoleSpy.mock.calls[0][0] as string);
+    const firstCall = consoleSpy.mock.calls[0];
+    if (!firstCall) throw new Error('Expected console.error to have been called');
+    const logged = JSON.parse(firstCall[0] as string);
     expect(logged).toMatchObject({
       level: 'error',
       queue: 'parse-dlq',
