@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env, RecipeDocument } from '@rr/shared';
+import type { Env, RecipeDocument, RecipeSummary } from '@rr/shared';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -48,6 +48,184 @@ app.get('/api/v1/recipes/:id', async (c) => {
   return c.json(doc, 200, {
     'Cache-Control': 'public, max-age=3600, s-maxage=86400',
   });
+});
+
+// ── List recipes ─────────────────────────────────────────────────────────
+app.get('/api/v1/recipes', async (c) => {
+  const { tag, domain, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
+  const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
+
+  const conditions: string[] = [];
+  const params: (string | number)[] = [];
+
+  if (domain) {
+    conditions.push('r.domain = ?');
+    params.push(domain);
+  }
+  if (cuisine) {
+    conditions.push('r.cuisine = ?');
+    params.push(cuisine);
+  }
+  if (max_time) {
+    conditions.push('r.total_time <= ?');
+    params.push(parseInt(max_time, 10));
+  }
+  if (min_time) {
+    conditions.push('r.total_time >= ?');
+    params.push(parseInt(min_time, 10));
+  }
+  if (cursor) {
+    conditions.push('r.extracted_at < ?');
+    params.push(cursor);
+  }
+
+  let joinClause = '';
+  if (tag) {
+    joinClause = 'JOIN recipe_tags rt ON rt.recipe_id = r.id';
+    conditions.push('rt.tag = ?');
+    params.push(tag);
+  }
+
+  const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
+
+  const sql = `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY r.extracted_at DESC LIMIT ?`;
+  params.push(limit + 1);
+
+  const result = await c.env.DB.prepare(sql).bind(...params).all();
+  const rows = result.results || [];
+
+  let next_cursor: string | null = null;
+  if (rows.length > limit) {
+    rows.pop();
+    const lastRow = rows[rows.length - 1] as Record<string, unknown>;
+    next_cursor = lastRow.extracted_at as string;
+  }
+
+  // Attach tags to each recipe
+  const items: RecipeSummary[] = [];
+  for (const row of rows) {
+    const r = row as Record<string, unknown>;
+    const tagResult = await c.env.DB.prepare('SELECT tag FROM recipe_tags WHERE recipe_id = ?').bind(r.id).all();
+    items.push({
+      id: r.id as string,
+      title: r.title as string,
+      domain: r.domain as string,
+      image_url: (r.image_url as string) || null,
+      total_time: (r.total_time as number) ?? null,
+      cook_time: (r.cook_time as number) ?? null,
+      yields: (r.yields as string) || null,
+      cuisine: (r.cuisine as string) || null,
+      category: (r.category as string) || null,
+      tags: (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined),
+    });
+  }
+
+  return c.json({ items, next_cursor });
+});
+
+// ── Tags ─────────────────────────────────────────────────────────────────
+app.get('/api/v1/tags', async (c) => {
+  const result = await c.env.DB.prepare(
+    'SELECT tag, COUNT(*) as count FROM recipe_tags GROUP BY tag ORDER BY count DESC LIMIT 200',
+  ).all();
+
+  const tags = (result.results || []).map((r) => {
+    const row = r as Record<string, unknown>;
+    return { tag: row.tag as string, count: row.count as number };
+  });
+
+  return c.json(tags, 200, {
+    'Cache-Control': 'public, max-age=3600',
+  });
+});
+
+// ── Domains ──────────────────────────────────────────────────────────────
+app.get('/api/v1/domains', async (c) => {
+  const result = await c.env.DB.prepare(
+    'SELECT domain, recipe_count, last_spidered FROM domains WHERE active=1 ORDER BY recipe_count DESC',
+  ).all();
+
+  const domains = (result.results || []).map((r) => {
+    const row = r as Record<string, unknown>;
+    return {
+      domain: row.domain as string,
+      recipe_count: row.recipe_count as number,
+      last_spidered: row.last_spidered as string,
+    };
+  });
+
+  return c.json(domains, 200, {
+    'Cache-Control': 'public, max-age=3600',
+  });
+});
+
+// ── Domain recipes ───────────────────────────────────────────────────────
+app.get('/api/v1/domains/:domain/recipes', async (c) => {
+  const domain = c.req.param('domain');
+  const { tag, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
+  const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
+
+  const conditions: string[] = ['r.domain = ?'];
+  const params: (string | number)[] = [domain];
+
+  if (cuisine) {
+    conditions.push('r.cuisine = ?');
+    params.push(cuisine);
+  }
+  if (max_time) {
+    conditions.push('r.total_time <= ?');
+    params.push(parseInt(max_time, 10));
+  }
+  if (min_time) {
+    conditions.push('r.total_time >= ?');
+    params.push(parseInt(min_time, 10));
+  }
+  if (cursor) {
+    conditions.push('r.extracted_at < ?');
+    params.push(cursor);
+  }
+
+  let joinClause = '';
+  if (tag) {
+    joinClause = 'JOIN recipe_tags rt ON rt.recipe_id = r.id';
+    conditions.push('rt.tag = ?');
+    params.push(tag);
+  }
+
+  const whereClause = `WHERE ${conditions.join(' AND ')}`;
+
+  const sql = `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY r.extracted_at DESC LIMIT ?`;
+  params.push(limit + 1);
+
+  const result = await c.env.DB.prepare(sql).bind(...params).all();
+  const rows = result.results || [];
+
+  let next_cursor: string | null = null;
+  if (rows.length > limit) {
+    rows.pop();
+    const lastRow = rows[rows.length - 1] as Record<string, unknown>;
+    next_cursor = lastRow.extracted_at as string;
+  }
+
+  const items: RecipeSummary[] = [];
+  for (const row of rows) {
+    const r = row as Record<string, unknown>;
+    const tagResult = await c.env.DB.prepare('SELECT tag FROM recipe_tags WHERE recipe_id = ?').bind(r.id).all();
+    items.push({
+      id: r.id as string,
+      title: r.title as string,
+      domain: r.domain as string,
+      image_url: (r.image_url as string) || null,
+      total_time: (r.total_time as number) ?? null,
+      cook_time: (r.cook_time as number) ?? null,
+      yields: (r.yields as string) || null,
+      cuisine: (r.cuisine as string) || null,
+      category: (r.category as string) || null,
+      tags: (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined),
+    });
+  }
+
+  return c.json({ items, next_cursor });
 });
 
 // ── Global error handler ────────────────────────────────────────────────
