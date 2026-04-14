@@ -25,6 +25,7 @@
     "dev:parser": "wrangler dev -c wrangler.parser.toml",
     "dev:projection": "wrangler dev -c wrangler.projection.toml",
     "dev:dlq": "wrangler dev -c wrangler.dlq.toml",
+    "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit"
   }
 }
