@@ -13,6 +13,7 @@
   "files": ["src"],
   "scripts": {
     "build": "tsc --noEmit",
+    "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

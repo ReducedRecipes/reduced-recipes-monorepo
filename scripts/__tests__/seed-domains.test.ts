@@ -1,9 +1,4 @@
-/**
- * Basic validation tests for seed-domains.ts logic.
- * Run with: pnpm tsx scripts/__tests__/seed-domains.test.ts
- */
-
-// ---- Inline the domain list and SQL builder so we can test without side effects ----
+import { describe, it, expect } from 'vitest';
 
 interface SeedDomain {
   domain: string;
@@ -40,74 +35,65 @@ function buildInsertSQL(domains: SeedDomain[]): string {
   return `INSERT OR IGNORE INTO domains (domain, sitemap_url, crawl_delay_ms, active, recipe_count) VALUES\n  ${rows};`;
 }
 
-// ---- Tests ----
+describe('seed-domains', () => {
+  describe('domain data', () => {
+    it('should have exactly 15 seed domains', () => {
+      expect(SEED_DOMAINS).toHaveLength(15);
+    });
 
-let passed = 0;
-let failed = 0;
+    it('should have all unique domains', () => {
+      const uniqueDomains = new Set(SEED_DOMAINS.map((d) => d.domain));
+      expect(uniqueDomains.size).toBe(15);
+    });
 
-function assert(condition: boolean, message: string): void {
-  if (condition) {
-    passed++;
-    console.log(`  ✓ ${message}`);
-  } else {
-    failed++;
-    console.error(`  ✗ ${message}`);
-  }
-}
+    it('should have all sitemap_urls ending with /sitemap.xml', () => {
+      for (const d of SEED_DOMAINS) {
+        expect(d.sitemap_url).toMatch(/\/sitemap\.xml$/);
+      }
+    });
 
-console.log("seed-domains tests\n");
+    it('should have all sitemap_urls using HTTPS', () => {
+      for (const d of SEED_DOMAINS) {
+        expect(d.sitemap_url).toMatch(/^https:\/\//);
+      }
+    });
 
-// Test: Correct number of domains
-assert(SEED_DOMAINS.length === 15, "Should have exactly 15 seed domains");
+    it('should have all crawl_delay_ms set to 2000', () => {
+      for (const d of SEED_DOMAINS) {
+        expect(d.crawl_delay_ms).toBe(2000);
+      }
+    });
 
-// Test: All domains are unique
-const uniqueDomains = new Set(SEED_DOMAINS.map((d) => d.domain));
-assert(uniqueDomains.size === 15, "All domains should be unique");
+    it('should contain all required domains', () => {
+      const domains = new Set(SEED_DOMAINS.map((d) => d.domain));
+      const required = [
+        "seriouseats.com", "allrecipes.com", "budgetbytes.com",
+        "minimalistbaker.com", "smittenkitchen.com", "cookieandkate.com",
+        "food52.com", "bonappetit.com", "epicurious.com", "simplyrecipes.com",
+        "loveandlemons.com", "pinchofyum.com", "halfbakedharvest.com",
+        "damndelicious.com", "thepioneerwoman.com",
+      ];
+      for (const rd of required) {
+        expect(domains.has(rd)).toBe(true);
+      }
+    });
+  });
 
-// Test: All sitemap_urls end with /sitemap.xml
-assert(
-  SEED_DOMAINS.every((d) => d.sitemap_url.endsWith("/sitemap.xml")),
-  "All sitemap_urls should end with /sitemap.xml"
-);
+  describe('buildInsertSQL', () => {
+    const sql = buildInsertSQL(SEED_DOMAINS);
 
-// Test: All sitemap_urls start with https://
-assert(
-  SEED_DOMAINS.every((d) => d.sitemap_url.startsWith("https://")),
-  "All sitemap_urls should use HTTPS"
-);
+    it('should use INSERT OR IGNORE for idempotency', () => {
+      expect(sql).toContain('INSERT OR IGNORE');
+    });
 
-// Test: All crawl_delay_ms are 2000
-assert(
-  SEED_DOMAINS.every((d) => d.crawl_delay_ms === 2000),
-  "All crawl_delay_ms should be 2000"
-);
+    it('should reference correct table and columns', () => {
+      expect(sql).toContain('INTO domains (domain, sitemap_url, crawl_delay_ms, active, recipe_count)');
+    });
 
-// Test: SQL contains INSERT OR IGNORE
-const sql = buildInsertSQL(SEED_DOMAINS);
-assert(sql.includes("INSERT OR IGNORE"), "SQL should use INSERT OR IGNORE for idempotency");
-
-// Test: SQL references correct table and columns
-assert(
-  sql.includes("INTO domains (domain, sitemap_url, crawl_delay_ms, active, recipe_count)"),
-  "SQL should insert into correct columns"
-);
-
-// Test: SQL contains all 15 domains
-for (const d of SEED_DOMAINS) {
-  assert(sql.includes(`'${d.domain}'`), `SQL should contain domain '${d.domain}'`);
-}
-
-// Test: Required domains from spec are present
-const requiredDomains = [
-  "seriouseats.com", "allrecipes.com", "budgetbytes.com",
-  "minimalistbaker.com", "smittenkitchen.com", "cookieandkate.com",
-  "food52.com", "bonappetit.com", "epicurious.com", "simplyrecipes.com",
-  "loveandlemons.com", "pinchofyum.com", "halfbakedharvest.com",
-  "damndelicious.com", "thepioneerwoman.com",
-];
-for (const rd of requiredDomains) {
-  assert(uniqueDomains.has(rd), `Required domain '${rd}' should be in seed list`);
-}
-
-console.log(`\nResults: ${passed} passed, ${failed} failed`);
-if (failed > 0) process.exit(1);
+    it('should contain all 15 domains in the SQL', () => {
+      for (const d of SEED_DOMAINS) {
+        expect(sql).toContain(`'${d.domain}'`);
+      }
+    });
+  });
+});
