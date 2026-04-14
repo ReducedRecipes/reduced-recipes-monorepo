@@ -1,0 +1,25 @@
+{
+  "name": "@rr/workers",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "hono": "^4.3",
+    "@rr/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240512",
+    "wrangler": "^3.50"
+  },
+  "scripts": {
+    "deploy": "pnpm run deploy:api && pnpm run deploy:orchestrator && pnpm run deploy:crawler && pnpm run deploy:parser && pnpm run deploy:projection && pnpm run deploy:dlq",
+    "deploy:api": "wrangler deploy -c wrangler.api.toml",
+    "deploy:orchestrator": "wrangler deploy -c wrangler.orchestrator.toml",
+    "deploy:crawler": "wrangler deploy -c wrangler.crawler.toml",
+    "deploy:parser": "wrangler deploy -c wrangler.parser.toml",
+    "deploy:projection": "wrangler deploy -c wrangler.projection.toml",
+    "deploy:dlq": "wrangler deploy -c wrangler.dlq.toml",
+    "dev:api": "wrangler dev -c wrangler.api.toml",
+    "typecheck": "tsc --noEmit"
+  }
+}
