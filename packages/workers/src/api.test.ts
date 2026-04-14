@@ -176,3 +176,145 @@ describe('GET /api/v1/domains/:domain/recipes', () => {
     expect(mainCall![0]).toContain('r.domain = ?');
   });
 });
+
+// ── S-8: Search, Admin, Remove tests ────────────────────────────────────
+
+function reqWithInit(path: string, env: ReturnType<typeof createEnv>, init?: RequestInit) {
+  return app.request(path, init, env);
+}
+
+describe('GET /api/v1/search', () => {
+  it('returns 400 for query shorter than 2 chars', async () => {
+    const env = createEnv();
+    const res = await reqWithInit('/api/v1/search?q=a', env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as any;
+    expect(body.error.code).toBe('INVALID_QUERY');
+  });
+
+  it('returns empty array for sanitized-empty query', async () => {
+    const env = createEnv();
+    const res = await reqWithInit('/api/v1/search?q=**', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body).toEqual([]);
+  });
+
+  it('returns search results from FTS', async () => {
+    const env = createEnv();
+    const ftsStmt = makeStmt([
+      { id: 'r1', title: 'Pasta', domain: 'test.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: 'Italian', category: 'Main' },
+    ]);
+    env.DB.prepare = vi.fn().mockReturnValue(ftsStmt);
+
+    const res = await reqWithInit('/api/v1/search?q=pasta', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body).toHaveLength(1);
+    expect(body[0].title).toBe('Pasta');
+    expect(body[0].tags).toEqual([]);
+  });
+
+  it('respects limit parameter capped at 50', async () => {
+    const env = createEnv();
+    const ftsStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockReturnValue(ftsStmt);
+
+    await reqWithInit('/api/v1/search?q=test&limit=100', env);
+    expect(ftsStmt.bind).toHaveBeenCalledWith(expect.any(String), 50);
+  });
+});
+
+describe('POST /api/v1/admin/seed', () => {
+  it('returns 401 without auth', async () => {
+    const env = createEnv();
+    const res = await reqWithInit('/api/v1/admin/seed', env, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ domain: 'example.com' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 401 with wrong token', async () => {
+    const env = createEnv();
+    const res = await reqWithInit('/api/v1/admin/seed', env, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer wrong' },
+      body: JSON.stringify({ domain: 'example.com' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('inserts domain with valid auth', async () => {
+    const env = createEnv();
+    const seedStmt = makeStmt();
+    env.DB.prepare = vi.fn().mockReturnValue(seedStmt);
+
+    const res = await reqWithInit('/api/v1/admin/seed', env, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer test-admin-token' },
+      body: JSON.stringify({ domain: 'example.com' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.ok).toBe(true);
+    expect(body.domain).toBe('example.com');
+    expect(seedStmt.run).toHaveBeenCalled();
+  });
+});
+
+describe('POST /api/v1/admin/rebuild', () => {
+  it('returns 401 without auth', async () => {
+    const env = createEnv();
+    const res = await reqWithInit('/api/v1/admin/rebuild', env, { method: 'POST' });
+    expect(res.status).toBe(401);
+  });
+
+  it('queues projection jobs for all KV keys', async () => {
+    const doc = JSON.stringify({ id: 'r1', title: 'Test' });
+    const env = createEnv();
+    env.RECIPES_KV.list = vi.fn().mockResolvedValue({
+      keys: [{ name: 'recipe:r1' }, { name: 'recipe:r2' }],
+      list_complete: true,
+    });
+    env.RECIPES_KV.get = vi.fn().mockResolvedValue(doc);
+
+    const res = await reqWithInit('/api/v1/admin/rebuild', env, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer test-admin-token' },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.queued).toBe(2);
+    expect(env.PROJECTION_QUEUE.send).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('POST /api/v1/remove', () => {
+  it('returns 400 for missing fields', async () => {
+    const env = createEnv();
+    const res = await reqWithInit('/api/v1/remove', env, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://example.com' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('accepts valid removal request', async () => {
+    const env = createEnv();
+    const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+
+    const res = await reqWithInit('/api/v1/remove', env, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: 'https://example.com/recipe', email: 'test@test.com', reason: 'copyright' }),
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.ok).toBe(true);
+    expect(consoleSpy).toHaveBeenCalledWith('REMOVAL_REQUEST', expect.any(String));
+    consoleSpy.mockRestore();
+  });
+});

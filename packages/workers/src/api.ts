@@ -228,6 +228,123 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
   return c.json({ items, next_cursor });
 });
 
+// ── Search ────────────────────────────────────────────────────────────
+app.get('/api/v1/search', async (c) => {
+  const q = c.req.query('q') ?? '';
+  const limitParam = c.req.query('limit');
+  const limit = Math.min(Math.max(parseInt(limitParam ?? '20', 10) || 20, 1), 50);
+
+  if (q.length < 2) {
+    return c.json(
+      { error: { code: 'INVALID_QUERY', message: 'Query must be at least 2 characters' } },
+      400,
+    );
+  }
+
+  const sanitized = q.replace(/[*"():^~]/g, '').trim();
+  if (!sanitized) {
+    return c.json([], 200);
+  }
+
+  const { results } = await c.env.DB.prepare(
+    `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
+            r.yields, r.cuisine, r.category
+     FROM recipes_fts fts
+     JOIN recipes r ON r.id = fts.id
+     WHERE recipes_fts MATCH ?1
+     LIMIT ?2`,
+  )
+    .bind(sanitized, limit)
+    .all();
+
+  const items: RecipeSummary[] = (results ?? []).map((row: Record<string, unknown>) => ({
+    id: row.id as string,
+    title: row.title as string,
+    domain: row.domain as string,
+    image_url: (row.image_url as string) ?? null,
+    total_time: (row.total_time as number) ?? null,
+    cook_time: (row.cook_time as number) ?? null,
+    yields: (row.yields as string) ?? null,
+    cuisine: (row.cuisine as string) ?? null,
+    category: (row.category as string) ?? null,
+    tags: [],
+  }));
+
+  return c.json(items);
+});
+
+// ── Admin: Seed domain ────────────────────────────────────────────────
+app.post('/api/v1/admin/seed', async (c) => {
+  const authHeader = c.req.header('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token || token !== c.env.ADMIN_TOKEN) {
+    return c.json({ error: { code: 401, message: 'Unauthorized' } }, 401);
+  }
+
+  const body = await c.req.json<{
+    domain: string;
+    sitemap_url?: string;
+    crawl_delay_ms?: number;
+  }>();
+
+  if (!body.domain) {
+    return c.json({ error: { code: 'INVALID_INPUT', message: 'domain is required' } }, 400);
+  }
+
+  await c.env.DB.prepare(
+    'INSERT OR IGNORE INTO domains (domain, sitemap_url, crawl_delay_ms, recipe_count, active) VALUES (?1, ?2, ?3, 0, 1)',
+  )
+    .bind(body.domain, body.sitemap_url ?? null, body.crawl_delay_ms ?? null)
+    .run();
+
+  return c.json({ ok: true, domain: body.domain });
+});
+
+// ── Admin: Rebuild projections ────────────────────────────────────────
+app.post('/api/v1/admin/rebuild', async (c) => {
+  const authHeader = c.req.header('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token || token !== c.env.ADMIN_TOKEN) {
+    return c.json({ error: { code: 401, message: 'Unauthorized' } }, 401);
+  }
+
+  let cursor: string | null = null;
+  let queued = 0;
+
+  do {
+    const opts: KVNamespaceListOptions = { prefix: 'recipe:', limit: 100 };
+    if (cursor) opts.cursor = cursor;
+    const list = await c.env.RECIPES_KV.list(opts);
+    for (const key of list.keys) {
+      const value = await c.env.RECIPES_KV.get(key.name, 'text');
+      if (value) {
+        const doc: RecipeDocument = JSON.parse(value);
+        const id = key.name.replace('recipe:', '');
+        await c.env.PROJECTION_QUEUE.send({ id, doc });
+        queued++;
+      }
+    }
+    cursor = list.list_complete ? null : list.cursor;
+  } while (cursor);
+
+  return c.json({ ok: true, queued });
+});
+
+// ── Removal request ──────────────────────────────────────────────────
+app.post('/api/v1/remove', async (c) => {
+  const body = await c.req.json<{ url: string; email: string; reason: string }>();
+
+  if (!body.url || !body.email) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: 'url and email are required' } },
+      400,
+    );
+  }
+
+  console.log('REMOVAL_REQUEST', JSON.stringify(body));
+  return c.json({ ok: true, message: 'Removal request received. We will review it shortly.' });
+});
+
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
   console.error('Unhandled error:', err);
