@@ -1,0 +1,13 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "rootDir": "src",
+    "types": ["@cloudflare/workers-types"],
+    "paths": {
+      "@rr/shared": ["../shared/src/types"],
+      "@rr/shared/*": ["../shared/src/*"]
+    }
+  },
+  "include": ["src"]
+}
