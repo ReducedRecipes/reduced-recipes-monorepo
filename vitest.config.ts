@@ -11,6 +11,7 @@ export default defineConfig({
       { find: '@rr/shared/utils', replacement: path.resolve(__dirname, 'packages/shared/src/utils') },
       { find: '@rr/shared', replacement: path.resolve(__dirname, 'packages/shared/src/types') },
       { find: 'react-native-mmkv', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/react-native-mmkv') },
+      { find: /^@\/(.*)/, replacement: path.resolve(__dirname, 'packages/mobile/src/$1') },
     ],
   },
   test: {
