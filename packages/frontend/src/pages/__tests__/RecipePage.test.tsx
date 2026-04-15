@@ -91,10 +91,12 @@ describe("RecipePage", () => {
     renderPage();
     await screen.findByText("Chocolate Cake");
     const checkboxes = screen.getAllByRole("checkbox");
-    fireEvent.click(checkboxes[0]);
-    expect((checkboxes[0] as HTMLInputElement).checked).toBe(true);
-    fireEvent.click(checkboxes[0]);
-    expect((checkboxes[0] as HTMLInputElement).checked).toBe(false);
+    const firstCheckbox = checkboxes[0] as HTMLInputElement;
+    expect(firstCheckbox).toBeDefined();
+    fireEvent.click(firstCheckbox);
+    expect(firstCheckbox.checked).toBe(true);
+    fireEvent.click(firstCheckbox);
+    expect(firstCheckbox.checked).toBe(false);
   });
 
   it("renders numbered instructions", async () => {
