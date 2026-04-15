@@ -46,7 +46,7 @@ describe("useSearch", () => {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data?.pages[0].items).toEqual([mockItem]);
+    expect(result.current.data?.pages[0]?.items).toEqual([mockItem]);
     expect(mockSearchRecipes).toHaveBeenCalledWith("pasta", 24, 0);
   });
 
