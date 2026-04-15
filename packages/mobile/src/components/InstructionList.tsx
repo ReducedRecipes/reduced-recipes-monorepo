@@ -12,7 +12,7 @@ export function InstructionList({ instructions }: InstructionListProps) {
         <View
           key={index}
           className="flex-row mb-4"
-          accessibilityRole="listitem"
+          accessibilityRole="summary"
           accessibilityLabel={`Step ${index + 1}: ${step}`}
         >
           <View className="w-7 h-7 rounded-full bg-orange items-center justify-center mr-3 mt-0.5">

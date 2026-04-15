@@ -8,16 +8,16 @@ export function parseQuantity(ingredient: string): {
   );
   if (!match) return { quantity: null, rest: ingredient };
 
-  const raw = match[1];
+  const raw = match[1]!;
   let value: number;
 
   if (raw.includes(" ") && raw.includes("/")) {
     // mixed number e.g. "1 1/2"
-    const [whole, frac] = raw.split(/\s+/);
-    const [num, den] = frac.split("/").map(Number);
+    const [whole, frac] = raw.split(/\s+/) as [string, string];
+    const [num, den] = frac.split("/").map(Number) as [number, number];
     value = Number(whole) + num / den;
   } else if (raw.includes("/")) {
-    const [num, den] = raw.split("/").map(Number);
+    const [num, den] = raw.split("/").map(Number) as [number, number];
     value = num / den;
   } else {
     value = Number(raw);

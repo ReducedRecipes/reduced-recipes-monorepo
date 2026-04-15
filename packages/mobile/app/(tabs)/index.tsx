@@ -97,15 +97,22 @@ export default function HomeScreen() {
     return ids;
   }, [featured.data, quickEasy.data, recent.data, isSaved]);
 
+  const allRecipesList = useMemo(() => [
+    ...(featured.data?.pages.flatMap((p) => p.items) ?? []),
+    ...(quickEasy.data?.pages.flatMap((p) => p.items) ?? []),
+    ...(recent.data?.pages.flatMap((p) => p.items) ?? []),
+  ], [featured.data, quickEasy.data, recent.data]);
+
   const handleToggleBookmark = useCallback(
     (id: string) => {
       if (isSaved(id)) {
         unsave(id);
       } else {
-        save(id);
+        const recipe = allRecipesList.find((r) => r.id === id);
+        if (recipe) save(recipe);
       }
     },
-    [isSaved, save, unsave],
+    [isSaved, save, unsave, allRecipesList],
   );
 
   const isLoading = featured.isLoading || quickEasy.isLoading || recent.isLoading;

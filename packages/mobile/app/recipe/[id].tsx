@@ -10,7 +10,6 @@ import {
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { useSQLiteContext } from "expo-sqlite";
 
 import { useRecipe } from "@/hooks/useRecipe";
 import { useSavedRecipes } from "@/hooks/useSavedRecipes";
@@ -31,9 +30,8 @@ const HEADER_FADE_DISTANCE = 120;
 export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const db = useSQLiteContext();
   const { data: recipe, isLoading, error, refetch } = useRecipe(id ?? "");
-  const { isSaved, save, unsave } = useSavedRecipes({ db });
+  const { isSaved, save, unsave } = useSavedRecipes();
   const [activeTab, setActiveTab] = useState<Tab>("ingredients");
 
   const scrollY = useRef(new Animated.Value(0)).current;

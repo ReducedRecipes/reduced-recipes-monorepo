@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
+const mockDb = {};
+
 vi.mock("../../db/queries", () => ({
   upsertRecipe: vi.fn().mockResolvedValue(undefined),
   deleteRecipe: vi.fn().mockResolvedValue(undefined),
@@ -9,16 +11,15 @@ vi.mock("../../lib/haptics", () => ({
   triggerHaptic: vi.fn().mockResolvedValue(undefined),
 }));
 
-vi.mock("expo-sqlite", () => ({}));
+vi.mock("expo-sqlite", () => ({
+  useSQLiteContext: () => mockDb,
+}));
 
 import { useSavedStore } from "../../stores/saved.store";
 import { upsertRecipe, deleteRecipe } from "../../db/queries";
 import { triggerHaptic } from "../../lib/haptics";
 import { useSavedRecipes } from "../useSavedRecipes";
 import type { RecipeDocument } from "@rr/shared";
-import type { SQLiteDatabase } from "expo-sqlite";
-
-const mockDb = {} as SQLiteDatabase;
 
 const mockRecipe: RecipeDocument = {
   id: "recipe-1",
@@ -53,7 +54,7 @@ describe("useSavedRecipes", () => {
   });
 
   it("returns isSaved, save, and unsave functions", () => {
-    const result = useSavedRecipes({ db: mockDb });
+    const result = useSavedRecipes();
     expect(typeof result.isSaved).toBe("function");
     expect(typeof result.save).toBe("function");
     expect(typeof result.unsave).toBe("function");
@@ -62,7 +63,7 @@ describe("useSavedRecipes", () => {
   describe("isSaved", () => {
     it("delegates to the saved store", () => {
       useSavedStore.getState().addId("recipe-1");
-      const { isSaved } = useSavedRecipes({ db: mockDb });
+      const { isSaved } = useSavedRecipes();
       expect(isSaved("recipe-1")).toBe(true);
       expect(isSaved("recipe-2")).toBe(false);
     });
@@ -70,7 +71,7 @@ describe("useSavedRecipes", () => {
 
   describe("save", () => {
     it("inserts recipe into SQLite and adds to store", async () => {
-      const { save } = useSavedRecipes({ db: mockDb });
+      const { save } = useSavedRecipes();
       await save(mockRecipe);
 
       expect(upsertRecipe).toHaveBeenCalledWith(mockDb, mockRecipe);
@@ -78,7 +79,7 @@ describe("useSavedRecipes", () => {
     });
 
     it("triggers haptic feedback", async () => {
-      const { save } = useSavedRecipes({ db: mockDb });
+      const { save } = useSavedRecipes();
       await save(mockRecipe);
 
       expect(triggerHaptic).toHaveBeenCalledWith("medium");
@@ -88,7 +89,7 @@ describe("useSavedRecipes", () => {
   describe("unsave", () => {
     it("deletes from SQLite and removes from store", async () => {
       useSavedStore.getState().addId("recipe-1");
-      const { unsave } = useSavedRecipes({ db: mockDb });
+      const { unsave } = useSavedRecipes();
       await unsave("recipe-1");
 
       expect(deleteRecipe).toHaveBeenCalledWith(mockDb, "recipe-1");
@@ -96,7 +97,7 @@ describe("useSavedRecipes", () => {
     });
 
     it("triggers haptic feedback", async () => {
-      const { unsave } = useSavedRecipes({ db: mockDb });
+      const { unsave } = useSavedRecipes();
       await unsave("recipe-1");
 
       expect(triggerHaptic).toHaveBeenCalledWith("light");

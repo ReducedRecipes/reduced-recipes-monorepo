@@ -45,7 +45,7 @@ export default function SavedScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const savedIds = useSavedStore((s) => s.ids);
-  const { unsave } = useSavedRecipes({ db });
+  const { unsave } = useSavedRecipes();
 
   const loadSaved = useCallback(async () => {
     try {

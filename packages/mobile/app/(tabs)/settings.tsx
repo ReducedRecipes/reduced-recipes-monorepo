@@ -46,12 +46,14 @@ export default function SettingsScreen() {
 
   const cycleTextSize = () => {
     const idx = TEXT_SIZE_ORDER.indexOf(textSize);
-    setTextSize(TEXT_SIZE_ORDER[(idx + 1) % TEXT_SIZE_ORDER.length]);
+    const next = TEXT_SIZE_ORDER[(idx + 1) % TEXT_SIZE_ORDER.length] ?? 'md';
+    setTextSize(next);
   };
 
   const cycleTheme = () => {
     const idx = THEME_ORDER.indexOf(theme);
-    setTheme(THEME_ORDER[(idx + 1) % THEME_ORDER.length]);
+    const next = THEME_ORDER[(idx + 1) % THEME_ORDER.length] ?? 'system';
+    setTheme(next);
   };
 
   const handleClearCache = () => {

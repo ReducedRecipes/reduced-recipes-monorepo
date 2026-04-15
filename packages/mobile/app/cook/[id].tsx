@@ -18,9 +18,9 @@ import { useEffect } from "react";
 /** Extract a duration in seconds from step text (e.g. "cook for 5 minutes"). */
 function parseTimerSeconds(text: string): number | undefined {
   const match = text.match(/(\d+)\s*(?:-\s*\d+\s*)?minute/i);
-  if (match) return parseInt(match[1], 10) * 60;
+  if (match?.[1]) return parseInt(match[1], 10) * 60;
   const secMatch = text.match(/(\d+)\s*(?:-\s*\d+\s*)?second/i);
-  if (secMatch) return parseInt(secMatch[1], 10);
+  if (secMatch?.[1]) return parseInt(secMatch[1], 10);
   return undefined;
 }
 
