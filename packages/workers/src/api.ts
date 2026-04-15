@@ -24,7 +24,7 @@ function toRecipeSummary(row: Record<string, unknown>, tags: string[] = []): Rec
 app.use(
   '*',
   cors({
-    origin: ['https://reducedrecipes.com', 'http://localhost:5173'],
+    origin: ['https://reducedrecipes.com', 'https://reduced-recipes.pages.dev', 'http://localhost:5173'],
     allowMethods: ['GET', 'POST'],
     maxAge: 86400,
   }),
