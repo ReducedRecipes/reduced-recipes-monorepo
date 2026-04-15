@@ -14,8 +14,13 @@
     },
     "assetBundlePatterns": ["**/*"],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.reducedrecipes.app",
+      "buildNumber": "1",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Used for voice-guided cooking instructions.",
+        "NSUserNotificationUsageDescription": "Get notified when new recipes are added from your saved sites."
+      },
       "associatedDomains": [
         "applinks:reducedrecipes.com",
         "webcredentials:reducedrecipes.com"
@@ -27,6 +32,11 @@
         "backgroundColor": "#FAFAF8"
       },
       "package": "com.reducedrecipes.app",
+      "versionCode": 1,
+      "permissions": [
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
       "intentFilters": [
         {
           "action": "VIEW",
@@ -77,7 +87,8 @@
       ]
     ],
     "updates": {
-      "checkOnLaunch": "ALWAYS",
+      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID",
+      "checkOnLaunch": "EAGER",
       "fallbackToCacheTimeout": 0
     },
     "runtimeVersion": {

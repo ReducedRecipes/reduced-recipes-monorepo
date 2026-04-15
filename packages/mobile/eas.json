@@ -1,6 +1,6 @@
 {
   "cli": {
-    "version": ">= 8.0.0",
+    "version": ">= 10.0.0",
     "appVersionSource": "remote"
   },
   "build": {
@@ -11,7 +11,8 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE": "http://localhost:8787"
+        "EXPO_PUBLIC_API_BASE": "http://localhost:8787",
+        "EXPO_PUBLIC_ENVIRONMENT": "development"
       }
     },
     "preview": {
@@ -23,7 +24,8 @@
         "resourceClass": "m1-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://reducedrecipes.com"
+        "EXPO_PUBLIC_API_BASE": "https://reducedrecipes.com",
+        "EXPO_PUBLIC_ENVIRONMENT": "preview"
       },
       "channel": "preview"
     },
@@ -36,7 +38,8 @@
         "resourceClass": "m1-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_BASE": "https://reducedrecipes.com"
+        "EXPO_PUBLIC_API_BASE": "https://reducedrecipes.com",
+        "EXPO_PUBLIC_ENVIRONMENT": "production"
       },
       "channel": "production"
     }
@@ -51,6 +54,14 @@
         "serviceAccountKeyPath": "./google-services.json",
         "track": "internal"
       }
+    }
+  },
+  "update": {
+    "production": {
+      "channel": "production"
+    },
+    "preview": {
+      "channel": "preview"
     }
   }
 }
