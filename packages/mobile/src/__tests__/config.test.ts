@@ -79,21 +79,21 @@ describe('eas.json', () => {
     expect(dev.developmentClient).toBe(true);
     expect(dev.distribution).toBe('internal');
     expect(dev.ios.simulator).toBe(true);
-    expect(dev.env.EXPO_PUBLIC_API_URL).toBe('http://localhost:8787');
+    expect(dev.env.EXPO_PUBLIC_API_BASE).toBe('http://localhost:8787');
   });
 
   it('preview profile uses m1-medium and production API', () => {
     const preview = config.build.preview;
     expect(preview.distribution).toBe('internal');
     expect(preview.ios.resourceClass).toBe('m1-medium');
-    expect(preview.env.EXPO_PUBLIC_API_URL).toBe('https://api.reducedrecipes.com');
+    expect(preview.env.EXPO_PUBLIC_API_BASE).toBe('https://reducedrecipes.com');
     expect(preview.channel).toBe('preview');
   });
 
   it('production profile has autoIncrement', () => {
     const prod = config.build.production;
     expect(prod.autoIncrement).toBe(true);
-    expect(prod.env.EXPO_PUBLIC_API_URL).toBe('https://api.reducedrecipes.com');
+    expect(prod.env.EXPO_PUBLIC_API_BASE).toBe('https://reducedrecipes.com');
     expect(prod.channel).toBe('production');
   });
 
