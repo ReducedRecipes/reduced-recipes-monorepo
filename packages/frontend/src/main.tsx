@@ -3,20 +3,14 @@ import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Layout from "./components/Layout";
+import HomePage from "./pages/HomePage";
+import RecipePage from "./pages/RecipePage";
+import SearchPage from "./pages/SearchPage";
+import TagPage from "./pages/TagPage";
+import CuisinePage from "./pages/CuisinePage";
+import DomainPage from "./pages/DomainPage";
+import RemovePage from "./pages/RemovePage";
 import "./index.css";
-
-// Lazy-loaded page placeholders (actual pages added in later stories)
-const Placeholder = ({ name }: { name: string }) => (
-  <div className="p-8 text-center text-gray-500">{name} — coming soon</div>
-);
-
-const HomePage = () => <Placeholder name="Home" />;
-const RecipePage = () => <Placeholder name="Recipe" />;
-const SearchPage = () => <Placeholder name="Search" />;
-const TagPage = () => <Placeholder name="Tag" />;
-const CuisinePage = () => <Placeholder name="Cuisine" />;
-const DomainPage = () => <Placeholder name="Domain" />;
-const RemovePage = () => <Placeholder name="Remove" />;
 
 const queryClient = new QueryClient({
   defaultOptions: {
