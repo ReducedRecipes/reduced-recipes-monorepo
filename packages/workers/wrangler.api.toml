@@ -6,6 +6,7 @@ compatibility_date = "2024-05-01"
 binding = "DB"
 database_id = "REPLACE_WITH_D1_ID"
 database_name = "reduced-recipes-prod"
+migrations_dir = "../../migrations"
 
 [[kv_namespaces]]
 binding = "RECIPES_KV"
