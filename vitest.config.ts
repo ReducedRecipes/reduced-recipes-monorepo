@@ -10,6 +10,7 @@ export default defineConfig({
       { find: '@rr/shared/rate-limit', replacement: path.resolve(__dirname, 'packages/shared/src/rate-limit') },
       { find: '@rr/shared/utils', replacement: path.resolve(__dirname, 'packages/shared/src/utils') },
       { find: '@rr/shared', replacement: path.resolve(__dirname, 'packages/shared/src/types') },
+      { find: 'react-native-mmkv', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/react-native-mmkv') },
     ],
   },
   test: {
