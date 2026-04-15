@@ -5,7 +5,7 @@ import { upsertRecipe, deleteRecipe } from "../db/queries";
 import { triggerHaptic } from "../lib/haptics";
 
 export interface UseSavedRecipesOptions {
-  db: SQLiteDatabase;
+  db?: SQLiteDatabase | null;
 }
 
 export interface UseSavedRecipesReturn {
@@ -17,19 +17,25 @@ export interface UseSavedRecipesReturn {
 /**
  * Hook combining the saved recipes store with SQLite operations and haptic feedback.
  */
-export function useSavedRecipes({ db }: UseSavedRecipesOptions): UseSavedRecipesReturn {
+export function useSavedRecipes(options?: UseSavedRecipesOptions): UseSavedRecipesReturn {
+  const db = options?.db;
+
   const isSaved = (id: string): boolean => {
     return useSavedStore.getState().isSaved(id);
   };
 
   const save = async (recipe: RecipeDocument): Promise<void> => {
-    await upsertRecipe(db, recipe);
+    if (db) {
+      await upsertRecipe(db, recipe);
+    }
     useSavedStore.getState().addId(recipe.id);
     await triggerHaptic("medium");
   };
 
   const unsave = async (id: string): Promise<void> => {
-    await deleteRecipe(db, id);
+    if (db) {
+      await deleteRecipe(db, id);
+    }
     useSavedStore.getState().removeId(id);
     await triggerHaptic("light");
   };

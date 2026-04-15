@@ -18,6 +18,12 @@ config.resolver.alias = {
   '@rr/shared': path.resolve(monorepoRoot, 'packages/shared/src/types.ts'),
 };
 
+// Force single React copy to avoid "Invalid hook call" errors
+config.resolver.extraNodeModules = {
+  react: path.resolve(monorepoRoot, 'node_modules/react'),
+  'react-native': path.resolve(monorepoRoot, 'node_modules/react-native'),
+};
+
 module.exports = withNativeWind(config, {
   input: './src/constants/global.css',
 });

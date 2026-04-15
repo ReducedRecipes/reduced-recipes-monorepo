@@ -1,16 +1,15 @@
-import { MMKV } from "react-native-mmkv";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { StateStorage } from "zustand/middleware";
-
-export const mmkv = new MMKV({ id: "rr-store" });
 
 export const mmkvStorage: StateStorage = {
   getItem(key: string): string | null {
-    return mmkv.getString(key) ?? null;
+    // AsyncStorage is async but zustand persist middleware handles both
+    return AsyncStorage.getItem(key) as unknown as string | null;
   },
   setItem(key: string, value: string): void {
-    mmkv.set(key, value);
+    AsyncStorage.setItem(key, value);
   },
   removeItem(key: string): void {
-    mmkv.delete(key);
+    AsyncStorage.removeItem(key);
   },
 };
