@@ -38,6 +38,42 @@ const DIETARY_OPTIONS = [
   'Keto',
 ] as const;
 
+export interface FilterChipGroupProps {
+  options: readonly string[];
+  selected: string[];
+  onToggle: (value: string) => void;
+}
+
+export function FilterChipGroup({
+  options,
+  selected,
+  onToggle,
+}: FilterChipGroupProps) {
+  return (
+    <View className="mb-4 flex-row flex-wrap gap-2">
+      {options.map((item) => (
+        <Pressable
+          key={item}
+          onPress={() => onToggle(item)}
+          className={`rounded-full px-4 py-2 ${
+            selected.includes(item) ? 'bg-orange' : 'bg-bgMuted'
+          }`}
+          accessibilityRole="button"
+          accessibilityLabel={item}
+        >
+          <Text
+            className={`text-sm ${
+              selected.includes(item) ? 'text-white' : 'text-ink'
+            }`}
+          >
+            {item}
+          </Text>
+        </Pressable>
+      ))}
+    </View>
+  );
+}
+
 export interface FilterSheetProps {
   visible: boolean;
   onDismiss: () => void;
@@ -147,53 +183,21 @@ export const FilterSheet = forwardRef<GorhomBottomSheet, FilterSheetProps>(
           <Text className="mb-2 text-sm font-medium text-inkMuted">
             Cuisine
           </Text>
-          <View className="mb-4 flex-row flex-wrap gap-2">
-            {CUISINES.map((c) => (
-              <Pressable
-                key={c}
-                onPress={() => toggleCuisine(c)}
-                className={`rounded-full px-4 py-2 ${
-                  cuisines.includes(c) ? 'bg-orange' : 'bg-bgMuted'
-                }`}
-                accessibilityRole="button"
-                accessibilityLabel={c}
-              >
-                <Text
-                  className={`text-sm ${
-                    cuisines.includes(c) ? 'text-white' : 'text-ink'
-                  }`}
-                >
-                  {c}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <FilterChipGroup
+            options={CUISINES}
+            selected={cuisines}
+            onToggle={toggleCuisine}
+          />
 
           {/* Dietary */}
           <Text className="mb-2 text-sm font-medium text-inkMuted">
             Dietary
           </Text>
-          <View className="mb-4 flex-row flex-wrap gap-2">
-            {DIETARY_OPTIONS.map((d) => (
-              <Pressable
-                key={d}
-                onPress={() => toggleDietary(d)}
-                className={`rounded-full px-4 py-2 ${
-                  dietary.includes(d) ? 'bg-orange' : 'bg-bgMuted'
-                }`}
-                accessibilityRole="button"
-                accessibilityLabel={d}
-              >
-                <Text
-                  className={`text-sm ${
-                    dietary.includes(d) ? 'text-white' : 'text-ink'
-                  }`}
-                >
-                  {d}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
+          <FilterChipGroup
+            options={DIETARY_OPTIONS}
+            selected={dietary}
+            onToggle={toggleDietary}
+          />
 
           {/* Apply button */}
           <Pressable
