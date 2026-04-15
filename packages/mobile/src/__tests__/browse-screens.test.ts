@@ -82,6 +82,15 @@ vi.mock('@/constants/theme', () => ({
   fonts: {},
 }));
 
+// After BF-16 refactoring, browse screens delegate rendering to BrowseListScreen
+// and bookmark logic to useToggleBookmark. Tests now verify the delegation pattern.
+
+const browseListPath = resolve(__dirname, '../components/BrowseListScreen.tsx');
+const browseListContent = readFileSync(browseListPath, 'utf-8');
+
+const toggleBookmarkPath = resolve(__dirname, '../hooks/useToggleBookmark.ts');
+const toggleBookmarkContent = readFileSync(toggleBookmarkPath, 'utf-8');
+
 describe('TagScreen (app/tag/[tag].tsx)', () => {
   const filePath = resolve(__dirname, '../../app/tag/[tag].tsx');
   const content = readFileSync(filePath, 'utf-8');
@@ -106,37 +115,39 @@ describe('TagScreen (app/tag/[tag].tsx)', () => {
     expect(content).toContain('tagName');
   });
 
-  it('renders recipe list with FlashList', () => {
-    expect(content).toContain('FlashList');
-    expect(content).toContain('estimatedItemSize={220}');
-    expect(content).toContain('RecipeCard');
+  it('delegates to BrowseListScreen which renders FlashList', () => {
+    expect(content).toContain('BrowseListScreen');
+    expect(browseListContent).toContain('FlashList');
+    expect(browseListContent).toContain('estimatedItemSize={220}');
+    expect(browseListContent).toContain('RecipeCard');
   });
 
-  it('supports infinite scroll with onEndReached', () => {
+  it('supports infinite scroll via onEndReached prop', () => {
     expect(content).toContain('onEndReached');
-    expect(content).toContain('onEndReachedThreshold');
     expect(content).toContain('fetchNextPage');
   });
 
-  it('shows loading skeleton state', () => {
+  it('delegates loading skeleton to BrowseListScreen', () => {
     expect(content).toContain('isLoading');
-    expect(content).toContain('RecipeCardSkeleton');
+    expect(browseListContent).toContain('RecipeCardSkeleton');
   });
 
-  it('shows empty state when no recipes', () => {
-    expect(content).toContain('EmptyState');
+  it('passes empty state message', () => {
     expect(content).toContain('No recipes found');
+    expect(browseListContent).toContain('EmptyState');
   });
 
-  it('shows error state with retry', () => {
-    expect(content).toContain('ErrorState');
+  it('passes error and retry props', () => {
+    expect(content).toContain('error');
     expect(content).toContain('onRetry');
     expect(content).toContain('refetch');
+    expect(browseListContent).toContain('ErrorState');
   });
 
-  it('uses useSQLiteContext for database access', () => {
-    expect(content).toContain('useSQLiteContext');
-    expect(content).toContain('useSavedRecipes');
+  it('uses useToggleBookmark which handles database access', () => {
+    expect(content).toContain('useToggleBookmark');
+    expect(toggleBookmarkContent).toContain('useSQLiteContext');
+    expect(toggleBookmarkContent).toContain('useSavedRecipes');
   });
 });
 
@@ -161,28 +172,30 @@ describe('CuisineScreen (app/cuisine/[cuisine].tsx)', () => {
   it('renders header with cuisine name via Stack.Screen', () => {
     expect(content).toContain('Stack.Screen');
     expect(content).toContain('title');
-    expect(content).toContain('cuisineName');
+    expect(content).toContain('name');
   });
 
-  it('renders recipe list with FlashList', () => {
-    expect(content).toContain('FlashList');
-    expect(content).toContain('estimatedItemSize={220}');
-    expect(content).toContain('RecipeCard');
+  it('delegates to BrowseListScreen which renders FlashList', () => {
+    expect(content).toContain('BrowseListScreen');
+    expect(browseListContent).toContain('FlashList');
+    expect(browseListContent).toContain('estimatedItemSize={220}');
+    expect(browseListContent).toContain('RecipeCard');
   });
 
-  it('supports infinite scroll with onEndReached', () => {
+  it('supports infinite scroll via onEndReached prop', () => {
     expect(content).toContain('onEndReached');
     expect(content).toContain('fetchNextPage');
   });
 
-  it('shows empty state when no recipes', () => {
-    expect(content).toContain('EmptyState');
+  it('passes empty state message', () => {
     expect(content).toContain('No recipes found');
+    expect(browseListContent).toContain('EmptyState');
   });
 
-  it('shows error state with retry', () => {
-    expect(content).toContain('ErrorState');
+  it('passes error and retry props', () => {
+    expect(content).toContain('error');
     expect(content).toContain('onRetry');
+    expect(browseListContent).toContain('ErrorState');
   });
 });
 
@@ -207,27 +220,29 @@ describe('DomainScreen (app/site/[domain].tsx)', () => {
   it('renders header with domain name via Stack.Screen', () => {
     expect(content).toContain('Stack.Screen');
     expect(content).toContain('title');
-    expect(content).toContain('domainName');
+    expect(content).toContain('name');
   });
 
-  it('renders recipe list with FlashList', () => {
-    expect(content).toContain('FlashList');
-    expect(content).toContain('estimatedItemSize={220}');
-    expect(content).toContain('RecipeCard');
+  it('delegates to BrowseListScreen which renders FlashList', () => {
+    expect(content).toContain('BrowseListScreen');
+    expect(browseListContent).toContain('FlashList');
+    expect(browseListContent).toContain('estimatedItemSize={220}');
+    expect(browseListContent).toContain('RecipeCard');
   });
 
-  it('supports infinite scroll with onEndReached', () => {
+  it('supports infinite scroll via onEndReached prop', () => {
     expect(content).toContain('onEndReached');
     expect(content).toContain('fetchNextPage');
   });
 
-  it('shows empty state when no recipes', () => {
-    expect(content).toContain('EmptyState');
+  it('passes empty state message', () => {
     expect(content).toContain('No recipes found');
+    expect(browseListContent).toContain('EmptyState');
   });
 
-  it('shows error state with retry', () => {
-    expect(content).toContain('ErrorState');
+  it('passes error and retry props', () => {
+    expect(content).toContain('error');
     expect(content).toContain('onRetry');
+    expect(browseListContent).toContain('ErrorState');
   });
 });
