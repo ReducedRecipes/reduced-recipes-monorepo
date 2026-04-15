@@ -9,12 +9,6 @@ export interface SearchFilters {
   dietary: string[];
 }
 
-const EMPTY_FILTERS: SearchFilters = {
-  maxTime: undefined,
-  cuisines: [],
-  dietary: [],
-};
-
 const COOK_TIMES = [15, 30, 45, 60] as const;
 
 const CUISINES = [
