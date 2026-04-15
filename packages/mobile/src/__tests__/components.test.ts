@@ -113,15 +113,15 @@ describe('RecipeCardSkeleton.tsx', () => {
 
   it('has accessible loading label', () => {
     expect(content).toContain('Loading recipe');
-
-
+  });
+});
 
 describe('EmptyState component', () => {
-  const filePath = path.join(componentsDir, 'EmptyState.tsx');
-  const content = fs.readFileSync(filePath, 'utf-8');
+  const filePath = resolve(componentsDir, 'EmptyState.tsx');
+  const content = readFileSync(filePath, 'utf-8');
 
   it('exists', () => {
-    expect(fs.existsSync(filePath)).toBe(true);
+    expect(existsSync(filePath)).toBe(true);
   });
 
   it('exports EmptyState function', () => {
@@ -157,11 +157,11 @@ describe('EmptyState component', () => {
 });
 
 describe('ErrorState component', () => {
-  const filePath = path.join(componentsDir, 'ErrorState.tsx');
-  const content = fs.readFileSync(filePath, 'utf-8');
+  const filePath = resolve(componentsDir, 'ErrorState.tsx');
+  const content = readFileSync(filePath, 'utf-8');
 
   it('exists', () => {
-    expect(fs.existsSync(filePath)).toBe(true);
+    expect(existsSync(filePath)).toBe(true);
   });
 
   it('exports ErrorState function', () => {
@@ -198,11 +198,11 @@ describe('ErrorState component', () => {
 });
 
 describe('BottomSheet component', () => {
-  const filePath = path.join(componentsDir, 'BottomSheet.tsx');
-  const content = fs.readFileSync(filePath, 'utf-8');
+  const filePath = resolve(componentsDir, 'BottomSheet.tsx');
+  const content = readFileSync(filePath, 'utf-8');
 
   it('exists', () => {
-    expect(fs.existsSync(filePath)).toBe(true);
+    expect(existsSync(filePath)).toBe(true);
   });
 
   it('exports BottomSheet component', () => {

@@ -81,7 +81,7 @@ describe("useSavedRecipes", () => {
       const { save } = useSavedRecipes({ db: mockDb });
       await save(mockRecipe);
 
-      expect(triggerHaptic).toHaveBeenCalledWith("light");
+      expect(triggerHaptic).toHaveBeenCalledWith("medium");
     });
   });
 

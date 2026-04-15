@@ -27,7 +27,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      "X-Client": "rr-mobile",
+      "X-Client": "rr-mobile/1.0",
       ...init?.headers,
     },
   });
