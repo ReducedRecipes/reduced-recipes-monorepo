@@ -11,7 +11,7 @@
         "simulator": true
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:8787"
+        "EXPO_PUBLIC_API_BASE": "http://localhost:8787"
       }
     },
     "preview": {
@@ -23,7 +23,7 @@
         "resourceClass": "m1-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.reducedrecipes.com"
+        "EXPO_PUBLIC_API_BASE": "https://reducedrecipes.com"
       },
       "channel": "preview"
     },
@@ -36,7 +36,7 @@
         "resourceClass": "m1-medium"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.reducedrecipes.com"
+        "EXPO_PUBLIC_API_BASE": "https://reducedrecipes.com"
       },
       "channel": "production"
     }
