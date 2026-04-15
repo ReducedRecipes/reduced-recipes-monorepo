@@ -40,6 +40,7 @@ afterEach(() => {
   vi.clearAllMocks();
   document.title = "";
   document.head.querySelectorAll('script[type="application/ld+json"]').forEach((s) => s.remove());
+  document.head.querySelectorAll('meta[name="description"], meta[property^="og:"], link[rel="canonical"]').forEach((el) => el.remove());
 });
 
 function renderPage(id = "abc123") {
@@ -145,6 +146,33 @@ describe("RecipePage", () => {
     const schema = JSON.parse(script!.textContent!);
     expect(schema["@type"]).toBe("Recipe");
     expect(schema.name).toBe("Chocolate Cake");
+  });
+
+  it("adds SEO meta tags to document head", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+
+    const desc = document.head.querySelector('meta[name="description"]');
+    expect(desc).not.toBeNull();
+    expect(desc!.getAttribute("content")).toContain("Recipe for Chocolate Cake");
+
+    const ogTitle = document.head.querySelector('meta[property="og:title"]');
+    expect(ogTitle).not.toBeNull();
+    expect(ogTitle!.getAttribute("content")).toBe("Chocolate Cake");
+
+    const ogDesc = document.head.querySelector('meta[property="og:description"]');
+    expect(ogDesc).not.toBeNull();
+
+    const ogType = document.head.querySelector('meta[property="og:type"]');
+    expect(ogType).not.toBeNull();
+    expect(ogType!.getAttribute("content")).toBe("article");
+
+    const ogImage = document.head.querySelector('meta[property="og:image"]');
+    expect(ogImage).not.toBeNull();
+    expect(ogImage!.getAttribute("content")).toBe("https://example.com/cake.jpg");
+
+    const canonical = document.head.querySelector('link[rel="canonical"]');
+    expect(canonical).not.toBeNull();
   });
 
   it("shows error message on failure", async () => {
