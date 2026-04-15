@@ -10,6 +10,7 @@ import TagPage from "./pages/TagPage";
 import CuisinePage from "./pages/CuisinePage";
 import DomainPage from "./pages/DomainPage";
 import RemovePage from "./pages/RemovePage";
+import NotFoundPage from "./pages/NotFoundPage";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -34,6 +35,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/cuisine/:cuisine" element={<CuisinePage />} />
             <Route path="/site/:domain" element={<DomainPage />} />
             <Route path="/remove" element={<RemovePage />} />
+            <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>
       </BrowserRouter>
