@@ -1,8 +1,11 @@
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'fs';
 import { resolve } from 'path';
+import fs from 'fs';
+import path from 'path';
 
 const mobileDir = resolve(__dirname, '../..');
+const mobileRoot = mobileDir;
 
 function loadJson(filename: string) {
   return JSON.parse(readFileSync(resolve(mobileDir, filename), 'utf8'));
@@ -97,5 +100,87 @@ describe('eas.json', () => {
   it('has submit config for iOS and Android', () => {
     expect(config.submit.production.ios.appleId).toBe('REPLACE_WITH_APPLE_ID');
     expect(config.submit.production.android.track).toBe('internal');
+  });
+});
+
+describe('metro.config.js', () => {
+  const configPath = path.join(mobileRoot, 'metro.config.js');
+
+  it('exists', () => {
+    expect(fs.existsSync(configPath)).toBe(true);
+  });
+
+  it('references monorepo root two levels up', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain("path.resolve(projectRoot, '../..')");
+  });
+
+  it('uses expo/metro-config', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain("require('expo/metro-config')");
+  });
+
+  it('wraps with nativewind', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain("require('nativewind/metro')");
+    expect(content).toContain('withNativeWind');
+  });
+
+  it('sets alias for @rr/shared', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain("'@rr/shared'");
+    expect(content).toContain('packages/shared/src/types.ts');
+  });
+
+  it('points nativewind input to global.css', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain('./src/constants/global.css');
+  });
+});
+
+describe('tailwind.config.js', () => {
+  const configPath = path.join(mobileRoot, 'tailwind.config.js');
+
+  it('exists', () => {
+    expect(fs.existsSync(configPath)).toBe(true);
+  });
+
+  it('includes app and src content paths', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain('./app/**/*.{ts,tsx}');
+    expect(content).toContain('./src/**/*.{ts,tsx}');
+  });
+
+  it('uses nativewind preset', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain("require('nativewind/preset')");
+  });
+
+  it('has brand colors', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain('#E85D26');
+    expect(content).toContain('#1A1A18');
+    expect(content).toContain('#FAFAF8');
+  });
+
+  it('has font families', () => {
+    const content = fs.readFileSync(configPath, 'utf-8');
+    expect(content).toContain('Lora_600SemiBold');
+    expect(content).toContain('DMSans_400Regular');
+  });
+});
+
+describe('global.css', () => {
+  const cssPath = path.join(mobileRoot, 'src/constants/global.css');
+
+  it('exists', () => {
+    expect(fs.existsSync(cssPath)).toBe(true);
+  });
+
+  it('has tailwind directives', () => {
+    const content = fs.readFileSync(cssPath, 'utf-8');
+    expect(content).toContain('@tailwind base');
+    expect(content).toContain('@tailwind components');
+    expect(content).toContain('@tailwind utilities');
   });
 });
