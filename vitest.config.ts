@@ -15,6 +15,7 @@ export default defineConfig({
       { find: 'expo-web-browser', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-web-browser') },
       { find: 'expo-sqlite', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-sqlite') },
       { find: 'expo-router', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-router') },
+      { find: '@react-native-async-storage/async-storage', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/async-storage') },
       { find: /^@\/(.*)/, replacement: path.resolve(__dirname, 'packages/mobile/src/$1') },
     ],
   },

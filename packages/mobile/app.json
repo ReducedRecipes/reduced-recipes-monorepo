@@ -87,11 +87,16 @@
           }
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-keep-awake"
     ],
     "extra": {
       "router": {
         "origin": "https://reducedrecipes.com"
+      },
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
       }
     }
   }
