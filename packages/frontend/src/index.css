@@ -1,3 +1,39 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@media print {
+  header,
+  nav,
+  .no-print,
+  [data-no-print] {
+    display: none !important;
+  }
+
+  form[role="search"],
+  input[type="search"] {
+    display: none !important;
+  }
+
+  a[target="_blank"],
+  button {
+    display: none !important;
+  }
+
+  main,
+  article,
+  ul,
+  ol,
+  img {
+    display: block;
+  }
+
+  body {
+    font-size: 12pt;
+  }
+
+  img {
+    max-width: 100%;
+    page-break-inside: avoid;
+  }
+}
