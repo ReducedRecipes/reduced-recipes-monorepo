@@ -25,6 +25,7 @@
     "tsx": "^4.7.0",
     "typescript": "^5.4.0",
     "vitest": "^3.2.4",
-    "wrangler": "^3.50.0"
+    "wrangler": "^3.50.0",
+    "zustand": "^5.0.12"
   }
 }
