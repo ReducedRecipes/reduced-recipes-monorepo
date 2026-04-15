@@ -16,6 +16,9 @@ export default {
       LIMIT 500
     `).all<CrawlJob>();
 
+    // 4. Always ingest sitemaps, even when queue is empty
+    await ingestNextSitemap(env);
+
     if (!due.results.length) return;
 
     // 2. Mark as in-flight
@@ -36,8 +39,6 @@ export default {
       );
     }
 
-    // 4. Hourly: ingest one pending sitemap
-    await ingestNextSitemap(env);
   },
 };
 
