@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "types": ["vite/client", "@cloudflare/workers-types"],
+    "jsx": "react-jsx",
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "paths": {
+      "@rr/shared": ["../shared/src/types"],
+      "@rr/shared/*": ["../shared/src/*"]
+    }
+  },
+  "include": ["src"]
+}

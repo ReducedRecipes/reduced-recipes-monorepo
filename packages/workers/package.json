@@ -1,0 +1,32 @@
+{
+  "name": "@rr/workers",
+  "version": "0.0.1",
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "hono": "^4.3",
+    "@rr/shared": "workspace:*"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240512",
+    "wrangler": "^3.50"
+  },
+  "scripts": {
+    "deploy": "wrangler deploy -c wrangler.api.toml && wrangler deploy -c wrangler.orchestrator.toml && wrangler deploy -c wrangler.crawler.toml && wrangler deploy -c wrangler.parser.toml && wrangler deploy -c wrangler.projection.toml && wrangler deploy -c wrangler.dlq.toml",
+    "deploy:api": "wrangler deploy -c wrangler.api.toml",
+    "deploy:orchestrator": "wrangler deploy -c wrangler.orchestrator.toml",
+    "deploy:crawler": "wrangler deploy -c wrangler.crawler.toml",
+    "deploy:parser": "wrangler deploy -c wrangler.parser.toml",
+    "deploy:projection": "wrangler deploy -c wrangler.projection.toml",
+    "deploy:dlq": "wrangler deploy -c wrangler.dlq.toml",
+    "dev:api": "wrangler dev -c wrangler.api.toml",
+    "dev:orchestrator": "wrangler dev -c wrangler.orchestrator.toml",
+    "dev:crawler": "wrangler dev -c wrangler.crawler.toml",
+    "dev:parser": "wrangler dev -c wrangler.parser.toml",
+    "dev:projection": "wrangler dev -c wrangler.projection.toml",
+    "dev:dlq": "wrangler dev -c wrangler.dlq.toml",
+    "build": "tsc --noEmit",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  }
+}

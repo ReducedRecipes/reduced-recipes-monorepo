@@ -1,0 +1,56 @@
+name = "rr-dlq"
+main = "src/dlq.ts"
+compatibility_date = "2024-05-01"
+
+[[queues.consumers]]
+queue = "crawl-dlq"
+max_batch_size = 10
+max_retries = 0
+
+[[queues.consumers]]
+queue = "parse-dlq"
+max_batch_size = 10
+max_retries = 0
+
+[[queues.consumers]]
+queue = "projection-dlq"
+max_batch_size = 10
+max_retries = 0
+
+[[d1_databases]]
+binding = "DB"
+database_id = "REPLACE_WITH_D1_ID"
+database_name = "reduced-recipes-prod"
+
+[[kv_namespaces]]
+binding = "RECIPES_KV"
+id = "REPLACE_WITH_KV_ID"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "REPLACE_WITH_KV_ID"
+
+[[r2_buckets]]
+binding = "IMAGES_R2"
+bucket_name = "rr-images"
+
+[[queues.producers]]
+binding = "CRAWL_QUEUE"
+queue = "crawl-jobs"
+
+[[queues.producers]]
+binding = "PARSE_QUEUE"
+queue = "parse-jobs"
+
+[[queues.producers]]
+binding = "PROJECTION_QUEUE"
+queue = "projection-jobs"
+
+[vars]
+BOT_USER_AGENT = "ReducedRecipesBot/1.0"
+DEFAULT_CRAWL_DELAY_MS = "2000"
+MAX_QUEUE_BATCH = "10"
+ENVIRONMENT = "production"
+
+[env.preview]
+name = "rr-dlq-preview"

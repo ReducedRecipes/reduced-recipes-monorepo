@@ -1,0 +1,26 @@
+{
+  "name": "reducedrecipes",
+  "private": true,
+  "scripts": {
+    "dev": "pnpm --filter @rr/frontend dev",
+    "build": "pnpm --filter @rr/shared build && pnpm --filter @rr/workers build && pnpm --filter @rr/frontend build",
+    "deploy": "pnpm --filter @rr/workers deploy",
+    "deploy:api": "pnpm --filter @rr/workers deploy:api",
+    "deploy:crawler": "pnpm --filter @rr/workers deploy:crawler",
+    "db:migrate": "wrangler d1 migrations apply reduced-recipes-prod --config packages/workers/wrangler.api.toml",
+    "db:migrate:preview": "wrangler d1 migrations apply reduced-recipes-preview --config packages/workers/wrangler.api.toml --env preview",
+    "seed": "pnpm tsx scripts/seed-domains.ts",
+    "typecheck": "pnpm -r typecheck",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "jsdom": "^29.0.2",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^3.2.4",
+    "wrangler": "^3.50.0"
+  }
+}
