@@ -19,16 +19,16 @@ max_retries = 0
 
 [[d1_databases]]
 binding = "DB"
-database_id = "REPLACE_WITH_D1_ID"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
 database_name = "reduced-recipes-prod"
 
 [[kv_namespaces]]
 binding = "RECIPES_KV"
-id = "REPLACE_WITH_KV_ID"
+id = "1ca521a6b82b499b802318ee8bf747db"
 
 [[kv_namespaces]]
 binding = "CACHE_KV"
-id = "REPLACE_WITH_KV_ID"
+id = "18ffdf8619c84b22b4993371e4eb92c7"
 
 [[r2_buckets]]
 binding = "IMAGES_R2"
