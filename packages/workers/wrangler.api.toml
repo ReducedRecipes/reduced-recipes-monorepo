@@ -2,6 +2,9 @@ name = "rr-api"
 main = "src/api.ts"
 compatibility_date = "2024-05-01"
 
+[placement]
+mode = "smart"
+
 [observability]
 enabled = true
 head_sampling_rate = 1

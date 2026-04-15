@@ -3,12 +3,15 @@ import { checkRobots } from '@rr/shared/robots';
 
 export default {
   async queue(batch: MessageBatch<CrawlJob>, env: Env) {
+    console.log(`[crawler] Processing batch of ${batch.messages.length} messages`);
     for (const msg of batch.messages) {
       const { url, domain } = msg.body;
+      console.log(`[crawler] Processing ${url}`);
 
       try {
         // ── robots.txt ──────────────────────────────────────────
         const robotsAllowed = await checkRobots(url, domain, env);
+        console.log(`[crawler] robots.txt for ${domain}: ${robotsAllowed}`);
         if (!robotsAllowed) {
           await updateCrawlStatus(env, url, 'skipped');
           msg.ack();
@@ -31,7 +34,7 @@ export default {
         }
 
         await env.CACHE_KV.put(windowKey, '1', {
-          expirationTtl: Math.ceil(delayMs / 1000) * 2,
+          expirationTtl: Math.max(Math.ceil(delayMs / 1000) * 2, 60),
         });
 
         // ── fetch ───────────────────────────────────────────────
@@ -58,34 +61,38 @@ export default {
 
         const html = await response.text();
 
+        // ── Truncate HTML to fit queue message limit (128KB) ──
+        // Extract only ld+json blocks + a limited portion of HTML for link discovery
+        const ldJsonBlocks: string[] = [];
+        const scriptRegex = /<script[^>]+type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+        let scriptMatch;
+        while ((scriptMatch = scriptRegex.exec(html)) !== null) {
+          ldJsonBlocks.push(scriptMatch[0]);
+        }
+
+        // Keep ld+json + first 50KB of HTML for link discovery
+        const trimmedHtml = ldJsonBlocks.join('\n') + '\n<!-- LINKS -->\n' + html.slice(0, 50_000);
+
         // ── enqueue for parsing ─────────────────────────────────
         await env.PARSE_QUEUE.send(
-          { url, domain, html } satisfies ParseJob,
+          { url, domain, html: trimmedHtml } satisfies ParseJob,
           { contentType: 'json' },
         );
         await updateCrawlStatus(env, url, 'done');
+        console.log(`[crawler] SUCCESS ${url} (${html.length} bytes, trimmed to ${trimmedHtml.length})`);
         msg.ack();
       } catch (err) {
-        const error = err as Error;
-        const isTransient = isTransientError(error);
+        const message = err instanceof Error ? err.message : String(err);
+        console.error(`[crawler] ERROR ${url}: ${message}`);
 
-        await env.DB.prepare(`
-          UPDATE crawl_queue
-          SET
-            fail_count = fail_count + 1,
-            status = CASE
-              WHEN fail_count + 1 >= 3 THEN 'failed'
-              ELSE 'pending'
-            END,
-            next_crawl = datetime('now', '+' || (POWER(2, fail_count + 1) * 60) || ' seconds')
-          WHERE url = ?
-        `).bind(url).run();
+        try {
+          await env.DB.prepare(
+            "UPDATE crawl_queue SET fail_count = fail_count + 1, status = 'failed' WHERE url = ?",
+          ).bind(url).run();
+        } catch { /* best effort */ }
 
-        if (isTransient && msg.attempts < 3) {
-          msg.retry({ delaySeconds: Math.pow(2, msg.attempts) * 30 });
-        } else {
-          msg.ack(); // DLQ handles permanent failures
-        }
+        // Always ack to prevent queue pause from repeated failures
+        msg.ack();
       }
     }
   },

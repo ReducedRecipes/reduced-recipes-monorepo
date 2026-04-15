@@ -117,14 +117,26 @@ app.get('/api/v1/recipes', async (c) => {
     next_cursor = lastRow.extracted_at as string;
   }
 
-  // Attach tags to each recipe
-  const items: RecipeSummary[] = [];
-  for (const row of rows) {
-    const r = row as Record<string, unknown>;
-    const tagResult = await c.env.DB.prepare('SELECT tag FROM recipe_tags WHERE recipe_id = ?').bind(r.id).all();
-    const tags = (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined);
-    items.push(toRecipeSummary(r, tags));
+  // Fetch all tags in one query
+  const ids = rows.map((r) => (r as Record<string, unknown>).id as string);
+  const tagMap = new Map<string, string[]>();
+  if (ids.length > 0) {
+    const placeholders = ids.map(() => '?').join(',');
+    const tagResult = await c.env.DB.prepare(
+      `SELECT recipe_id, tag FROM recipe_tags WHERE recipe_id IN (${placeholders})`,
+    ).bind(...ids).all();
+    for (const t of tagResult.results || []) {
+      const row = t as Record<string, string>;
+      const list = tagMap.get(row.recipe_id) || [];
+      list.push(row.tag);
+      tagMap.set(row.recipe_id, list);
+    }
   }
+
+  const items: RecipeSummary[] = rows.map((row) => {
+    const r = row as Record<string, unknown>;
+    return toRecipeSummary(r, tagMap.get(r.id as string) || []);
+  });
 
   return c.json({ items, next_cursor });
 });
@@ -228,7 +240,9 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
 app.get('/api/v1/search', async (c) => {
   const q = c.req.query('q') ?? '';
   const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam ?? '20', 10) || 20, 1), 50);
+  const offsetParam = c.req.query('offset');
+  const limit = Math.min(Math.max(parseInt(limitParam ?? '24', 10) || 24, 1), 50);
+  const offset = Math.max(parseInt(offsetParam ?? '0', 10) || 0, 0);
 
   if (q.length < 2) {
     return c.json(
@@ -239,7 +253,7 @@ app.get('/api/v1/search', async (c) => {
 
   const sanitized = q.replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/[*"():^~\-:]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!sanitized) {
-    return c.json([], 200);
+    return c.json({ items: [], has_more: false }, 200);
   }
 
   const { results } = await c.env.DB.prepare(
@@ -249,14 +263,18 @@ app.get('/api/v1/search', async (c) => {
      FROM recipes_fts fts
      JOIN recipes r ON fts.rowid = r.rowid
      WHERE recipes_fts MATCH ?1
-     LIMIT ?2`,
+     LIMIT ?2 OFFSET ?3`,
   )
-    .bind(sanitized, limit)
+    .bind(sanitized, limit + 1, offset)
     .all();
 
-  const items: RecipeSummary[] = (results ?? []).map((row: Record<string, unknown>) => toRecipeSummary(row));
+  const rows = results ?? [];
+  const hasMore = rows.length > limit;
+  if (hasMore) rows.pop();
 
-  return c.json(items);
+  const items: RecipeSummary[] = rows.map((row: Record<string, unknown>) => toRecipeSummary(row));
+
+  return c.json({ items, has_more: hasMore });
 });
 
 // ── Admin: Seed domain ────────────────────────────────────────────────

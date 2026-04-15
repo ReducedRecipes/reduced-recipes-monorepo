@@ -26,7 +26,7 @@ export async function checkRateLimit(
   }
 
   await cacheKv.put(windowKey, '1', {
-    expirationTtl: Math.ceil(delayMs / 1000) * 2,
+    expirationTtl: Math.max(Math.ceil(delayMs / 1000) * 2, 60),
   });
 
   return true; // allowed

@@ -51,11 +51,17 @@ export function fetchRecipes(
   return apiFetch<RecipeListResponse>(`/recipes${buildQuery({ ...params })}`);
 }
 
+export interface SearchResponse {
+  items: RecipeSummary[];
+  has_more: boolean;
+}
+
 export function searchRecipes(
   q: string,
   limit?: number,
-): Promise<RecipeSummary[]> {
-  return apiFetch<RecipeSummary[]>(`/search${buildQuery({ q, limit })}`);
+  offset?: number,
+): Promise<SearchResponse> {
+  return apiFetch<SearchResponse>(`/search${buildQuery({ q, limit, offset })}`);
 }
 
 export function fetchTags(): Promise<{ tag: string; count: number }[]> {

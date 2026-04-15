@@ -13,7 +13,9 @@ invocation_logs = true
 
 [[queues.consumers]]
 queue = "parse-jobs"
-max_batch_size = 5
+max_batch_size = 10
+max_batch_timeout = 5
+max_concurrency = 50
 max_retries = 3
 dead_letter_queue = "parse-dlq"
 
