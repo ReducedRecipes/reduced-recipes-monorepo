@@ -39,11 +39,43 @@ export default function RecipePage() {
   const [highlightedStep, setHighlightedStep] = useState<number | null>(null);
 
   useEffect(() => {
-    if (recipe) {
-      document.title = `${recipe.title} - ReducedRecipes`;
+    if (!recipe) return;
+
+    document.title = `${recipe.title} - ReducedRecipes`;
+
+    const description = recipe.ingredients.length > 0
+      ? `Recipe for ${recipe.title} with ${recipe.ingredients.length} ingredients.`
+      : recipe.instructions[0]?.slice(0, 160) ?? recipe.title;
+
+    const metaTags: HTMLMetaElement[] = [];
+    const linkTags: HTMLLinkElement[] = [];
+
+    function addMeta(attr: "name" | "property", key: string, content: string) {
+      const el = document.createElement("meta");
+      el.setAttribute(attr, key);
+      el.content = content;
+      document.head.appendChild(el);
+      metaTags.push(el);
     }
+
+    addMeta("name", "description", description);
+    addMeta("property", "og:title", recipe.title);
+    addMeta("property", "og:description", description);
+    addMeta("property", "og:type", "article");
+    if (recipe.image_url) {
+      addMeta("property", "og:image", recipe.image_url);
+    }
+
+    const canonical = document.createElement("link");
+    canonical.rel = "canonical";
+    canonical.href = window.location.href;
+    document.head.appendChild(canonical);
+    linkTags.push(canonical);
+
     return () => {
       document.title = "ReducedRecipes";
+      metaTags.forEach((el) => el.remove());
+      linkTags.forEach((el) => el.remove());
     };
   }, [recipe]);
 
