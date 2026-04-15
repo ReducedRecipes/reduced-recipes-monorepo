@@ -126,21 +126,13 @@ describe('Orchestrator Worker', () => {
     env.DB.prepare.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
-        // Due URLs query — must return non-empty so scheduled() doesn't return early
+        // Due URLs query
         return {
           all: vi.fn().mockResolvedValue({ results: dueUrls }),
         };
       }
       if (callCount === 2) {
-        // Mark in-flight UPDATE
-        return {
-          bind: vi.fn().mockReturnValue({
-            run: vi.fn().mockResolvedValue({}),
-          }),
-        };
-      }
-      if (callCount === 3) {
-        // ingestNextSitemap: SELECT domain
+        // ingestNextSitemap: SELECT domain (now runs before early return)
         return {
           first: vi.fn().mockResolvedValue({
             domain: 'example.com',
@@ -148,7 +140,23 @@ describe('Orchestrator Worker', () => {
           }),
         };
       }
-      // Remaining calls: INSERT OR IGNORE for recipe URLs, UPDATE domains
+      if (callCount === 3) {
+        // ingestNextSitemap: UPDATE domains SET last_spidered
+        return {
+          bind: vi.fn().mockReturnValue({
+            run: vi.fn().mockResolvedValue({}),
+          }),
+        };
+      }
+      if (callCount === 4) {
+        // Mark in-flight UPDATE
+        return {
+          bind: vi.fn().mockReturnValue({
+            run: vi.fn().mockResolvedValue({}),
+          }),
+        };
+      }
+      // Remaining calls: INSERT OR IGNORE for recipe URLs
       return {
         bind: vi.fn().mockReturnValue({
           run: vi.fn().mockResolvedValue({}),
