@@ -25,7 +25,7 @@ export function useSavedRecipes({ db }: UseSavedRecipesOptions): UseSavedRecipes
   const save = async (recipe: RecipeDocument): Promise<void> => {
     await upsertRecipe(db, recipe);
     useSavedStore.getState().addId(recipe.id);
-    await triggerHaptic("light");
+    await triggerHaptic("medium");
   };
 
   const unsave = async (id: string): Promise<void> => {
