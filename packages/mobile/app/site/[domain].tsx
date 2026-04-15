@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
 import { FlashList } from '@shopify/flash-list';
 import { useRecipes } from '@/hooks/useRecipes';
 import { RecipeCard } from '@/components/RecipeCard';
@@ -17,8 +16,7 @@ export default function DomainScreen() {
   const { domain } = useLocalSearchParams<{ domain: string }>();
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useRecipes({ domain });
-  const db = useSQLiteContext();
-  const { isSaved, save, unsave } = useSavedRecipes({ db });
+  const { isSaved, save, unsave } = useSavedRecipes();
 
   const recipes = data?.pages.flatMap((page) => page.items) ?? [];
   const domainName = domain ?? '';

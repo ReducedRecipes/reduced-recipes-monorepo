@@ -134,8 +134,7 @@ describe('TagScreen (app/tag/[tag].tsx)', () => {
     expect(content).toContain('refetch');
   });
 
-  it('uses useSQLiteContext for database access', () => {
-    expect(content).toContain('useSQLiteContext');
+  it('uses useSavedRecipes for bookmark functionality', () => {
     expect(content).toContain('useSavedRecipes');
   });
 });

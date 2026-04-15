@@ -1,12 +1,8 @@
 import type { RecipeDocument } from "@rr/shared";
-import type { SQLiteDatabase } from "expo-sqlite";
+import { useSQLiteContext } from "expo-sqlite";
 import { useSavedStore } from "../stores/saved.store";
 import { upsertRecipe, deleteRecipe } from "../db/queries";
 import { triggerHaptic } from "../lib/haptics";
-
-export interface UseSavedRecipesOptions {
-  db: SQLiteDatabase;
-}
 
 export interface UseSavedRecipesReturn {
   isSaved: (id: string) => boolean;
@@ -17,7 +13,8 @@ export interface UseSavedRecipesReturn {
 /**
  * Hook combining the saved recipes store with SQLite operations and haptic feedback.
  */
-export function useSavedRecipes({ db }: UseSavedRecipesOptions): UseSavedRecipesReturn {
+export function useSavedRecipes(): UseSavedRecipesReturn {
+  const db = useSQLiteContext();
   const isSaved = (id: string): boolean => {
     return useSavedStore.getState().isSaved(id);
   };

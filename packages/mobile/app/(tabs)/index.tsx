@@ -15,6 +15,7 @@ import { ErrorState } from '@/components/ErrorState';
 import { SearchIcon } from '@/components/icons';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
 import { colors, fonts } from '@/constants/theme';
+import { api } from '@/lib/api';
 import type { RecipeSummary } from '@rr/shared';
 
 const CUISINES = [
@@ -83,26 +84,30 @@ export default function HomeScreen() {
   const recent = useRecipes({});
 
   const { isSaved, save, unsave } = useSavedRecipes();
-
-  const bookmarkedIds = useMemo(() => {
-    const ids = new Set<string>();
-    const allRecipes = [
+  const allRecipes = useMemo(
+    () => [
       ...(featured.data?.pages.flatMap((p) => p.items) ?? []),
       ...(quickEasy.data?.pages.flatMap((p) => p.items) ?? []),
       ...(recent.data?.pages.flatMap((p) => p.items) ?? []),
-    ];
+    ],
+    [featured.data, quickEasy.data, recent.data],
+  );
+
+  const bookmarkedIds = useMemo(() => {
+    const ids = new Set<string>();
     for (const r of allRecipes) {
       if (isSaved(r.id)) ids.add(r.id);
     }
     return ids;
-  }, [featured.data, quickEasy.data, recent.data, isSaved]);
+  }, [allRecipes, isSaved]);
 
   const handleToggleBookmark = useCallback(
-    (id: string) => {
+    async (id: string) => {
       if (isSaved(id)) {
-        unsave(id);
+        await unsave(id);
       } else {
-        save(id);
+        const recipe = await api.recipes.get(id);
+        await save(recipe);
       }
     },
     [isSaved, save, unsave],

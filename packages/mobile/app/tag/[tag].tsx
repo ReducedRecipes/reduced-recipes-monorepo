@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
 import { FlashList } from '@shopify/flash-list';
 import { useRecipes } from '@/hooks/useRecipes';
 import { RecipeCard } from '@/components/RecipeCard';
@@ -17,8 +16,7 @@ export default function TagScreen() {
   const { tag } = useLocalSearchParams<{ tag: string }>();
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useRecipes({ tag });
-  const db = useSQLiteContext();
-  const { isSaved, save, unsave } = useSavedRecipes({ db });
+  const { isSaved, save, unsave } = useSavedRecipes();
 
   const recipes = data?.pages.flatMap((page) => page.items) ?? [];
   const tagName = tag ? tag.charAt(0).toUpperCase() + tag.slice(1) : '';

@@ -1,7 +1,6 @@
 import React from 'react';
 import { View, Text, ActivityIndicator } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
-import { useSQLiteContext } from 'expo-sqlite';
 import { FlashList } from '@shopify/flash-list';
 import { useRecipes } from '@/hooks/useRecipes';
 import { RecipeCard } from '@/components/RecipeCard';
@@ -17,8 +16,7 @@ export default function CuisineScreen() {
   const { cuisine } = useLocalSearchParams<{ cuisine: string }>();
   const { data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage } =
     useRecipes({ cuisine });
-  const db = useSQLiteContext();
-  const { isSaved, save, unsave } = useSavedRecipes({ db });
+  const { isSaved, save, unsave } = useSavedRecipes();
 
   const recipes = data?.pages.flatMap((page) => page.items) ?? [];
   const cuisineName = cuisine ? cuisine.charAt(0).toUpperCase() + cuisine.slice(1) : '';
