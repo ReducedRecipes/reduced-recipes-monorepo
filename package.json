@@ -4,9 +4,9 @@
   "scripts": {
     "dev": "pnpm --filter @rr/frontend dev",
     "build": "pnpm --filter @rr/shared build && pnpm --filter @rr/workers build && pnpm --filter @rr/frontend build",
-    "deploy": "pnpm --filter @rr/workers deploy",
-    "deploy:api": "pnpm --filter @rr/workers deploy:api",
-    "deploy:crawler": "pnpm --filter @rr/workers deploy:crawler",
+    "deploy": "pnpm --filter @rr/workers run deploy",
+    "deploy:api": "pnpm --filter @rr/workers run deploy:api",
+    "deploy:crawler": "pnpm --filter @rr/workers run deploy:crawler",
     "db:migrate": "wrangler d1 migrations apply reduced-recipes-prod --config packages/workers/wrangler.api.toml",
     "db:migrate:preview": "wrangler d1 migrations apply reduced-recipes-preview --config packages/workers/wrangler.api.toml --env preview",
     "seed": "pnpm tsx scripts/seed-domains.ts",
