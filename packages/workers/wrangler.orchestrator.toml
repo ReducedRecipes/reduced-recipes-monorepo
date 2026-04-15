@@ -2,8 +2,17 @@ name = "rr-orchestrator"
 main = "src/orchestrator.ts"
 compatibility_date = "2024-05-01"
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
 [triggers]
-crons = ["0 * * * *"]
+crons = ["*/5 * * * *"]
 
 [[d1_databases]]
 binding = "DB"

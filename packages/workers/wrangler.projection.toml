@@ -2,6 +2,15 @@ name = "rr-projection"
 main = "src/projection.ts"
 compatibility_date = "2024-05-01"
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
 [[queues.consumers]]
 queue = "projection-jobs"
 max_batch_size = 25

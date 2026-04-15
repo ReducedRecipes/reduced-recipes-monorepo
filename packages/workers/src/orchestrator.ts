@@ -1,6 +1,6 @@
 import type { Env, CrawlJob } from '@rr/shared';
 import { chunk, chunks } from '@rr/shared/utils';
-import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
+import { isRecipeUrl } from '@rr/shared/sitemap';
 
 export default {
   async scheduled(
@@ -42,6 +42,60 @@ export default {
   },
 };
 
+/**
+ * Fetch a sitemap without deep recursion to stay within Workers CPU limits.
+ * If it's a sitemap index, fetch only the first 3 child sitemaps.
+ */
+async function fetchSitemapShallow(sitemapUrl: string): Promise<string[]> {
+  try {
+    const res = await fetch(sitemapUrl, {
+      headers: { 'User-Agent': 'ReducedRecipesBot/1.0' },
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) return [];
+    const text = await res.text();
+
+    // Check if sitemap index
+    const indexRegex = /<sitemap>\s*<loc>(.*?)<\/loc>/gi;
+    const childUrls: string[] = [];
+    let match;
+    while ((match = indexRegex.exec(text)) !== null) {
+      if (match[1]) childUrls.push(match[1].trim());
+    }
+
+    if (childUrls.length > 0) {
+      // Fetch only first 3 child sitemaps to stay within CPU budget
+      const allUrls: string[] = [];
+      for (const childUrl of childUrls.slice(0, 3)) {
+        try {
+          const childRes = await fetch(childUrl, {
+            headers: { 'User-Agent': 'ReducedRecipesBot/1.0' },
+            signal: AbortSignal.timeout(10000),
+          });
+          if (!childRes.ok) continue;
+          const childText = await childRes.text();
+          const locRegex = /<loc>(.*?)<\/loc>/gi;
+          let m;
+          while ((m = locRegex.exec(childText)) !== null) {
+            if (m[1]) allUrls.push(m[1].trim());
+          }
+        } catch { continue; }
+      }
+      return allUrls;
+    }
+
+    // Regular sitemap
+    const locRegex = /<loc>(.*?)<\/loc>/gi;
+    const urls: string[] = [];
+    while ((match = locRegex.exec(text)) !== null) {
+      if (match[1]) urls.push(match[1].trim());
+    }
+    return urls;
+  } catch {
+    return [];
+  }
+}
+
 async function ingestNextSitemap(env: Env) {
   const domain = await env.DB.prepare(`
     SELECT domain, sitemap_url FROM domains
@@ -52,8 +106,9 @@ async function ingestNextSitemap(env: Env) {
 
   if (!domain?.sitemap_url) return;
 
-  const urls = await parseSitemap(domain.sitemap_url);
-  const recipeUrls = urls.filter((u) => isRecipeUrl(u, domain.domain));
+  // Shallow sitemap fetch — only index + first child to stay within CPU limits
+  const urls = await fetchSitemapShallow(domain.sitemap_url);
+  const recipeUrls = urls.filter((u) => isRecipeUrl(u, domain.domain)).slice(0, 500);
 
   // Upsert into crawl_queue — ignore existing
   const stmts = recipeUrls.map((url) =>

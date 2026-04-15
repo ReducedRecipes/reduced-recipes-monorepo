@@ -2,6 +2,15 @@ name = "rr-dlq"
 main = "src/dlq.ts"
 compatibility_date = "2024-05-01"
 
+[observability]
+enabled = true
+head_sampling_rate = 1
+
+[observability.logs]
+enabled = true
+head_sampling_rate = 1
+invocation_logs = true
+
 [[queues.consumers]]
 queue = "crawl-dlq"
 max_batch_size = 10
