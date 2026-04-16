@@ -3,6 +3,7 @@ import { cors } from 'hono/cors';
 import type { Env, RecipeDocument, RecipeSummary, User } from '@rr/shared';
 import { optionalAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
+import { cursorPaginate, parseLimit } from './lib/pagination';
 import authRoutes from './routes/auth';
 import bookmarkRoutes from './routes/bookmarks';
 import notificationRoutes from './routes/notifications';
@@ -119,7 +120,7 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
 // ── List recipes ─────────────────────────────────────────────────────────
 app.get('/api/v1/recipes', optionalAuth, async (c) => {
   const { tag, domain, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
-  const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
+  const limit = parseLimit(limitParam, 24);
 
   const conditions: string[] = [];
   const params: (string | number)[] = [];
@@ -158,20 +159,15 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const sql = `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY r.extracted_at DESC LIMIT ?`;
-  params.push(limit + 1);
+  const { items: rows, next_cursor } = await cursorPaginate<Record<string, unknown>>({
+    db: c.env.DB,
+    query: `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY r.extracted_at DESC`,
+    params,
+    cursorColumn: 'extracted_at',
+    limit,
+  });
 
-  const result = await c.env.DB.prepare(sql).bind(...params).all();
-  const rows = result.results || [];
-
-  let next_cursor: string | null = null;
-  if (rows.length > limit) {
-    rows.pop();
-    const lastRow = rows[rows.length - 1] as Record<string, unknown>;
-    next_cursor = lastRow.extracted_at as string;
-  }
-
-  const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
+  const items = await toRecipeSummaries(c.env.DB, rows);
 
   return c.json({ items, next_cursor });
 });
@@ -216,7 +212,7 @@ app.get('/api/v1/domains', async (c) => {
 app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
   const domain = c.req.param('domain');
   const { tag, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
-  const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
+  const limit = parseLimit(limitParam, 24);
 
   const conditions: string[] = ['r.domain = ?'];
   const params: (string | number)[] = [domain];
@@ -251,20 +247,15 @@ app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
 
   const whereClause = `WHERE ${conditions.join(' AND ')}`;
 
-  const sql = `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY r.extracted_at DESC LIMIT ?`;
-  params.push(limit + 1);
+  const { items: rows, next_cursor } = await cursorPaginate<Record<string, unknown>>({
+    db: c.env.DB,
+    query: `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY r.extracted_at DESC`,
+    params,
+    cursorColumn: 'extracted_at',
+    limit,
+  });
 
-  const result = await c.env.DB.prepare(sql).bind(...params).all();
-  const rows = result.results || [];
-
-  let next_cursor: string | null = null;
-  if (rows.length > limit) {
-    rows.pop();
-    const lastRow = rows[rows.length - 1] as Record<string, unknown>;
-    next_cursor = lastRow.extracted_at as string;
-  }
-
-  const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
+  const items = await toRecipeSummaries(c.env.DB, rows);
 
   return c.json({ items, next_cursor });
 });

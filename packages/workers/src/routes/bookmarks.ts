@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import type { Env, Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
+import { cursorPaginate, parseLimit } from '../lib/pagination';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -101,8 +102,7 @@ bookmarks.delete('/api/v1/bookmarks/:id', async (c) => {
 bookmarks.get('/api/v1/bookmarks', async (c) => {
   const userId = c.get('userId');
   const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
+  const limit = parseLimit(c.req.query('limit'));
 
   const conditions = ['user_id = ?'];
   const params: (string | number)[] = [userId];
@@ -113,26 +113,18 @@ bookmarks.get('/api/v1/bookmarks', async (c) => {
   }
 
   const whereClause = `WHERE ${conditions.join(' AND ')}`;
-  params.push(limit + 1);
 
-  const result = await c.env.USERS_DB!.prepare(
-    `SELECT id, user_id, collection_id, recipe_id, created_at, updated_at
+  const { items, next_cursor } = await cursorPaginate<Bookmark>({
+    db: c.env.USERS_DB!,
+    query: `SELECT id, user_id, collection_id, recipe_id, created_at, updated_at
      FROM bookmarks ${whereClause}
-     ORDER BY created_at DESC LIMIT ?`,
-  )
-    .bind(...params)
-    .all();
+     ORDER BY created_at DESC`,
+    params,
+    cursorColumn: 'created_at',
+    limit,
+  });
 
-  const rows = (result.results ?? []) as unknown as Bookmark[];
-
-  let next_cursor: string | null = null;
-  if (rows.length > limit) {
-    rows.pop();
-    const last = rows[rows.length - 1];
-    if (last) next_cursor = last.created_at;
-  }
-
-  return c.json({ items: rows, next_cursor });
+  return c.json({ items, next_cursor });
 });
 
 export default bookmarks;
