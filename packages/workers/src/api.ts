@@ -1,8 +1,10 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env, RecipeDocument, RecipeSummary } from '@rr/shared';
+import type { AppEnv } from './middleware/auth';
+import authRoutes from './routes/auth';
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono<AppEnv>();
 
 /** Map a D1 row to a RecipeSummary (without tags). */
 function toRecipeSummary(row: Record<string, unknown>, tags: string[] = []): RecipeSummary {
@@ -354,6 +356,9 @@ app.post('/api/v1/remove', async (c) => {
   }));
   return c.json({ ok: true, message: 'Request logged' });
 });
+
+// ── Auth routes ──────────────────────────────────────────────────────────
+app.route('', authRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
