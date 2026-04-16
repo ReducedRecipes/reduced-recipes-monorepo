@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRecipes } from '@/hooks/useRecipes';
 import { RecipeCard } from '@/components/RecipeCard';
 import { ErrorState } from '@/components/ErrorState';
@@ -82,6 +83,7 @@ function LoadingFooter() {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const greeting = useMemo(getGreeting, []);
 
   const featured = useRecipes({ limit: 5 });
@@ -145,7 +147,7 @@ export default function HomeScreen() {
   const header = (
     <>
       {/* Greeting */}
-      <View style={s.greetingWrap}>
+      <View style={[s.greetingWrap, { paddingTop: 12 }]}>
         <Text style={s.greeting}>{greeting}</Text>
       </View>
 
@@ -234,7 +236,8 @@ export default function HomeScreen() {
       refreshControl={
         <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.orange} />
       }
-      contentContainerStyle={{ paddingBottom: 32, backgroundColor: colors.bg }}
+      contentContainerStyle={{ paddingBottom: 32 }}
+      contentInsetAdjustmentBehavior="automatic"
       style={s.container}
     />
   );
@@ -247,7 +250,6 @@ const s = StyleSheet.create({
   },
   greetingWrap: {
     paddingHorizontal: 16,
-    paddingTop: 60,
     paddingBottom: 4,
   },
   greeting: {
