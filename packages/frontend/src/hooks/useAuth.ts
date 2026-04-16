@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../stores/auth.store";
-import { apiFetch } from "../lib/api";
+import { apiFetch, getGoogleAuthUrl } from "../lib/api";
 import type { User } from "@rr/shared";
 
 export function useAuth() {
@@ -30,5 +30,14 @@ export function useAuth() {
     queryClient.invalidateQueries({ queryKey: ["auth"] });
   };
 
-  return { user, isAuthenticated, isLoading, isNewUser, logout };
+  const login = async (returnTo?: string) => {
+    const { url } = await getGoogleAuthUrl("web", returnTo);
+    window.location.href = url;
+  };
+
+  const checkAuth = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["auth", "me"] });
+  };
+
+  return { user, isAuthenticated, isLoading, isNewUser, logout, login, checkAuth };
 }
