@@ -3,6 +3,12 @@ import { Hono } from 'hono';
 import type { Env, User } from '@rr/shared';
 import { requireAuth, optionalAuth } from '../auth';
 
+interface TestBody {
+  userId: string | null;
+  user: User | null;
+  error?: { code: string; message: string };
+}
+
 // ── Mock helpers ────────────────────────────────────────────────────────
 
 const TEST_USER: User = {
@@ -93,8 +99,8 @@ describe('requireAuth', () => {
   it('returns 401 when no token provided', async () => {
     const res = await app.request('/test', {}, makeEnv(kv, db));
     expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.error.code).toBe('unauthorized');
+    const body = (await res.json()) as TestBody;
+    expect(body.error?.code).toBe('unauthorized');
   });
 
   it('returns 401 for expired/unknown session', async () => {
@@ -116,9 +122,9 @@ describe('requireAuth', () => {
       makeEnv(kv, db),
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBe('user-1');
-    expect(body.user.email).toBe('test@example.com');
+    expect(body.user?.email).toBe('test@example.com');
   });
 
   it('sets userId and user for valid session cookie', async () => {
@@ -131,7 +137,7 @@ describe('requireAuth', () => {
       makeEnv(kv, db),
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBe('user-1');
   });
 
@@ -159,7 +165,7 @@ describe('requireAuth', () => {
       makeEnv(kv, dbMulti),
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBe('user-cookie');
   });
 
@@ -174,8 +180,8 @@ describe('requireAuth', () => {
       makeEnv(kv, dbNoUser),
     );
     expect(res.status).toBe(401);
-    const body = await res.json();
-    expect(body.error.code).toBe('unauthorized');
+    const body = (await res.json()) as TestBody;
+    expect(body.error?.code).toBe('unauthorized');
   });
 
   it('follows grace-period replacement token', async () => {
@@ -193,7 +199,7 @@ describe('requireAuth', () => {
       makeEnv(kv, db),
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBe('user-1');
   });
 
@@ -275,7 +281,7 @@ describe('optionalAuth', () => {
   it('proceeds without user when no token provided', async () => {
     const res = await app.request('/test', {}, makeEnv(kv, db));
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBeNull();
     expect(body.user).toBeNull();
   });
@@ -287,7 +293,7 @@ describe('optionalAuth', () => {
       makeEnv(kv, db),
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBeNull();
   });
 
@@ -301,9 +307,9 @@ describe('optionalAuth', () => {
       makeEnv(kv, db),
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBe('user-1');
-    expect(body.user.email).toBe('test@example.com');
+    expect(body.user?.email).toBe('test@example.com');
   });
 
   it('proceeds without user when user not found in DB', async () => {
@@ -317,7 +323,7 @@ describe('optionalAuth', () => {
       makeEnv(kv, dbNoUser),
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBeNull();
   });
 
@@ -327,7 +333,7 @@ describe('optionalAuth', () => {
 
     const res = await app.request('/test', {}, env);
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBeNull();
   });
 
@@ -346,7 +352,7 @@ describe('optionalAuth', () => {
       makeEnv(kv, db),
     );
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as TestBody;
     expect(body.userId).toBe('user-1');
   });
 });
