@@ -1,12 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  Keyboard,
-  Pressable,
-  TextInput,
-  View,
-  type TextInputProps,
-} from 'react-native';
-import { Text } from 'react-native';
+import { Keyboard, Pressable, TextInput, View, Text, StyleSheet } from 'react-native';
+import { colors, fonts } from '@/constants/theme';
+import { SearchIcon } from './icons';
 
 export interface SearchBarProps {
   onSearch: (query: string) => void;
@@ -17,7 +12,6 @@ export function SearchBar({ onSearch, autoFocus = false }: SearchBarProps) {
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const inputRef = useRef<TextInput>(null);
 
   useEffect(() => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -37,14 +31,13 @@ export function SearchBar({ onSearch, autoFocus = false }: SearchBarProps) {
   }, [onSearch]);
 
   return (
-    <View className="flex-row items-center px-4 py-2">
-      <View className="flex-1 flex-row items-center rounded-full bg-bgMuted px-4 py-3">
-        <Text className="mr-2 text-inkFaint">🔍</Text>
+    <View style={s.wrap}>
+      <View style={s.inputWrap}>
+        <SearchIcon color={colors.inkFaint} size={18} />
         <TextInput
-          ref={inputRef}
-          className="flex-1 text-base text-ink"
+          style={s.input}
           placeholder="Search recipes..."
-          placeholderTextColor="#9CA3AF"
+          placeholderTextColor={colors.inkFaint}
           value={text}
           onChangeText={setText}
           onFocus={() => setFocused(true)}
@@ -53,18 +46,33 @@ export function SearchBar({ onSearch, autoFocus = false }: SearchBarProps) {
           returnKeyType="search"
           accessibilityLabel="Search recipes"
         />
+        {text.length > 0 && (
+          <Pressable onPress={() => setText('')} hitSlop={8}>
+            <Text style={s.clearBtn}>✕</Text>
+          </Pressable>
+        )}
       </View>
       {focused && (
-        <Pressable
-          onPress={handleCancel}
-          className="ml-3"
-          style={{ minHeight: 44, minWidth: 44, justifyContent: 'center' }}
-          accessibilityRole="button"
-          accessibilityLabel="Cancel search"
-        >
-          <Text className="text-base text-orange">Cancel</Text>
+        <Pressable onPress={handleCancel} style={s.cancelBtn} accessibilityRole="button" accessibilityLabel="Cancel search">
+          <Text style={s.cancelText}>Cancel</Text>
         </Pressable>
       )}
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  wrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
+  inputWrap: {
+    flex: 1, flexDirection: 'row', alignItems: 'center',
+    backgroundColor: colors.bgMuted, borderRadius: 12,
+    paddingHorizontal: 14, paddingVertical: 12,
+  },
+  input: {
+    flex: 1, fontFamily: fonts.body, fontSize: 15,
+    color: colors.ink, marginLeft: 10, padding: 0,
+  },
+  clearBtn: { fontSize: 14, color: colors.inkFaint, padding: 4 },
+  cancelBtn: { marginLeft: 12, minHeight: 44, justifyContent: 'center' },
+  cancelText: { fontFamily: fonts.bodyMed, fontSize: 15, color: colors.orange },
+});

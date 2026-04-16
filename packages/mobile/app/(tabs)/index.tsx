@@ -2,11 +2,11 @@ import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
-  ScrollView,
   FlatList,
   Pressable,
   RefreshControl,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRecipes } from '@/hooks/useRecipes';
@@ -71,6 +71,15 @@ function CuisinePill({ name, onPress }: { name: string; onPress: () => void }) {
   );
 }
 
+function LoadingFooter() {
+  return (
+    <View style={s.footer}>
+      <ActivityIndicator size="small" color={colors.orange} />
+      <Text style={s.footerText}>Loading more recipes...</Text>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const greeting = useMemo(getGreeting, []);
@@ -118,6 +127,12 @@ export default function HomeScreen() {
   const quickRecipes = quickEasy.data?.pages.flatMap((p) => p.items) ?? [];
   const recentRecipes = recent.data?.pages.flatMap((p) => p.items) ?? [];
 
+  const handleEndReached = useCallback(() => {
+    if (recent.hasNextPage && !recent.isFetchingNextPage) {
+      recent.fetchNextPage();
+    }
+  }, [recent]);
+
   if (isError) {
     return (
       <ErrorState
@@ -127,13 +142,8 @@ export default function HomeScreen() {
     );
   }
 
-  return (
-    <ScrollView
-      style={s.container}
-      refreshControl={
-        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.orange} />
-      }
-    >
+  const header = (
+    <>
       {/* Greeting */}
       <View style={s.greetingWrap}>
         <Text style={s.greeting}>{greeting}</Text>
@@ -192,30 +202,41 @@ export default function HomeScreen() {
         />
       </View>
 
-      {/* Recently Added */}
-      <View style={[s.section, { paddingHorizontal: 16, paddingBottom: 32 }]}>
+      {/* Recently Added header */}
+      <View style={[s.section, { paddingHorizontal: 16 }]}>
         <Text style={[s.sectionTitle, { paddingHorizontal: 0 }]}>Recently Added</Text>
-        {recentRecipes.map((recipe) => (
-          <View key={recipe.id} style={{ marginBottom: 12 }}>
-            <RecipeCard
-              recipe={recipe}
-              bookmarked={bookmarkedIds.has(recipe.id)}
-              onToggleBookmark={handleToggleBookmark}
-            />
-          </View>
-        ))}
-        {recent.hasNextPage && (
-          <Pressable
-            onPress={() => recent.fetchNextPage()}
-            style={s.loadMore}
-            accessibilityRole="button"
-            accessibilityLabel="Load more recipes"
-          >
-            <Text style={s.loadMoreText}>Load more</Text>
-          </Pressable>
-        )}
       </View>
-    </ScrollView>
+    </>
+  );
+
+  const renderRecipe = useCallback(
+    ({ item }: { item: RecipeSummary }) => (
+      <View style={{ marginBottom: 12, marginHorizontal: 16 }}>
+        <RecipeCard
+          recipe={item}
+          bookmarked={bookmarkedIds.has(item.id)}
+          onToggleBookmark={handleToggleBookmark}
+        />
+      </View>
+    ),
+    [bookmarkedIds, handleToggleBookmark],
+  );
+
+  return (
+    <FlatList
+      data={recentRecipes}
+      renderItem={renderRecipe}
+      keyExtractor={(item) => item.id}
+      ListHeaderComponent={header}
+      ListFooterComponent={recent.isFetchingNextPage ? LoadingFooter : null}
+      onEndReached={handleEndReached}
+      onEndReachedThreshold={0.5}
+      refreshControl={
+        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.orange} />
+      }
+      contentContainerStyle={{ paddingBottom: 32, backgroundColor: colors.bg }}
+      style={s.container}
+    />
   );
 }
 
@@ -271,13 +292,16 @@ const s = StyleSheet.create({
     fontSize: 13,
     color: colors.orange,
   },
-  loadMore: {
+  footer: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 16,
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 10,
   },
-  loadMoreText: {
-    fontFamily: fonts.bodyMed,
-    fontSize: 15,
-    color: colors.orange,
+  footerText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.inkMuted,
   },
 });

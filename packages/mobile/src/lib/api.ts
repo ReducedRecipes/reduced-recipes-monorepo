@@ -2,7 +2,7 @@ import type { RecipeDocument, RecipeSummary } from "@rr/shared";
 
 const BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE || "https://reducedrecipes.com"}/api/v1`;
 
-const USE_MOCK = true; // Set false when API is deployed
+const USE_MOCK = false;
 
 /** Structured API error with status code and message. */
 export class ApiError extends Error {
