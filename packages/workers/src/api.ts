@@ -1,13 +1,14 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env, RecipeDocument, RecipeSummary } from '@rr/shared';
+import type { Env, RecipeDocument, RecipeSummary, User } from '@rr/shared';
 import { optionalAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
 import authRoutes from './routes/auth';
 import bookmarkRoutes from './routes/bookmarks';
 import notificationRoutes from './routes/notifications';
+import userRoutes from './routes/users';
 
-type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: unknown } };
+type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
 
 /** Map a D1 row to a RecipeSummary (without tags). */
@@ -413,6 +414,7 @@ app.use('*', async (c, next) => {
 app.route('/', authRoutes);
 app.route('/', bookmarkRoutes);
 app.route('/', notificationRoutes);
+app.route('/', userRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
