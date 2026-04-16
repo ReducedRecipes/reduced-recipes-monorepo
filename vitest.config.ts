@@ -14,6 +14,7 @@ export default defineConfig({
       { find: 'react-native-mmkv', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/react-native-mmkv') },
       { find: 'expo-image', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-image') },
       { find: 'expo-web-browser', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-web-browser') },
+      { find: 'expo-secure-store', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-secure-store') },
       { find: 'expo-sqlite', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-sqlite') },
       { find: 'expo-router', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-router') },
       { find: '@react-native-async-storage/async-storage', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/async-storage') },
