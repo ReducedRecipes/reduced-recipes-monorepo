@@ -3,6 +3,9 @@ import { cors } from 'hono/cors';
 import type { Env, RecipeDocument, RecipeSummary } from '@rr/shared';
 import { optionalAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
+import authRoutes from './routes/auth';
+import bookmarkRoutes from './routes/bookmarks';
+import notificationRoutes from './routes/notifications';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: unknown } };
 const app = new Hono<AppBindings>();
@@ -388,6 +391,28 @@ app.post('/api/v1/remove', async (c) => {
   }));
   return c.json({ ok: true, message: 'Request logged' });
 });
+
+// ── Security headers ────────────────────────────────────────────────────
+app.use('*', async (c, next) => {
+  await next();
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  c.header(
+    'Strict-Transport-Security',
+    'max-age=63072000; includeSubDomains; preload',
+  );
+  c.header(
+    'Content-Security-Policy',
+    "default-src 'none'; frame-ancestors 'none'",
+  );
+});
+
+// ── Mount route modules ─────────────────────────────────────────────────
+app.route('/', authRoutes);
+app.route('/', bookmarkRoutes);
+app.route('/', notificationRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
