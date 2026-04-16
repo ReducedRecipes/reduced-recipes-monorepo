@@ -20,6 +20,32 @@ function toRecipeSummary(row: Record<string, unknown>, tags: string[] = []): Rec
   };
 }
 
+/** Batch-fetch tags for a list of recipe IDs (1 query instead of N). */
+async function batchFetchTags(db: D1Database, ids: string[]): Promise<Map<string, string[]>> {
+  const tagMap = new Map<string, string[]>();
+  if (ids.length === 0) return tagMap;
+
+  const placeholders = ids.map(() => '?').join(',');
+  const result = await db.prepare(
+    `SELECT recipe_id, tag FROM recipe_tags WHERE recipe_id IN (${placeholders})`,
+  ).bind(...ids).all();
+
+  for (const row of result.results ?? []) {
+    const r = row as Record<string, string>;
+    const existing = tagMap.get(r.recipe_id) ?? [];
+    existing.push(r.tag);
+    tagMap.set(r.recipe_id, existing);
+  }
+  return tagMap;
+}
+
+/** Convert rows to RecipeSummary[] with batch-fetched tags. */
+async function toRecipeSummaries(db: D1Database, rows: Record<string, unknown>[]): Promise<RecipeSummary[]> {
+  const ids = rows.map((r) => r.id as string);
+  const tagMap = await batchFetchTags(db, ids);
+  return rows.map((r) => toRecipeSummary(r, tagMap.get(r.id as string) ?? []));
+}
+
 // ── CORS ────────────────────────────────────────────────────────────────
 app.use(
   '*',
@@ -117,14 +143,7 @@ app.get('/api/v1/recipes', async (c) => {
     next_cursor = lastRow.extracted_at as string;
   }
 
-  // Attach tags to each recipe
-  const items: RecipeSummary[] = [];
-  for (const row of rows) {
-    const r = row as Record<string, unknown>;
-    const tagResult = await c.env.DB.prepare('SELECT tag FROM recipe_tags WHERE recipe_id = ?').bind(r.id).all();
-    const tags = (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined);
-    items.push(toRecipeSummary(r, tags));
-  }
+  const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
   return c.json({ items, next_cursor });
 });
@@ -213,13 +232,7 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
     next_cursor = lastRow.extracted_at as string;
   }
 
-  const items: RecipeSummary[] = [];
-  for (const row of rows) {
-    const r = row as Record<string, unknown>;
-    const tagResult = await c.env.DB.prepare('SELECT tag FROM recipe_tags WHERE recipe_id = ?').bind(r.id).all();
-    const tags = (tagResult.results || []).map((t) => (t as Record<string, string>).tag).filter((t): t is string => t !== undefined);
-    items.push(toRecipeSummary(r, tags));
-  }
+  const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
   return c.json({ items, next_cursor });
 });

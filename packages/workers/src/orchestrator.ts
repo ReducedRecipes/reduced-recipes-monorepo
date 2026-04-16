@@ -3,19 +3,30 @@ import { chunk, chunks } from '@rr/shared/utils';
 import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
 async function runScheduled(env: Env) {
-    // 1. Pull due URLs — spread evenly across domains (round-robin)
-    const due = await env.DB.prepare(`
-      WITH ranked AS (
-        SELECT url, domain,
-          ROW_NUMBER() OVER (PARTITION BY domain ORDER BY priority ASC, next_crawl ASC) AS rn
-        FROM crawl_queue
-        WHERE status = 'pending' AND next_crawl <= datetime('now')
-      )
-      SELECT url, domain FROM ranked
-      WHERE rn <= 5
-      ORDER BY rn, domain
-      LIMIT 500
-    `).all<CrawlJob>();
+    // 1. Pull due URLs — pick up to 5 per domain, spread across domains
+    //    Two lightweight queries instead of one expensive window function
+    const domains = await env.DB.prepare(`
+      SELECT DISTINCT domain FROM crawl_queue
+      WHERE status = 'pending' AND next_crawl <= datetime('now')
+      LIMIT 100
+    `).all<{ domain: string }>();
+
+    const due: { results: CrawlJob[] } = { results: [] };
+    if (domains.results.length > 0) {
+      const perDomain = Math.max(1, Math.floor(500 / domains.results.length));
+      const stmts = domains.results.map((d) =>
+        env.DB.prepare(`
+          SELECT url, domain FROM crawl_queue
+          WHERE status = 'pending' AND domain = ? AND next_crawl <= datetime('now')
+          ORDER BY priority ASC, next_crawl ASC
+          LIMIT ?
+        `).bind(d.domain, Math.min(perDomain, 10)),
+      );
+      const results = await env.DB.batch(stmts);
+      for (const r of results) {
+        due.results.push(...(r.results as unknown as CrawlJob[]));
+      }
+    }
 
     // 4. Always ingest sitemaps, even when queue is empty
     await ingestNextSitemap(env);
