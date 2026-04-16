@@ -77,8 +77,8 @@ describe('getDietaryMask', () => {
 
   it('queries USERS_DB for authenticated user', async () => {
     const usersDB = makeD1([
-      { restriction_name: 'gluten-free' },
-      { restriction_name: 'dairy-free' },
+      { restriction: 'gluten-free' },
+      { restriction: 'dairy-free' },
     ]);
     const userCacheKV = makeKV();
     const c = makeContext({ userId: 'user-1', usersDB, userCacheKV });
@@ -101,7 +101,7 @@ describe('getDietaryMask', () => {
   });
 
   it('caches computed mask in KV', async () => {
-    const usersDB = makeD1([{ restriction_name: 'vegan' }]);
+    const usersDB = makeD1([{ restriction: 'vegan' }]);
     const userCacheKV = makeKV();
     const c = makeContext({ userId: 'user-1', usersDB, userCacheKV });
 
