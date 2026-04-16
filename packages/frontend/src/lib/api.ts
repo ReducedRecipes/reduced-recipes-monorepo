@@ -109,8 +109,8 @@ export function logout(): Promise<void> {
   return apiFetch<void>("/auth/logout", { method: "POST" });
 }
 
-export function getMe(): Promise<User> {
-  return apiFetch<User>("/auth/me");
+export function getMe(): Promise<{ user: User }> {
+  return apiFetch<{ user: User }>("/auth/me");
 }
 
 // ── Users ──
@@ -141,8 +141,8 @@ export function getDietaryPreferences(): Promise<{ restrictions: string[] }> {
   return apiFetch<{ restrictions: string[] }>("/users/me/dietary-preferences");
 }
 
-export function setDietaryPreferences(restrictions: string[]): Promise<{ restrictions: string[]; recipe_count: number }> {
-  return apiFetch<{ restrictions: string[]; recipe_count: number }>("/users/me/dietary-preferences", {
+export function setDietaryPreferences(restrictions: string[]): Promise<{ restrictions: string[]; matching_recipe_count: number; updated_at: string }> {
+  return apiFetch<{ restrictions: string[]; matching_recipe_count: number; updated_at: string }>("/users/me/dietary-preferences", {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ restrictions }),
