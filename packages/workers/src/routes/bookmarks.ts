@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import type { Env, Bookmark } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };

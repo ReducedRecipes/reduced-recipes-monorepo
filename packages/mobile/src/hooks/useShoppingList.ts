@@ -19,7 +19,7 @@ export function useShoppingList() {
       if (!grouped[item.category]) {
         grouped[item.category] = [];
       }
-      grouped[item.category].push(item);
+      grouped[item.category]!.push(item);
     }
     return grouped;
   }, [items]);

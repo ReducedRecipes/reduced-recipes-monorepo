@@ -1,4 +1,4 @@
-import type { Env } from './types';
+import type { Env } from './env';
 
 /**
  * Check if a URL is allowed by the domain's robots.txt.

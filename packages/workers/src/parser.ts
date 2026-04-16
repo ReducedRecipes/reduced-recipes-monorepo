@@ -1,4 +1,5 @@
-import type { Env, ParseJob, ProjectionJob, RecipeDocument } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { ParseJob, ProjectionJob, RecipeDocument } from '@rr/shared';
 import { extractSchemaOrg, normaliseRecipe } from '@rr/shared/extract';
 
 export default {

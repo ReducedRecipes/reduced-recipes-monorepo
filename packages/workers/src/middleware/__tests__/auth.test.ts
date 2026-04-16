@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { Hono } from 'hono';
-import type { Env, User } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { User } from '@rr/shared';
 import { requireAuth, optionalAuth } from '../auth';
 
 interface TestBody {

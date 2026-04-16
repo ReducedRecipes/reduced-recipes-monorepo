@@ -9,7 +9,8 @@
     "./sitemap": "./src/sitemap.ts",
     "./rate-limit": "./src/rate-limit.ts",
     "./utils": "./src/utils.ts",
-    "./dietary": "./src/dietary.ts"
+    "./dietary": "./src/dietary.ts",
+    "./env": "./src/env.ts"
   },
   "files": ["src"],
   "scripts": {

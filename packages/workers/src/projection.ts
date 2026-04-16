@@ -1,4 +1,5 @@
-import type { Env, ProjectionJob, RecipeDocument } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { ProjectionJob, RecipeDocument } from '@rr/shared';
 import { chunk } from '@rr/shared/utils';
 import { inferDietaryBitmask } from './helpers/dietary-inference';
 

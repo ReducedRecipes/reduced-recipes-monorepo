@@ -10,7 +10,8 @@
  * the final API response matches the original input.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Env, CrawlJob, ParseJob, ProjectionJob, RecipeDocument } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { CrawlJob, ParseJob, ProjectionJob, RecipeDocument } from '@rr/shared';
 import parser from './parser';
 import projection from './projection';
 

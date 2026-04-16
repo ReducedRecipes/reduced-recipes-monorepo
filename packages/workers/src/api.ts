@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env, RecipeDocument, RecipeSummary, User } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { RecipeDocument, RecipeSummary, User } from '@rr/shared';
 import { optionalAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
 import authRoutes from './routes/auth';

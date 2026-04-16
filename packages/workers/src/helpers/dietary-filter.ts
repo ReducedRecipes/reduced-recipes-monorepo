@@ -5,7 +5,7 @@
  * or from the X-Dietary-Prefs header for anonymous users.
  */
 
-import type { Env } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
 import { restrictionsToMask, isValidRestriction } from '@rr/shared/dietary';
 
 const CACHE_TTL = 3600; // 1 hour

@@ -12,7 +12,8 @@
  */
 
 import { Hono } from 'hono';
-import type { Env, User } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { User } from '@rr/shared';
 import { isValidRestriction, restrictionsToMask } from '@rr/shared/dietary';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { deleteAllSessions } from '../lib/session';

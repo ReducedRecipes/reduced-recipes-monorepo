@@ -10,8 +10,7 @@ vi.mock("../../lib/api", () => ({
 }));
 
 vi.mock("@tanstack/react-query", () => ({
-  useQuery: vi.fn((opts: any) => opts),
-  keepPreviousData: Symbol.for("keepPreviousData"),
+  useInfiniteQuery: vi.fn((opts: any) => opts),
 }));
 
 import { useSearch } from "../useSearch";
@@ -44,7 +43,6 @@ describe("useSearch", () => {
   it("trims whitespace before checking length", () => {
     const result = useSearch("  ab  ");
     expect(result.enabled).toBe(true);
-    // queryKey should use trimmed value
     expect(result.queryKey).toEqual(["search", "ab", {}]);
   });
 
@@ -53,20 +51,21 @@ describe("useSearch", () => {
     expect(result.queryKey).toEqual(["search", "test", { tag: "vegan" }]);
   });
 
-  it("uses keepPreviousData as placeholderData", () => {
+  it("has initialPageParam of 0", () => {
     const result = useSearch("test");
-    expect(result.placeholderData).toBe(Symbol.for("keepPreviousData"));
+    expect(result.initialPageParam).toBe(0);
   });
 
-  it("calls api.recipes.search via queryFn with trimmed query", async () => {
-    vi.mocked(api.recipes.search).mockResolvedValueOnce([
-      { id: "1", title: "Pasta" },
-    ] as any);
+  it("calls api.recipes.search via queryFn with trimmed query and pagination", async () => {
+    vi.mocked(api.recipes.search).mockResolvedValueOnce({
+      items: [{ id: "1", title: "Pasta" }],
+      has_more: false,
+    } as any);
 
     const result = useSearch("  pasta  ");
-    const data = await result.queryFn();
+    const data = await result.queryFn({ pageParam: 0 } as any);
 
-    expect(api.recipes.search).toHaveBeenCalledWith("pasta");
-    expect(data).toEqual([{ id: "1", title: "Pasta" }]);
+    expect(api.recipes.search).toHaveBeenCalledWith("pasta", 20, 0);
+    expect(data).toEqual({ items: [{ id: "1", title: "Pasta" }], has_more: false });
   });
 });

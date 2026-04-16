@@ -69,7 +69,7 @@ describe("api.recipes.list", () => {
     const result = await api.recipes.list({ tag: "pasta", limit: 10 });
 
     expect(result).toEqual(data);
-    const url = mockFetch.mock.calls[0][0] as string;
+    const url = mockFetch.mock.calls[0]![0] as string;
     expect(url).toContain("/api/v1/recipes?");
     expect(url).toContain("tag=pasta");
     expect(url).toContain("limit=10");
@@ -80,7 +80,7 @@ describe("api.recipes.list", () => {
 
     await api.recipes.list({ tag: undefined });
 
-    const url = mockFetch.mock.calls[0][0] as string;
+    const url = mockFetch.mock.calls[0]![0] as string;
     expect(url).not.toContain("tag=");
   });
 });
@@ -93,7 +93,7 @@ describe("api.recipes.get", () => {
     const result = await api.recipes.get("abc");
 
     expect(result).toEqual(doc);
-    const url = mockFetch.mock.calls[0][0] as string;
+    const url = mockFetch.mock.calls[0]![0] as string;
     expect(url).toContain("/api/v1/recipes/abc");
   });
 
@@ -102,7 +102,7 @@ describe("api.recipes.get", () => {
 
     await api.recipes.get("a/b");
 
-    const url = mockFetch.mock.calls[0][0] as string;
+    const url = mockFetch.mock.calls[0]![0] as string;
     expect(url).toContain("/api/v1/recipes/a%2Fb");
   });
 });
@@ -113,7 +113,7 @@ describe("api.recipes.search", () => {
 
     await api.recipes.search("chicken", 5);
 
-    const url = mockFetch.mock.calls[0][0] as string;
+    const url = mockFetch.mock.calls[0]![0] as string;
     expect(url).toContain("/api/v1/search?");
     expect(url).toContain("q=chicken");
     expect(url).toContain("limit=5");
@@ -128,7 +128,7 @@ describe("api.tags.list", () => {
     const result = await api.tags.list();
 
     expect(result).toEqual(tags);
-    const url = mockFetch.mock.calls[0][0] as string;
+    const url = mockFetch.mock.calls[0]![0] as string;
     expect(url).toContain("/api/v1/tags");
   });
 });
@@ -139,7 +139,7 @@ describe("URL construction", () => {
 
     await api.tags.list();
 
-    const url = mockFetch.mock.calls[0][0] as string;
+    const url = mockFetch.mock.calls[0]![0] as string;
     // Default fallback is https://reducedrecipes.com
     expect(url).toMatch(/^https:\/\/reducedrecipes\.com\/api\/v1\/tags$/);
   });

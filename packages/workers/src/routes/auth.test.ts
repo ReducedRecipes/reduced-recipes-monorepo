@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Env, User } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { User } from '@rr/shared';
 import auth from './auth';
 
 // ── Mock helpers ─────────────────────────────────────────────────────────

@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
-import type { Env, Notification } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { Notification } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };

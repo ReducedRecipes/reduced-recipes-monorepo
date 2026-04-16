@@ -1,4 +1,4 @@
-import type { Env } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
 
 interface DlqMessage {
   url?: string;

@@ -14,6 +14,9 @@ export const mmkv = {
   delete(key: string): void {
     AsyncStorage.removeItem(key);
   },
+  clearAll(): void {
+    AsyncStorage.clear();
+  },
 };
 
 export const mmkvStorage: StateStorage = {

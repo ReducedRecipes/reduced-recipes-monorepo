@@ -7,7 +7,8 @@
 
 import { getCookie, setCookie } from 'hono/cookie';
 import type { Context, MiddlewareHandler } from 'hono';
-import type { Env, User } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { User } from '@rr/shared';
 import {
   getSession,
   createSession,

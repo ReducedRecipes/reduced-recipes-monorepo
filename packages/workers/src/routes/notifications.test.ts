@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import notifications from './notifications';
-import type { Env, User } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { User } from '@rr/shared';
 
 // ── Mock helpers ────────────────────────────────────────────────────────
 
