@@ -56,11 +56,11 @@ async function getUserDietaryMask(c: AppContext, userId: string): Promise<number
   if (!usersDB) return 0;
 
   const { results } = await usersDB
-    .prepare('SELECT restriction_name FROM user_dietary_preferences WHERE user_id = ?')
+    .prepare('SELECT restriction FROM user_dietary_preferences WHERE user_id = ?')
     .bind(userId)
     .all();
 
-  const restrictions = (results ?? []).map((r) => (r as { restriction_name: string }).restriction_name);
+  const restrictions = (results ?? []).map((r) => (r as { restriction: string }).restriction);
   const mask = restrictionsToMask(restrictions);
 
   // Cache the computed mask
