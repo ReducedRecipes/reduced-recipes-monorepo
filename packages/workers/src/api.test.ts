@@ -177,6 +177,68 @@ describe('GET /api/v1/domains/:domain/recipes', () => {
   });
 });
 
+// ── S-2: Recipe detail + view tracking ──────────────────────────────────
+
+describe('GET /api/v1/recipes/:id', () => {
+  it('returns 404 when recipe not found in KV', async () => {
+    const env = createEnv();
+    const res = await req('/api/v1/recipes/missing-id', env);
+    expect(res.status).toBe(404);
+    const body = await res.json() as any;
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns recipe document from KV', async () => {
+    const env = createEnv();
+    const doc = { id: 'r1', title: 'Test Recipe', url: 'https://example.com/recipe' };
+    env.RECIPES_KV.get = vi.fn().mockResolvedValue(JSON.stringify(doc));
+
+    const res = await req('/api/v1/recipes/r1', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.title).toBe('Test Recipe');
+    expect(res.headers.get('Cache-Control')).toContain('max-age=3600');
+  });
+
+  it('tracks view without id column (auto-increment) for authenticated users', async () => {
+    const usersStmt = makeStmt();
+    const usersDb = {
+      prepare: vi.fn().mockReturnValue(usersStmt),
+    };
+    const env = createEnv({ USERS_DB: usersDb });
+    const doc = { id: 'r1', title: 'Test Recipe' };
+    env.RECIPES_KV.get = vi.fn().mockResolvedValue(JSON.stringify(doc));
+
+    // Simulate authenticated user via optionalAuth middleware
+    // The middleware sets userId on the context; we mock USERS_DB to verify the SQL
+    const waitUntilPromises: Promise<unknown>[] = [];
+    const res = await app.request('/api/v1/recipes/r1', {}, {
+      ...env,
+      executionCtx: { waitUntil: (p: Promise<unknown>) => waitUntilPromises.push(p) },
+      // optionalAuth reads SESSION_KV; provide a valid session
+      SESSION_KV: {
+        get: vi.fn().mockResolvedValue(JSON.stringify({ userId: 'user-123', expiresAt: Date.now() + 100000 })),
+        put: vi.fn(), delete: vi.fn(), list: vi.fn(), getWithMetadata: vi.fn(),
+      },
+    } as any);
+
+    expect(res.status).toBe(200);
+
+    // Wait for fire-and-forget view tracking
+    await Promise.allSettled(waitUntilPromises);
+
+    // Verify the INSERT does NOT include the id column
+    if (usersDb.prepare.mock.calls.length > 0) {
+      const sql = usersDb.prepare.mock.calls[0]![0] as string;
+      expect(sql).toContain('INSERT OR IGNORE INTO recipe_views');
+      expect(sql).toContain('user_id, recipe_id, source, viewed_at');
+      expect(sql).not.toContain('(id,');
+      // Should bind only 2 params (userId, recipeId), not 3
+      expect(usersStmt.bind).toHaveBeenCalledWith('user-123', 'r1');
+    }
+  });
+});
+
 // ── S-8: Search, Admin, Remove tests ────────────────────────────────────
 
 function reqWithInit(path: string, env: ReturnType<typeof createEnv>, init?: RequestInit) {
