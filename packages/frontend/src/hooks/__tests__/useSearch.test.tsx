@@ -26,20 +26,23 @@ function createWrapper() {
   );
 }
 
-const mockResults: RecipeSummary[] = [
-  {
-    id: "r1",
-    title: "Pasta Carbonara",
-    domain: "example.com",
-    image_url: "https://example.com/img.jpg",
-    total_time: 30,
-    cook_time: 20,
-    yields: "4 servings",
-    cuisine: "Italian",
-    category: "Main",
-    tags: ["pasta"],
-  },
-];
+const mockResults = {
+  items: [
+    {
+      id: "r1",
+      title: "Pasta Carbonara",
+      domain: "example.com",
+      image_url: "https://example.com/img.jpg",
+      total_time: 30,
+      cook_time: 20,
+      yields: "4 servings",
+      cuisine: "Italian",
+      category: "Main",
+      tags: ["pasta"],
+    },
+  ] as RecipeSummary[],
+  has_more: false,
+};
 
 describe("useSearch", () => {
   it("fetches search results for a query", async () => {

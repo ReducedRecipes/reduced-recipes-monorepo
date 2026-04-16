@@ -39,15 +39,18 @@ describe("SearchPage", () => {
   });
 
   it("shows heading with query term", async () => {
-    mockedSearch.mockResolvedValue([
-      {
-        id: "r1",
-        title: "Pasta",
-        domain: "example.com",
-        image_url: null,
-        total_time: 30,
-      } as any,
-    ]);
+    mockedSearch.mockResolvedValue({
+      items: [
+        {
+          id: "r1",
+          title: "Pasta",
+          domain: "example.com",
+          image_url: null,
+          total_time: 30,
+        } as any,
+      ],
+      has_more: false,
+    });
     renderPage("/search?q=pasta");
     expect(
       await screen.findByText(/Search results for/),
@@ -55,7 +58,7 @@ describe("SearchPage", () => {
   });
 
   it("shows no results message when empty", async () => {
-    mockedSearch.mockResolvedValue([]);
+    mockedSearch.mockResolvedValue({ items: [], has_more: false });
     renderPage("/search?q=xyz");
     expect(await screen.findByText("No results found.")).toBeDefined();
   });

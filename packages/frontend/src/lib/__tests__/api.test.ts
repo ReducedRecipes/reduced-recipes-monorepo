@@ -89,7 +89,7 @@ describe("fetchRecipes", () => {
 
 describe("searchRecipes", () => {
   it("calls GET /search with q param", async () => {
-    mockFetch.mockResolvedValue(okResponse([]));
+    mockFetch.mockResolvedValue(okResponse({ items: [], has_more: false }));
     await searchRecipes("pasta", 5);
     const url = mockFetch.mock.calls[0]![0] as string;
     expect(url).toContain("/api/v1/search?");

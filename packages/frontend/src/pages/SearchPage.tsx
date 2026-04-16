@@ -27,9 +27,9 @@ export default function SearchPage() {
         Search results for &lsquo;{q}&rsquo;
       </h1>
 
-      {data && data.length > 0 ? (
+      {data && data.items.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {data.map((recipe) => (
+          {data.items.map((recipe) => (
             <RecipeCard key={recipe.id} recipe={recipe} />
           ))}
         </div>
