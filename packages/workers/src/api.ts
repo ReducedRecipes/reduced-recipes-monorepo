@@ -51,7 +51,7 @@ app.use(
   '*',
   cors({
     origin: ['https://reducedrecipes.com', 'https://reduced-recipes.pages.dev', 'http://localhost:5173'],
-    allowMethods: ['GET', 'POST'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE'],
     maxAge: 86400,
   }),
 );
