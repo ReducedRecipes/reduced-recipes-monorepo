@@ -270,8 +270,10 @@ const realApi = {
       return request<RecipeDocument>(`/recipes/${encodeURIComponent(id)}`);
     },
 
-    search(q: string, limit?: number): Promise<RecipeSummary[]> {
-      return request<RecipeSummary[]>(`/search${buildQuery({ q, limit })}`);
+    async search(q: string, limit?: number, offset?: number): Promise<{ items: RecipeSummary[]; has_more: boolean }> {
+      const res = await request<{ items: RecipeSummary[]; has_more?: boolean } | RecipeSummary[]>(`/search${buildQuery({ q, limit, offset })}`);
+      if (Array.isArray(res)) return { items: res, has_more: false };
+      return { items: res.items, has_more: res.has_more ?? false };
     },
   },
 
