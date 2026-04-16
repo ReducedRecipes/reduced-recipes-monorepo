@@ -21,38 +21,38 @@ describe("useSearch", () => {
   });
 
   it("is disabled when query has fewer than 2 characters", () => {
-    const result = useSearch("a");
+    const result = useSearch("a") as any;
     expect(result.enabled).toBe(false);
   });
 
   it("is disabled for empty query", () => {
-    const result = useSearch("");
+    const result = useSearch("") as any;
     expect(result.enabled).toBe(false);
   });
 
   it("is disabled for whitespace-only query", () => {
-    const result = useSearch("   ");
+    const result = useSearch("   ") as any;
     expect(result.enabled).toBe(false);
   });
 
   it("is enabled when query has 2+ characters", () => {
-    const result = useSearch("pa");
+    const result = useSearch("pa") as any;
     expect(result.enabled).toBe(true);
   });
 
   it("trims whitespace before checking length", () => {
-    const result = useSearch("  ab  ");
+    const result = useSearch("  ab  ") as any;
     expect(result.enabled).toBe(true);
     expect(result.queryKey).toEqual(["search", "ab", {}]);
   });
 
   it("includes filters in queryKey for cache isolation", () => {
-    const result = useSearch("test", { tag: "vegan" });
+    const result = useSearch("test", { tag: "vegan" }) as any;
     expect(result.queryKey).toEqual(["search", "test", { tag: "vegan" }]);
   });
 
   it("has initialPageParam of 0", () => {
-    const result = useSearch("test");
+    const result = useSearch("test") as any;
     expect(result.initialPageParam).toBe(0);
   });
 
@@ -62,7 +62,7 @@ describe("useSearch", () => {
       has_more: false,
     } as any);
 
-    const result = useSearch("  pasta  ");
+    const result = useSearch("  pasta  ") as any;
     const data = await result.queryFn({ pageParam: 0 } as any);
 
     expect(api.recipes.search).toHaveBeenCalledWith("pasta", 20, 0);

@@ -24,7 +24,7 @@ describe('runMigrations', () => {
     await runMigrations(db as any);
 
     expect(db.execAsync).toHaveBeenCalledTimes(2);
-    expect(db.execAsync.mock.calls[0][0]).toContain('CREATE TABLE IF NOT EXISTS schema_version');
+    expect(db.execAsync.mock.calls[0]![0]).toContain('CREATE TABLE IF NOT EXISTS schema_version');
   });
 
   it('runs schema when no prior version exists', async () => {
@@ -36,7 +36,7 @@ describe('runMigrations', () => {
 
     // First call: create schema_version, second call: run SCHEMA
     expect(db.execAsync).toHaveBeenCalledTimes(2);
-    expect(db.execAsync.mock.calls[1][0]).toContain('CREATE TABLE IF NOT EXISTS saved_recipes');
+    expect(db.execAsync.mock.calls[1]![0]).toContain('CREATE TABLE IF NOT EXISTS saved_recipes');
   });
 
   it('updates version after running migrations', async () => {
@@ -47,7 +47,7 @@ describe('runMigrations', () => {
     await runMigrations(db as any);
 
     expect(db.runAsync).toHaveBeenCalledTimes(1);
-    const [sql, params] = db.runAsync.mock.calls[0];
+    const [sql, params] = db.runAsync.mock.calls[0]!;
     expect(sql).toContain('INSERT INTO schema_version');
     expect(params).toEqual([1]);
   });
@@ -76,7 +76,7 @@ describe('runMigrations', () => {
 
     // SCHEMA should only run once (second execAsync call from first run)
     const schemaCalls = db.execAsync.mock.calls.filter(
-      (call: string[]) => call[0].includes('saved_recipes')
+      (call: string[]) => call[0]!.includes('saved_recipes')
     );
     expect(schemaCalls).toHaveLength(1);
   });

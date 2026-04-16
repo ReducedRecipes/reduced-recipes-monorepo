@@ -32,14 +32,14 @@ describe("useRecipe", () => {
   });
 
   it("passes different ids to produce different queryKeys", () => {
-    const r1 = useRecipe("id-1");
-    const r2 = useRecipe("id-2");
+    const r1 = useRecipe("id-1") as any;
+    const r2 = useRecipe("id-2") as any;
     expect(r1.queryKey).toEqual(["recipe", "id-1"]);
     expect(r2.queryKey).toEqual(["recipe", "id-2"]);
   });
 
   it("is disabled when id is empty", () => {
-    const result = useRecipe("");
+    const result = useRecipe("") as any;
     expect(result.enabled).toBe(false);
   });
 
@@ -47,7 +47,7 @@ describe("useRecipe", () => {
     const recipe = { id: "abc", title: "Test" };
     vi.mocked(api.recipes.get).mockResolvedValueOnce(recipe as any);
 
-    const result = useRecipe("abc");
+    const result = useRecipe("abc") as any;
     const data = await result.queryFn();
 
     expect(api.recipes.get).toHaveBeenCalledWith("abc");

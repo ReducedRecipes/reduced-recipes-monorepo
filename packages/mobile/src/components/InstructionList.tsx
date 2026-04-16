@@ -10,7 +10,7 @@ export function InstructionList({ instructions }: InstructionListProps) {
   return (
     <View accessibilityRole="list">
       {instructions.map((step, index) => (
-        <View key={index} style={s.row} accessibilityRole="listitem" accessibilityLabel={`Step ${index + 1}: ${step}`}>
+        <View key={index} style={s.row} accessibilityRole="summary" accessibilityLabel={`Step ${index + 1}: ${step}`}>
           <View style={s.badge}>
             <Text style={s.badgeText}>{index + 1}</Text>
           </View>

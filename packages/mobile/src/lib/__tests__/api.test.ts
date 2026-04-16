@@ -24,7 +24,7 @@ describe("request headers", () => {
     await api.tags.list();
 
     expect(mockFetch).toHaveBeenCalledOnce();
-    const [, init] = mockFetch.mock.calls[0];
+    const [, init] = mockFetch.mock.calls[0]!;
     expect(init.headers["Content-Type"]).toBe("application/json");
     expect(init.headers["X-Client"]).toBe("rr-mobile/1.0");
   });

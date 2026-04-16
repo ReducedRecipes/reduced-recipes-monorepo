@@ -18,9 +18,9 @@ import { useEffect } from "react";
 /** Extract a duration in seconds from step text (e.g. "cook for 5 minutes"). */
 function parseTimerSeconds(text: string): number | undefined {
   const match = text.match(/(\d+)\s*(?:-\s*\d+\s*)?minute/i);
-  if (match) return parseInt(match[1], 10) * 60;
+  if (match) return parseInt(match[1]!, 10) * 60;
   const secMatch = text.match(/(\d+)\s*(?:-\s*\d+\s*)?second/i);
-  if (secMatch) return parseInt(secMatch[1], 10);
+  if (secMatch) return parseInt(secMatch[1]!, 10);
   return undefined;
 }
 
@@ -43,7 +43,8 @@ function matchIngredients(
 
 export default function CookingModeScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: recipe, isLoading, error, refetch } = useRecipe(id ?? "");
+  const recipeId = (id as string) ?? "";
+  const { data: recipe, isLoading, error, refetch } = useRecipe(recipeId);
   const [longPressActive, setLongPressActive] = useState(false);
 
   const instructions = useMemo(
@@ -51,7 +52,7 @@ export default function CookingModeScreen() {
     [recipe?.instructions],
   );
 
-  const session = useCookingSession(id ?? "", instructions);
+  const session = useCookingSession(recipeId, instructions);
   const { speakStep, stopSpeaking } = useVoiceGuidance();
 
   const confirmExit = useCallback(() => {

@@ -3,7 +3,7 @@ import { resolve } from "path";
 import { readFileSync, existsSync } from "fs";
 
 // Set React Native globals before any imports
-globalThis.__DEV__ = true;
+(globalThis as any).__DEV__ = true;
 
 // Mock all external dependencies
 vi.mock("react-native", () => ({

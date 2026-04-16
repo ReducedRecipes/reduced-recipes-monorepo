@@ -193,8 +193,8 @@ describe('Happy-path integration: fetch → save → shopping list', () => {
     expect(new Set(ids).size).toBe(ids.length);
 
     // Toggle the first item
-    useShoppingStore.getState().toggle(ids[0]);
-    expect(useShoppingStore.getState().items[0].checked).toBe(true);
+    useShoppingStore.getState().toggle(ids[0]!);
+    expect(useShoppingStore.getState().items[0]!.checked).toBe(true);
 
     // Clear checked items
     useShoppingStore.getState().clearChecked();
