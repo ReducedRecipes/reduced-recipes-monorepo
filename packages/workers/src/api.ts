@@ -1,8 +1,11 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env, RecipeDocument, RecipeSummary } from '@rr/shared';
+import { optionalAuth } from './middleware/auth';
+import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
 
-const app = new Hono<{ Bindings: Env }>();
+type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: unknown } };
+const app = new Hono<AppBindings>();
 
 /** Map a D1 row to a RecipeSummary (without tags). */
 function toRecipeSummary(row: Record<string, unknown>, tags: string[] = []): RecipeSummary {
@@ -51,7 +54,9 @@ app.use(
   '*',
   cors({
     origin: ['https://reducedrecipes.com', 'https://reduced-recipes.pages.dev', 'http://localhost:5173'],
-    allowMethods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Dietary-Prefs'],
+    credentials: true,
     maxAge: 86400,
   }),
 );
@@ -78,12 +83,27 @@ app.get('/api/v1/health', async (c) => {
 });
 
 // ── Recipe detail ───────────────────────────────────────────────────────
-app.get('/api/v1/recipes/:id', async (c) => {
+app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
   const id = c.req.param('id');
   const value = await c.env.RECIPES_KV.get(`recipe:${id}`, 'text');
 
   if (value === null) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Recipe not found' } }, 404);
+  }
+
+  // Fire-and-forget recipe view tracking for authenticated users
+  const userId = c.get('userId');
+  if (userId && c.env.USERS_DB) {
+    c.executionCtx.waitUntil(
+      c.env.USERS_DB
+        .prepare(
+          `INSERT OR IGNORE INTO recipe_views (id, user_id, recipe_id, source, viewed_at)
+           VALUES (?, ?, ?, 'view', datetime('now'))`,
+        )
+        .bind(crypto.randomUUID(), userId, id)
+        .run()
+        .catch(() => {}),
+    );
   }
 
   const doc: RecipeDocument = JSON.parse(value);
@@ -93,7 +113,7 @@ app.get('/api/v1/recipes/:id', async (c) => {
 });
 
 // ── List recipes ─────────────────────────────────────────────────────────
-app.get('/api/v1/recipes', async (c) => {
+app.get('/api/v1/recipes', optionalAuth, async (c) => {
   const { tag, domain, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
 
@@ -120,6 +140,10 @@ app.get('/api/v1/recipes', async (c) => {
     conditions.push('r.extracted_at < ?');
     params.push(cursor);
   }
+
+  // Dietary bitmask filtering
+  const dietaryMask = await getDietaryMask(c);
+  applyDietaryFilter(conditions, params, dietaryMask);
 
   let joinClause = '';
   if (tag) {
@@ -185,7 +209,7 @@ app.get('/api/v1/domains', async (c) => {
 });
 
 // ── Domain recipes ───────────────────────────────────────────────────────
-app.get('/api/v1/domains/:domain/recipes', async (c) => {
+app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
   const domain = c.req.param('domain');
   const { tag, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
@@ -209,6 +233,10 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
     conditions.push('r.extracted_at < ?');
     params.push(cursor);
   }
+
+  // Dietary bitmask filtering
+  const dietaryMask = await getDietaryMask(c);
+  applyDietaryFilter(conditions, params, dietaryMask);
 
   let joinClause = '';
   if (tag) {
@@ -238,7 +266,7 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
 });
 
 // ── Search ────────────────────────────────────────────────────────────
-app.get('/api/v1/search', async (c) => {
+app.get('/api/v1/search', optionalAuth, async (c) => {
   const q = c.req.query('q') ?? '';
   const limitParam = c.req.query('limit');
   const offsetParam = c.req.query('offset');
@@ -257,15 +285,21 @@ app.get('/api/v1/search', async (c) => {
     return c.json({ items: [], next_cursor: null }, 200);
   }
 
+  // Dietary bitmask filtering for search
+  const dietaryMask = await getDietaryMask(c);
+  const dietaryClause = dietaryMask > 0 ? 'AND (r.dietary_bitmask & ?4) = ?4' : '';
+  const bindParams: (string | number)[] = [sanitized, limit + 1, offset];
+  if (dietaryMask > 0) bindParams.push(dietaryMask);
+
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
             r.yields, r.cuisine, r.category
      FROM recipes_fts fts
      JOIN recipes r ON fts.rowid = r.rowid
-     WHERE recipes_fts MATCH ?1
+     WHERE recipes_fts MATCH ?1 ${dietaryClause}
      LIMIT ?2 OFFSET ?3`,
   )
-    .bind(sanitized, limit + 1, offset)
+    .bind(...bindParams)
     .all();
 
   const rows = results ?? [];
