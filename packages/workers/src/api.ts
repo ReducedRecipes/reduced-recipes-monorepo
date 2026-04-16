@@ -31,7 +31,7 @@ async function batchFetchTags(db: D1Database, ids: string[]): Promise<Map<string
   ).bind(...ids).all();
 
   for (const row of result.results ?? []) {
-    const r = row as Record<string, string>;
+    const r = row as { recipe_id: string; tag: string };
     const existing = tagMap.get(r.recipe_id) ?? [];
     existing.push(r.tag);
     tagMap.set(r.recipe_id, existing);
