@@ -1,9 +1,10 @@
-import React, { useRef, useState, useCallback } from "react";
+import React, { useRef, useState, useCallback, useEffect } from "react";
 import {
   View,
   Text,
   Pressable,
   FlatList,
+  ActivityIndicator,
   useWindowDimensions,
   type ViewToken,
   type ListRenderItemInfo,
@@ -11,16 +12,15 @@ import {
 import { useRouter } from "expo-router";
 import { mmkv } from "@/lib/mmkv";
 import { usePreferencesStore } from "@/stores/preferences.store";
+import { useAuthStore } from "@/stores/auth.store";
 import { colors, fonts } from "@/constants/theme";
+import { DIETARY_LABELS, type DietaryRestriction } from "@rr/shared/dietary";
 
-const DIETARY_OPTIONS = [
-  "None",
-  "Vegan",
-  "Vegetarian",
-  "Gluten-free",
-  "Dairy-free",
-  "Keto",
-] as const;
+const BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE || "https://reducedrecipes.com"}/api/v1`;
+
+const ALL_DIETARY_OPTIONS: { key: DietaryRestriction; label: string }[] = (
+  Object.entries(DIETARY_LABELS) as [DietaryRestriction, string][]
+).map(([key, label]) => ({ key, label }));
 
 type SlideKey = "welcome" | "dietary" | "notifications";
 
@@ -39,10 +39,49 @@ export default function OnboardingScreen() {
   const { width } = useWindowDimensions();
   const flatListRef = useRef<FlatList<SlideData>>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [selectedDietary, setSelectedDietary] = useState<string[]>([]);
+  const [selectedRestrictions, setSelectedRestrictions] = useState<DietaryRestriction[]>([]);
   const toggleDietary = usePreferencesStore((s) => s.toggleDietary);
-  const dietaryFilters = usePreferencesStore((s) => s.dietaryFilters);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+
+  // Live recipe count state
+  const [recipeCount, setRecipeCount] = useState<number | null>(null);
+  const [recipeCountLoading, setRecipeCountLoading] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Auth state for server sync
+  const sessionToken = useAuthStore((s) => s.sessionToken);
+
+  // Fetch live recipe count when selections change
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    if (selectedRestrictions.length === 0) {
+      setRecipeCount(null);
+      return;
+    }
+
+    setRecipeCountLoading(true);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const qs = selectedRestrictions.join(",");
+        const res = await fetch(
+          `${BASE_URL}/dietary-preferences/recipe-count?restrictions=${encodeURIComponent(qs)}`,
+        );
+        if (res.ok) {
+          const data = (await res.json()) as { count: number };
+          setRecipeCount(data.count);
+        }
+      } catch {
+        // Silently fail — recipe count is informational
+      } finally {
+        setRecipeCountLoading(false);
+      }
+    }, 500);
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [selectedRestrictions]);
 
   const goToSlide = useCallback(
     (index: number) => {
@@ -62,32 +101,50 @@ export default function OnboardingScreen() {
     router.replace("/(tabs)/");
   }, [router]);
 
-  const handleDietaryToggle = useCallback(
-    (option: string) => {
-      if (option === "None") {
-        // Deselect all dietary filters
-        for (const filter of dietaryFilters) {
-          toggleDietary(filter);
-        }
-        setSelectedDietary([]);
-      } else {
-        toggleDietary(option);
-        setSelectedDietary((prev) => {
-          const isSelected = prev.includes(option);
-          if (isSelected) {
-            return prev.filter((o) => o !== option);
-          }
-          return prev.filter((o) => o !== "None").concat(option);
+  const handleDietaryNext = useCallback(async () => {
+    // Sync dietary preferences to local store
+    const currentLocal = usePreferencesStore.getState().dietaryFilters;
+    // Clear old and set new
+    for (const f of currentLocal) {
+      toggleDietary(f);
+    }
+    for (const r of selectedRestrictions) {
+      toggleDietary(r);
+    }
+
+    // If authenticated, sync to server
+    if (sessionToken) {
+      try {
+        await fetch(`${BASE_URL}/users/me/dietary-preferences`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${sessionToken}`,
+          },
+          body: JSON.stringify({ restrictions: selectedRestrictions }),
         });
+      } catch {
+        // Fall back silently — local save already done
       }
-    },
-    [toggleDietary, dietaryFilters],
-  );
+    }
+
+    goNext();
+  }, [selectedRestrictions, sessionToken, toggleDietary, goNext]);
+
+  const handleDietaryToggle = useCallback((restriction: DietaryRestriction) => {
+    setSelectedRestrictions((prev) => {
+      if (prev.includes(restriction)) {
+        return prev.filter((r) => r !== restriction);
+      }
+      return [...prev, restriction];
+    });
+  }, []);
 
   const onViewableItemsChanged = useCallback(
     ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      if (viewableItems.length > 0 && viewableItems[0].index != null) {
-        setCurrentIndex(viewableItems[0].index);
+      const first = viewableItems[0];
+      if (viewableItems.length > 0 && first && first.index != null) {
+        setCurrentIndex(first.index);
       }
     },
     [],
@@ -178,20 +235,36 @@ export default function OnboardingScreen() {
                   fontSize: 28,
                   color: colors.ink,
                   textAlign: "center",
-                  marginBottom: 32,
+                  marginBottom: 16,
                 }}
               >
                 Any dietary preferences?
               </Text>
+              {/* Live recipe count */}
+              {selectedRestrictions.length > 0 && (
+                <View style={{ alignItems: "center", marginBottom: 16 }}>
+                  {recipeCountLoading ? (
+                    <ActivityIndicator size="small" color={colors.orange} />
+                  ) : recipeCount !== null ? (
+                    <Text
+                      style={{
+                        fontFamily: fonts.body,
+                        fontSize: 14,
+                        color: colors.inkMuted,
+                      }}
+                    >
+                      {recipeCount} {recipeCount === 1 ? "recipe matches" : "recipes match"} your preferences
+                    </Text>
+                  ) : null}
+                </View>
+              )}
               <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 12 }}>
-                {DIETARY_OPTIONS.map((option) => {
-                  const isActive = option === "None"
-                    ? selectedDietary.length === 0
-                    : selectedDietary.includes(option);
+                {ALL_DIETARY_OPTIONS.map(({ key, label }) => {
+                  const isActive = selectedRestrictions.includes(key);
                   return (
                     <Pressable
-                      key={option}
-                      onPress={() => handleDietaryToggle(option)}
+                      key={key}
+                      onPress={() => handleDietaryToggle(key)}
                       style={{
                         paddingVertical: 12,
                         paddingHorizontal: 24,
@@ -209,7 +282,7 @@ export default function OnboardingScreen() {
                           color: isActive ? colors.orange : colors.ink,
                         }}
                       >
-                        {option}
+                        {label}
                       </Text>
                     </Pressable>
                   );
@@ -217,7 +290,7 @@ export default function OnboardingScreen() {
               </View>
               <View style={{ flex: 1 }} />
               <Pressable
-                onPress={goNext}
+                onPress={handleDietaryNext}
                 style={{
                   backgroundColor: colors.orange,
                   paddingVertical: 16,
@@ -313,7 +386,7 @@ export default function OnboardingScreen() {
           return null;
       }
     },
-    [width, goNext, selectedDietary, handleDietaryToggle, completeOnboarding, notificationsEnabled],
+    [width, goNext, selectedRestrictions, handleDietaryToggle, handleDietaryNext, completeOnboarding, notificationsEnabled, recipeCount, recipeCountLoading],
   );
 
   return (
