@@ -6,7 +6,7 @@ interface ApiError {
   error: { code: number; message: string };
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE_URL}${path}`, init);
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiError | null;
