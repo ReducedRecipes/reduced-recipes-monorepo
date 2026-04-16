@@ -1,6 +1,12 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import projection from './projection';
 import type { ProjectionJob, RecipeDocument } from '@rr/shared';
+
+vi.mock('./helpers/dietary-inference', () => ({
+  inferDietaryBitmask: vi.fn().mockResolvedValue(3),
+}));
+
+import { inferDietaryBitmask } from './helpers/dietary-inference';
 
 function makeDoc(overrides: Partial<RecipeDocument> = {}): RecipeDocument {
   return {
@@ -74,6 +80,10 @@ function createEnv() {
 }
 
 describe('Projection Worker', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it('upserts recipe, deletes old tags, inserts new tags, updates domain counter', async () => {
     const doc = makeDoc({ tags: ['dessert', 'easy'] });
     const msg = createMessage({ id: doc.id, doc });
@@ -182,5 +192,64 @@ describe('Projection Worker', () => {
       0, // schema_valid = false → 0
       doc.extracted_at,
     );
+  });
+
+  describe('dietary inference integration', () => {
+    it('calls inferDietaryBitmask and updates bitmask when AI is available', async () => {
+      const doc = makeDoc({ id: 'recipe-ai', tags: [] });
+      const msg = createMessage({ id: doc.id, doc });
+      const batch = createBatch([msg]);
+      const env = createEnv();
+      env.AI = {} as any; // Add AI binding
+
+      await projection.queue(batch, env);
+
+      expect(inferDietaryBitmask).toHaveBeenCalledWith(doc, env.AI);
+
+      // The last prepare call should be the bitmask UPDATE
+      const lastCall = env.DB.prepare.mock.calls[env.DB.prepare.mock.calls.length - 1][0] as string;
+      expect(lastCall).toContain('UPDATE recipes SET dietary_bitmask');
+
+      expect(msg.ack).toHaveBeenCalledOnce();
+    });
+
+    it('skips inference when AI binding is undefined', async () => {
+      const doc = makeDoc({ id: 'recipe-no-ai', tags: [] });
+      const msg = createMessage({ id: doc.id, doc });
+      const batch = createBatch([msg]);
+      const env = createEnv(); // No AI binding
+
+      await projection.queue(batch, env);
+
+      expect(inferDietaryBitmask).not.toHaveBeenCalled();
+      expect(msg.ack).toHaveBeenCalledOnce();
+    });
+
+    it('acks message even when dietary inference throws', async () => {
+      vi.mocked(inferDietaryBitmask).mockRejectedValueOnce(new Error('AI unavailable'));
+
+      const doc = makeDoc({ id: 'recipe-fail', tags: [] });
+      const msg = createMessage({ id: doc.id, doc });
+      const batch = createBatch([msg]);
+      const env = createEnv();
+      env.AI = {} as any;
+      const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+
+      await projection.queue(batch, env);
+
+      // Recipe upsert should have succeeded
+      expect(env.DB.batch).toHaveBeenCalled();
+      // Message should be ack'd despite inference failure
+      expect(msg.ack).toHaveBeenCalledOnce();
+      expect(msg.retry).not.toHaveBeenCalled();
+      // Warning logged
+      expect(warnSpy).toHaveBeenCalledWith(
+        'Dietary inference failed for recipe',
+        'recipe-fail',
+        expect.any(Error),
+      );
+
+      warnSpy.mockRestore();
+    });
   });
 });
