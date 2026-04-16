@@ -20,7 +20,7 @@ import type { RecipeSummary } from '@rr/shared';
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
 
-  const { data, isLoading, isError, refetch } = useSearch(query);
+  const { data, isLoading, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useSearch(query);
 
   const handleSearch = useCallback((text: string) => {
     setQuery(text);
@@ -28,7 +28,13 @@ export default function SearchScreen() {
 
   const trimmedQuery = query.trim();
   const showResults = trimmedQuery.length >= 2;
-  const recipes: RecipeSummary[] = data ?? [];
+  const recipes: RecipeSummary[] = data?.pages.flatMap((p) => p.items) ?? [];
+
+  const handleEndReached = useCallback(() => {
+    if (hasNextPage && !isFetchingNextPage) {
+      fetchNextPage();
+    }
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const renderItem = useCallback(
     ({ item }: { item: RecipeSummary }) => (
@@ -94,6 +100,16 @@ export default function SearchScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={{ paddingBottom: 24 }}
             keyboardDismissMode="on-drag"
+            onEndReached={handleEndReached}
+            onEndReachedThreshold={0.5}
+            ListFooterComponent={
+              isFetchingNextPage ? (
+                <View style={s.footer}>
+                  <ActivityIndicator size="small" color={colors.orange} />
+                  <Text style={s.footerText}>Loading more...</Text>
+                </View>
+              ) : null
+            }
           />
         </>
       )}
@@ -142,5 +158,17 @@ const s = StyleSheet.create({
     color: colors.inkMuted,
     paddingHorizontal: 16,
     paddingBottom: 8,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 20,
+    gap: 10,
+  },
+  footerText: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.inkMuted,
   },
 });
