@@ -62,7 +62,7 @@ describe('google-oauth helpers', () => {
       const parts = state.split('.');
       expect(parts).toHaveLength(2);
       expect(parts[0]).toMatch(/^[0-9a-f]{32}$/); // UUID without dashes
-      expect(parts[1].length).toBeGreaterThan(0);
+      expect((parts[1] as string).length).toBeGreaterThan(0);
     });
 
     it('verifies a valid state', async () => {
@@ -149,7 +149,8 @@ describe('google-oauth helpers', () => {
       );
 
       expect(fetchSpy).toHaveBeenCalledOnce();
-      const [url, options] = fetchSpy.mock.calls[0];
+      const call = fetchSpy.mock.calls[0] as [string | Request | URL, RequestInit | undefined];
+      const [url, options] = call;
       expect(url).toBe('https://oauth2.googleapis.com/token');
       expect(options?.method).toBe('POST');
       expect(options?.headers).toEqual({

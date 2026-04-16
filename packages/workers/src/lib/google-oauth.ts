@@ -154,7 +154,9 @@ export function extractUserInfo(idToken: string): GoogleUserInfo {
     throw new Error('Invalid JWT: expected 3 parts');
   }
 
-  const payload = JSON.parse(base64UrlDecode(parts[1]));
+  // parts[1] is guaranteed to exist since we checked parts.length === 3
+  const payloadPart = parts[1] as string;
+  const payload = JSON.parse(base64UrlDecode(payloadPart));
 
   if (!payload.sub || !payload.email) {
     throw new Error('Invalid JWT payload: missing sub or email');
@@ -201,7 +203,7 @@ function timingSafeEqual(a: string, b: string): boolean {
   const bufB = encoder.encode(b);
   let result = 0;
   for (let i = 0; i < bufA.length; i++) {
-    result |= bufA[i] ^ bufB[i];
+    result |= (bufA[i] as number) ^ (bufB[i] as number);
   }
   return result === 0;
 }

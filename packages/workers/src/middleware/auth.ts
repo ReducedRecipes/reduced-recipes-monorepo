@@ -6,7 +6,7 @@
  */
 
 import { getCookie, setCookie } from 'hono/cookie';
-import type { MiddlewareHandler } from 'hono';
+import type { Context, MiddlewareHandler } from 'hono';
 import type { Env, User } from '@rr/shared';
 import {
   getSession,
@@ -22,9 +22,9 @@ const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string; user: User } };
 
-function extractToken(c: { req: { header: (n: string) => string | undefined }; [k: string]: unknown }): string | undefined {
+function extractToken(c: Context): string | undefined {
   // Try cookie first
-  const cookie = getCookie(c as Parameters<typeof getCookie>[0], 'session');
+  const cookie = getCookie(c, 'session');
   if (cookie) return cookie;
 
   // Fallback to Bearer header
@@ -66,7 +66,7 @@ async function fetchUser(db: D1Database, userId: string): Promise<User | null> {
 }
 
 async function refreshSessionIfNeeded(
-  c: Parameters<typeof getCookie>[0] & { req: { header: (n: string) => string | undefined }; header: (n: string, v: string) => void },
+  c: Context,
   kv: KVNamespace,
   session: Session,
   currentToken: string,
@@ -88,8 +88,8 @@ async function refreshSessionIfNeeded(
   await updateSessionIndex(kv, session.user_id, currentToken, newToken);
 
   // Deliver new token: cookie for web, header for mobile
-  const cookie = getCookie(c, 'session');
-  if (cookie) {
+  const existingCookie = getCookie(c, 'session');
+  if (existingCookie) {
     setCookie(c, 'session', newToken, {
       httpOnly: true,
       secure: true,
@@ -132,7 +132,7 @@ export const requireAuth: MiddlewareHandler<AuthEnv> = async (c, next) => {
   c.set('userId', user.id);
   c.set('user', user);
 
-  await refreshSessionIfNeeded(c as never, sessionKV, resolved.session, resolved.token);
+  await refreshSessionIfNeeded(c, sessionKV, resolved.session, resolved.token);
 
   await next();
 };
@@ -166,7 +166,7 @@ export const optionalAuth: MiddlewareHandler<AuthEnv> = async (c, next) => {
   if (user) {
     c.set('userId', user.id);
     c.set('user', user);
-    await refreshSessionIfNeeded(c as never, sessionKV, resolved.session, resolved.token);
+    await refreshSessionIfNeeded(c, sessionKV, resolved.session, resolved.token);
   }
 
   await next();
