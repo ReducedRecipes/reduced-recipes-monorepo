@@ -17,6 +17,11 @@
     "mobile:android": "pnpm --filter @rr/mobile android",
     "mobile:build": "pnpm --filter @rr/mobile build"
   },
+  "pnpm": {
+    "overrides": {
+      "@types/react": "^18.3.0"
+    }
+  },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
