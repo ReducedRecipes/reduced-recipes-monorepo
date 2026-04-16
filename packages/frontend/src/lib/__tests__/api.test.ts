@@ -206,11 +206,11 @@ describe("logout", () => {
 });
 
 describe("getMe", () => {
-  it("calls GET /auth/me", async () => {
+  it("calls GET /auth/me and returns { user }", async () => {
     const user = { id: "u1", email: "test@test.com", name: "Test" };
-    mockFetch.mockResolvedValue(okResponse(user));
+    mockFetch.mockResolvedValue(okResponse({ user }));
     const result = await getMe();
-    expect(result).toEqual(user);
+    expect(result).toEqual({ user });
     expect(mockFetch).toHaveBeenCalledWith("/api/v1/auth/me", {
       credentials: "include",
     });
@@ -274,9 +274,9 @@ describe("getDietaryPreferences", () => {
 
 describe("setDietaryPreferences", () => {
   it("calls PUT /users/me/dietary-preferences with restrictions", async () => {
-    mockFetch.mockResolvedValue(okResponse({ restrictions: ["vegan"], recipe_count: 42 }));
+    mockFetch.mockResolvedValue(okResponse({ restrictions: ["vegan"], matching_recipe_count: 42, updated_at: "2026-01-01T00:00:00.000Z" }));
     const result = await setDietaryPreferences(["vegan"]);
-    expect(result).toEqual({ restrictions: ["vegan"], recipe_count: 42 });
+    expect(result).toEqual({ restrictions: ["vegan"], matching_recipe_count: 42, updated_at: "2026-01-01T00:00:00.000Z" });
     expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/me/dietary-preferences", {
       credentials: "include",
       method: "PUT",
