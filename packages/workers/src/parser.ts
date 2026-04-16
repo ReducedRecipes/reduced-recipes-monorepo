@@ -4,9 +4,20 @@ import { extractSchemaOrg, normaliseRecipe } from '@rr/shared/extract';
 export default {
   async queue(batch: MessageBatch<ParseJob>, env: Env) {
     for (const msg of batch.messages) {
-      const { url, domain, html } = msg.body;
+      const { url, domain, html: inlineHtml, htmlKey } = msg.body;
 
       try {
+        // ── Resolve HTML from KV or inline ────────────────────────
+        const html = htmlKey
+          ? await env.CACHE_KV.get(htmlKey)
+          : inlineHtml;
+
+        if (!html) {
+          await updateCrawlStatus(env, url, 'failed');
+          msg.ack();
+          continue;
+        }
+
         // ── Extract Schema.org ld+json ──────────────────────────────
         const schema = extractSchemaOrg(html);
 
@@ -61,6 +72,9 @@ export default {
             // Invalid URL — skip
           }
         }
+
+        // ── Clean up HTML from KV ──────────────────────────────────
+        if (htmlKey) await env.CACHE_KV.delete(htmlKey);
 
         // ── Mark crawl as done ──────────────────────────────────────
         await updateCrawlStatus(env, url, 'done');

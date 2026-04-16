@@ -61,7 +61,8 @@ export interface CrawlJob {
 export interface ParseJob {
   url: string;
   domain: string;
-  html: string;
+  html?: string;
+  htmlKey?: string;
 }
 
 /** Job enqueued to the projection queue. */

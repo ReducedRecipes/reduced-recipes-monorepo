@@ -228,7 +228,9 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
 app.get('/api/v1/search', async (c) => {
   const q = c.req.query('q') ?? '';
   const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam ?? '20', 10) || 20, 1), 50);
+  const offsetParam = c.req.query('offset');
+  const limit = Math.min(Math.max(parseInt(limitParam ?? '24', 10) || 24, 1), 50);
+  const offset = Math.max(parseInt(offsetParam ?? '0', 10) || 0, 0);
 
   if (q.length < 2) {
     return c.json(
@@ -239,24 +241,27 @@ app.get('/api/v1/search', async (c) => {
 
   const sanitized = q.replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/[*"():^~\-:]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!sanitized) {
-    return c.json([], 200);
+    return c.json({ items: [], next_cursor: null }, 200);
   }
 
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
-            r.yields, r.cuisine, r.category,
-            snippet(recipes_fts, 0, '<b>', '</b>', '...', 32) as snippet
+            r.yields, r.cuisine, r.category
      FROM recipes_fts fts
      JOIN recipes r ON fts.rowid = r.rowid
      WHERE recipes_fts MATCH ?1
-     LIMIT ?2`,
+     LIMIT ?2 OFFSET ?3`,
   )
-    .bind(sanitized, limit)
+    .bind(sanitized, limit + 1, offset)
     .all();
 
-  const items: RecipeSummary[] = (results ?? []).map((row: Record<string, unknown>) => toRecipeSummary(row));
+  const rows = results ?? [];
+  const has_more = rows.length > limit;
+  if (has_more) rows.pop();
 
-  return c.json(items);
+  const items: RecipeSummary[] = rows.map((row: Record<string, unknown>) => toRecipeSummary(row));
+
+  return c.json({ items, has_more });
 });
 
 // ── Admin: Seed domain ────────────────────────────────────────────────
