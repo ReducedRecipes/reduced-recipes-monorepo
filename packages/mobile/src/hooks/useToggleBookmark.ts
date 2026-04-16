@@ -1,15 +1,20 @@
 import { useCallback } from "react";
-import { useSQLiteContext } from "expo-sqlite";
 import { useSavedRecipes } from "./useSavedRecipes";
 import { api } from "../lib/api";
+
+let db: any = null;
+try {
+  const { useSQLiteContext } = require("expo-sqlite");
+  // Will only work if SQLiteProvider is in the tree
+  db = null; // defer to runtime
+} catch {}
 
 /**
  * Hook that returns a toggle function for bookmarking recipes.
  * Fetches the full recipe document when saving, triggers haptic feedback via useSavedRecipes.
  */
 export function useToggleBookmark() {
-  const db = useSQLiteContext();
-  const { isSaved, save, unsave } = useSavedRecipes({ db });
+  const { isSaved, save, unsave } = useSavedRecipes();
 
   const toggleBookmark = useCallback(
     async (id: string) => {

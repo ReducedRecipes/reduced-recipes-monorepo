@@ -2,6 +2,8 @@ import type { RecipeDocument, RecipeSummary } from "@rr/shared";
 
 const BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE || "https://reducedrecipes.com"}/api/v1`;
 
+const USE_MOCK = true; // Set false when API is deployed
+
 /** Structured API error with status code and message. */
 export class ApiError extends Error {
   constructor(
@@ -58,7 +60,207 @@ export interface RecipeListParams {
   limit?: number;
 }
 
-export const api = {
+// ── Mock data for development ──────────────────────────────────────
+const MOCK_RECIPES: RecipeSummary[] = [
+  {
+    id: "1",
+    title: "Classic Margherita Pizza",
+    domain: "seriouseats.com",
+    image_url: "https://picsum.photos/seed/pizza/400/300",
+    total_time: 45,
+    cook_time: 15,
+    yields: "4 servings",
+    cuisine: "Italian",
+    category: "Main",
+    tags: ["pizza", "italian", "vegetarian"],
+  },
+  {
+    id: "2",
+    title: "Thai Green Curry",
+    domain: "bonappetit.com",
+    image_url: "https://picsum.photos/seed/curry/400/300",
+    total_time: 35,
+    cook_time: 20,
+    yields: "4 servings",
+    cuisine: "Thai",
+    category: "Main",
+    tags: ["curry", "thai", "spicy"],
+  },
+  {
+    id: "3",
+    title: "Avocado Toast with Poached Eggs",
+    domain: "minimalistbaker.com",
+    image_url: "https://picsum.photos/seed/avocado/400/300",
+    total_time: 15,
+    cook_time: 5,
+    yields: "2 servings",
+    cuisine: "American",
+    category: "Breakfast",
+    tags: ["breakfast", "quick", "healthy"],
+  },
+  {
+    id: "4",
+    title: "Chocolate Lava Cake",
+    domain: "kingarthurbaking.com",
+    image_url: "https://picsum.photos/seed/chocolate/400/300",
+    total_time: 30,
+    cook_time: 12,
+    yields: "4 servings",
+    cuisine: "French",
+    category: "Dessert",
+    tags: ["dessert", "chocolate", "baking"],
+  },
+  {
+    id: "5",
+    title: "Chicken Tikka Masala",
+    domain: "budgetbytes.com",
+    image_url: "https://picsum.photos/seed/tikka/400/300",
+    total_time: 50,
+    cook_time: 30,
+    yields: "6 servings",
+    cuisine: "Indian",
+    category: "Main",
+    tags: ["indian", "chicken", "curry"],
+  },
+  {
+    id: "6",
+    title: "Caesar Salad",
+    domain: "foodnetwork.com",
+    image_url: "https://picsum.photos/seed/caesar/400/300",
+    total_time: 20,
+    cook_time: 0,
+    yields: "4 servings",
+    cuisine: "American",
+    category: "Salad",
+    tags: ["salad", "quick", "classic"],
+  },
+  {
+    id: "7",
+    title: "Japanese Ramen",
+    domain: "justonecookbook.com",
+    image_url: "https://picsum.photos/seed/ramen/400/300",
+    total_time: 120,
+    cook_time: 90,
+    yields: "4 servings",
+    cuisine: "Japanese",
+    category: "Soup",
+    tags: ["japanese", "soup", "noodles"],
+  },
+  {
+    id: "8",
+    title: "Banana Bread",
+    domain: "sallysbakingaddiction.com",
+    image_url: "https://picsum.photos/seed/banana/400/300",
+    total_time: 70,
+    cook_time: 55,
+    yields: "1 loaf",
+    cuisine: "American",
+    category: "Baking",
+    tags: ["baking", "banana", "easy"],
+  },
+];
+
+const MOCK_RECIPE_DOC: RecipeDocument = {
+  id: "1",
+  source_url: "https://seriouseats.com/margherita-pizza",
+  domain: "seriouseats.com",
+  title: "Classic Margherita Pizza",
+  image_url: "https://picsum.photos/seed/pizza/400/300",
+  author: "J. Kenji López-Alt",
+  yields: "4 servings",
+  prep_time: 30,
+  cook_time: 15,
+  total_time: 45,
+  ingredients: [
+    "500g bread flour",
+    "325ml warm water",
+    "7g instant yeast",
+    "10g salt",
+    "2 tbsp olive oil",
+    "200g San Marzano tomatoes, crushed",
+    "200g fresh mozzarella, sliced",
+    "Fresh basil leaves",
+  ],
+  instructions: [
+    "Mix flour, water, yeast, and salt. Knead for 10 minutes until smooth.",
+    "Let dough rise for 1 hour until doubled.",
+    "Preheat oven to 250°C (480°F) with pizza stone.",
+    "Stretch dough into a 12-inch round on floured surface.",
+    "Spread crushed tomatoes, add mozzarella slices.",
+    "Bake for 10-12 minutes until crust is golden and cheese is bubbling.",
+    "Top with fresh basil and drizzle with olive oil. Serve immediately.",
+  ],
+  tags: ["pizza", "italian", "vegetarian"],
+  cuisine: "Italian",
+  category: "Main",
+  keywords: ["pizza", "margherita", "italian"],
+  schema_valid: true,
+  extracted_at: new Date().toISOString(),
+  last_checked: new Date().toISOString(),
+};
+
+function mockDelay(ms = 300): Promise<void> {
+  return new Promise((r) => setTimeout(r, ms));
+}
+
+const mockApi = {
+  recipes: {
+    async list(params: RecipeListParams = {}): Promise<RecipeListResponse> {
+      await mockDelay();
+      let items = [...MOCK_RECIPES];
+      if (params.max_time) items = items.filter((r) => (r.total_time ?? 999) <= params.max_time!);
+      if (params.cuisine) items = items.filter((r) => r.cuisine?.toLowerCase() === params.cuisine!.toLowerCase());
+      if (params.tag) items = items.filter((r) => r.tags?.includes(params.tag!));
+      if (params.domain) items = items.filter((r) => r.domain === params.domain);
+      const limit = params.limit ?? 10;
+      return { items: items.slice(0, limit), next_cursor: null };
+    },
+
+    async get(id: string): Promise<RecipeDocument> {
+      await mockDelay();
+      const summary = MOCK_RECIPES.find((r) => r.id === id);
+      if (!summary) throw new ApiError(404, "Recipe not found");
+      return {
+        ...MOCK_RECIPE_DOC,
+        ...summary,
+        source_url: `https://${summary.domain}/recipe`,
+        ingredients: MOCK_RECIPE_DOC.ingredients,
+        instructions: MOCK_RECIPE_DOC.instructions,
+      };
+    },
+
+    async search(q: string, limit?: number): Promise<RecipeSummary[]> {
+      await mockDelay();
+      const lower = q.toLowerCase();
+      const results = MOCK_RECIPES.filter(
+        (r) =>
+          r.title.toLowerCase().includes(lower) ||
+          r.tags?.some((t) => t.includes(lower)) ||
+          r.cuisine?.toLowerCase().includes(lower),
+      );
+      return results.slice(0, limit ?? 10);
+    },
+  },
+
+  tags: {
+    async list(): Promise<{ tag: string; count: number }[]> {
+      await mockDelay();
+      const counts = new Map<string, number>();
+      for (const r of MOCK_RECIPES) {
+        for (const t of r.tags ?? []) {
+          counts.set(t, (counts.get(t) ?? 0) + 1);
+        }
+      }
+      return Array.from(counts.entries())
+        .map(([tag, count]) => ({ tag, count }))
+        .sort((a, b) => b.count - a.count);
+    },
+  },
+};
+
+// ── Exported API ───────────────────────────────────────────────────
+
+const realApi = {
   recipes: {
     list(params: RecipeListParams = {}): Promise<RecipeListResponse> {
       return request<RecipeListResponse>(`/recipes${buildQuery({ ...params })}`);
@@ -79,3 +281,5 @@ export const api = {
     },
   },
 };
+
+export const api = USE_MOCK ? mockApi : realApi;

@@ -1,9 +1,5 @@
-import React, { useCallback, useMemo, forwardRef } from 'react';
-import GorhomBottomSheet, {
-  BottomSheetBackdrop,
-  type BottomSheetProps as GorhomProps,
-} from '@gorhom/bottom-sheet';
-import type { BottomSheetDefaultBackdropProps } from '@gorhom/bottom-sheet/lib/typescript/components/bottomSheetBackdrop/types';
+import React, { forwardRef, useImperativeHandle, useState } from 'react';
+import { Modal, View, Pressable, StyleSheet } from 'react-native';
 import type { ReactNode } from 'react';
 
 export interface BottomSheetProps {
@@ -14,47 +10,69 @@ export interface BottomSheetProps {
   index?: number;
 }
 
-export const BottomSheet = forwardRef<GorhomBottomSheet, BottomSheetProps>(
-  function BottomSheet(
-    {
-      children,
-      snapPoints: snapPointsProp,
-      onClose,
-      enablePanDownToClose = true,
-      index = -1,
-    },
-    ref,
-  ) {
-    const snapPoints = useMemo(
-      () => snapPointsProp ?? ['25%', '50%', '90%'],
-      [snapPointsProp],
-    );
+export interface BottomSheetRef {
+  expand: () => void;
+  close: () => void;
+  snapToIndex: (index: number) => void;
+}
 
-    const renderBackdrop = useCallback(
-      (props: BottomSheetDefaultBackdropProps) => (
-        <BottomSheetBackdrop
-          {...props}
-          disappearsOnIndex={-1}
-          appearsOnIndex={0}
-          opacity={0.5}
-        />
-      ),
-      [],
-    );
+export const BottomSheet = forwardRef<BottomSheetRef, BottomSheetProps>(
+  function BottomSheet({ children, onClose, index = -1 }, ref) {
+    const [visible, setVisible] = useState(index >= 0);
+
+    useImperativeHandle(ref, () => ({
+      expand: () => setVisible(true),
+      close: () => {
+        setVisible(false);
+        onClose?.();
+      },
+      snapToIndex: (i: number) => {
+        if (i < 0) {
+          setVisible(false);
+          onClose?.();
+        } else {
+          setVisible(true);
+        }
+      },
+    }));
 
     return (
-      <GorhomBottomSheet
-        ref={ref}
-        index={index}
-        snapPoints={snapPoints}
-        enablePanDownToClose={enablePanDownToClose}
-        onClose={onClose}
-        backdropComponent={renderBackdrop}
-        handleIndicatorStyle={{ backgroundColor: '#9CA3AF', width: 40 }}
-        backgroundStyle={{ backgroundColor: '#FAFAF8' }}
-      >
-        {children}
-      </GorhomBottomSheet>
+      <Modal visible={visible} transparent animationType="slide">
+        <Pressable
+          style={styles.backdrop}
+          onPress={() => {
+            setVisible(false);
+            onClose?.();
+          }}
+        />
+        <View style={styles.sheet}>
+          <View style={styles.handle} />
+          {children}
+        </View>
+      </Modal>
     );
   },
 );
+
+const styles = StyleSheet.create({
+  backdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sheet: {
+    backgroundColor: '#FAFAF8',
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34,
+    maxHeight: '80%',
+  },
+  handle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#9CA3AF',
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 8,
+    marginBottom: 8,
+  },
+});

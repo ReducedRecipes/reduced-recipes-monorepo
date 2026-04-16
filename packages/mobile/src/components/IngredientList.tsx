@@ -1,14 +1,13 @@
 import React, { useState, useCallback } from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
 import { scaleIngredient } from "../lib/scale-ingredient";
+import { colors, fonts } from "@/constants/theme";
 
 export { parseQuantity, scaleIngredient } from "../lib/scale-ingredient";
 
 export interface IngredientListProps {
   ingredients: string[];
-  /** Default serving count the recipe was written for (default 1). */
   baseServings?: number;
-  /** Called when "Add all to shopping list" is pressed. Receives scaled ingredients. */
   onAddAllToShoppingList?: (ingredients: string[]) => void;
 }
 
@@ -31,102 +30,93 @@ export function IngredientList({
     });
   }, []);
 
-  const decrement = useCallback(() => {
-    setServings((s) => Math.max(1, s - 1));
-  }, []);
-
-  const increment = useCallback(() => {
-    setServings((s) => s + 1);
-  }, []);
-
   const scaledIngredients = ingredients.map((ing) => scaleIngredient(ing, factor));
 
-  const handleAddAll = useCallback(() => {
-    onAddAllToShoppingList?.(scaledIngredients);
-  }, [onAddAllToShoppingList, scaledIngredients]);
-
   return (
-    <View className="px-4 py-3" accessibilityRole="list">
+    <View accessibilityRole="list">
       {/* Serving adjuster */}
-      <View className="flex-row items-center justify-between mb-3">
-        <Text className="text-base font-medium text-ink dark:text-dark-ink">
-          Servings
-        </Text>
-        <View className="flex-row items-center rounded-lg bg-bgMuted dark:bg-dark-bgMuted">
-          <Pressable
-            onPress={decrement}
-            accessibilityLabel="Decrease servings"
-            accessibilityRole="button"
-            className="px-3 py-1"
-          >
-            <Text className="text-lg font-bold text-ink dark:text-dark-ink">
-              −
-            </Text>
+      <View style={s.servingRow}>
+        <Text style={s.servingLabel}>Servings</Text>
+        <View style={s.servingControl}>
+          <Pressable onPress={() => setServings((v) => Math.max(1, v - 1))} style={s.servingBtn} accessibilityLabel="Decrease servings">
+            <Text style={s.servingBtnText}>−</Text>
           </Pressable>
-          <Text
-            className="min-w-[32px] text-center text-base font-medium text-ink dark:text-dark-ink"
-            accessibilityLabel={`${servings} servings`}
-          >
-            {servings}
-          </Text>
-          <Pressable
-            onPress={increment}
-            accessibilityLabel="Increase servings"
-            accessibilityRole="button"
-            className="px-3 py-1"
-          >
-            <Text className="text-lg font-bold text-ink dark:text-dark-ink">
-              +
-            </Text>
+          <Text style={s.servingCount}>{servings}</Text>
+          <Pressable onPress={() => setServings((v) => v + 1)} style={s.servingBtn} accessibilityLabel="Increase servings">
+            <Text style={s.servingBtnText}>+</Text>
           </Pressable>
         </View>
       </View>
 
       {/* Ingredient rows */}
-      {scaledIngredients.map((ingredient, index) => (
-        <Pressable
-          key={index}
-          onPress={() => toggle(index)}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: checked.has(index) }}
-          className="flex-row items-center py-2 border-b border-bgMuted dark:border-dark-bgMuted"
-        >
-          <View
-            className={`w-5 h-5 rounded mr-3 border items-center justify-center ${
-              checked.has(index)
-                ? "bg-orange border-orange"
-                : "border-inkFaint dark:border-dark-inkFaint"
-            }`}
+      {scaledIngredients.map((ingredient, index) => {
+        const isChecked = checked.has(index);
+        return (
+          <Pressable
+            key={index}
+            onPress={() => toggle(index)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: isChecked }}
+            style={s.ingredientRow}
           >
-            {checked.has(index) && (
-              <Text className="text-xs text-white font-bold">✓</Text>
-            )}
-          </View>
-          <Text
-            className={`flex-1 text-base ${
-              checked.has(index)
-                ? "line-through text-inkMuted dark:text-dark-inkMuted"
-                : "text-ink dark:text-dark-ink"
-            }`}
-          >
-            {ingredient}
-          </Text>
-        </Pressable>
-      ))}
+            <View style={[s.checkbox, isChecked && s.checkboxChecked]}>
+              {isChecked && <Text style={s.checkmark}>✓</Text>}
+            </View>
+            <Text style={[s.ingredientText, isChecked && s.ingredientChecked]}>
+              {ingredient}
+            </Text>
+          </Pressable>
+        );
+      })}
 
-      {/* Add all to shopping list */}
       {onAddAllToShoppingList && (
         <Pressable
-          onPress={handleAddAll}
+          onPress={() => onAddAllToShoppingList(scaledIngredients)}
+          style={s.addAllBtn}
           accessibilityRole="button"
           accessibilityLabel="Add all to shopping list"
-          className="mt-4 py-3 rounded-lg bg-orange items-center"
         >
-          <Text className="text-white font-medium text-base">
-            Add all to shopping list
-          </Text>
+          <Text style={s.addAllText}>Add all to shopping list</Text>
         </Pressable>
       )}
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  servingRow: {
+    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
+    marginBottom: 16,
+  },
+  servingLabel: { fontFamily: fonts.bodyMed, fontSize: 15, color: colors.ink },
+  servingControl: {
+    flexDirection: "row", alignItems: "center",
+    backgroundColor: colors.bgMuted, borderRadius: 10,
+  },
+  servingBtn: { paddingHorizontal: 14, paddingVertical: 6 },
+  servingBtnText: { fontSize: 18, fontWeight: "700", color: colors.ink },
+  servingCount: {
+    fontFamily: fonts.bodyMed, fontSize: 15, color: colors.ink,
+    minWidth: 32, textAlign: "center",
+  },
+  ingredientRow: {
+    flexDirection: "row", alignItems: "center",
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.bgMuted,
+  },
+  checkbox: {
+    width: 22, height: 22, borderRadius: 6, marginRight: 12,
+    borderWidth: 2, borderColor: colors.inkFaint,
+    alignItems: "center", justifyContent: "center",
+  },
+  checkboxChecked: {
+    backgroundColor: colors.orange, borderColor: colors.orange,
+  },
+  checkmark: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
+  ingredientText: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: colors.ink },
+  ingredientChecked: { textDecorationLine: "line-through", color: colors.inkMuted },
+  addAllBtn: {
+    marginTop: 16, paddingVertical: 14, borderRadius: 12,
+    backgroundColor: colors.orange, alignItems: "center",
+  },
+  addAllText: { fontFamily: fonts.bodyMed, fontSize: 15, color: "#FFFFFF" },
+});

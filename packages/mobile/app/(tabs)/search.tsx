@@ -1,7 +1,7 @@
 import React, { useCallback, useRef, useState } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import GorhomBottomSheet from '@gorhom/bottom-sheet';
+import type { BottomSheetRef } from '@/components/BottomSheet';
 import { SearchBar } from '@/components/SearchBar';
 import { FilterSheet, type SearchFilters } from '@/components/FilterSheet';
 import { RecipeCard } from '@/components/RecipeCard';
@@ -39,7 +39,7 @@ export default function SearchScreen() {
   });
   const [filterVisible, setFilterVisible] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>(getRecentSearches);
-  const sheetRef = useRef<GorhomBottomSheet>(null);
+  const sheetRef = useRef<BottomSheetRef>(null);
 
   const { data, isLoading, isError, refetch } = useSearch(query, {
     cuisine: filters.cuisines[0],

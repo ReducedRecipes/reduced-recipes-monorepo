@@ -6,11 +6,11 @@ import {
   FlatList,
   Pressable,
   RefreshControl,
+  StyleSheet,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useRecipes } from '@/hooks/useRecipes';
 import { RecipeCard } from '@/components/RecipeCard';
-import { TagPill } from '@/components/TagPill';
 import { ErrorState } from '@/components/ErrorState';
 import { SearchIcon } from '@/components/icons';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
@@ -18,16 +18,8 @@ import { colors, fonts } from '@/constants/theme';
 import type { RecipeSummary } from '@rr/shared';
 
 const CUISINES = [
-  'Italian',
-  'Mexican',
-  'Chinese',
-  'Japanese',
-  'Indian',
-  'Thai',
-  'French',
-  'Mediterranean',
-  'Korean',
-  'American',
+  'Italian', 'Mexican', 'Chinese', 'Japanese', 'Indian',
+  'Thai', 'French', 'Mediterranean', 'Korean', 'American',
 ];
 
 function getGreeting(): string {
@@ -71,15 +63,20 @@ function HorizontalRecipeList({
   );
 }
 
+function CuisinePill({ name, onPress }: { name: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={s.cuisinePill}>
+      <Text style={s.cuisinePillText}>{name}</Text>
+    </Pressable>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const greeting = useMemo(getGreeting, []);
 
-  // Featured recipes (first 5)
   const featured = useRecipes({ limit: 5 });
-  // Quick & Easy (under 30 min)
   const quickEasy = useRecipes({ max_time: 30, limit: 10 });
-  // Recently Added (vertical infinite scroll)
   const recent = useRecipes({});
 
   const { isSaved, save, unsave } = useSavedRecipes();
@@ -132,47 +129,31 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      className="flex-1 bg-bg"
+      style={s.container}
       refreshControl={
-        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} />
+        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.orange} />
       }
     >
       {/* Greeting */}
-      <View className="px-4 pt-6 pb-2">
-        <Text
-          className="text-2xl text-ink"
-          style={{ fontFamily: fonts.display }}
-        >
-          {greeting}
-        </Text>
+      <View style={s.greetingWrap}>
+        <Text style={s.greeting}>{greeting}</Text>
       </View>
 
-      {/* Search Bar (navigates to /search) */}
+      {/* Search Bar */}
       <Pressable
         onPress={() => router.push('/(tabs)/search')}
-        className="mx-4 my-3 flex-row items-center rounded-xl bg-bg-muted px-4 py-3"
+        style={s.searchBar}
         accessibilityRole="button"
         accessibilityLabel="Search recipes"
-        style={{ minHeight: 44 }}
       >
         <SearchIcon color={colors.inkMuted} size={20} />
-        <Text
-          className="ml-3 text-base"
-          style={{ fontFamily: fonts.body, color: colors.inkFaint }}
-        >
-          Search recipes...
-        </Text>
+        <Text style={s.searchPlaceholder}>Search recipes...</Text>
       </Pressable>
 
-      {/* Featured Section */}
+      {/* Featured */}
       {featuredRecipes.length > 0 && (
-        <View className="mt-4">
-          <Text
-            className="px-4 mb-3 text-lg text-ink"
-            style={{ fontFamily: fonts.display }}
-          >
-            Featured
-          </Text>
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Featured</Text>
           <HorizontalRecipeList
             recipes={featuredRecipes}
             bookmarkedIds={bookmarkedIds}
@@ -181,15 +162,10 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Quick & Easy Section */}
+      {/* Quick & Easy */}
       {quickRecipes.length > 0 && (
-        <View className="mt-6">
-          <Text
-            className="px-4 mb-3 text-lg text-ink"
-            style={{ fontFamily: fonts.display }}
-          >
-            Quick &amp; Easy
-          </Text>
+        <View style={s.section}>
+          <Text style={s.sectionTitle}>Quick & Easy</Text>
           <HorizontalRecipeList
             recipes={quickRecipes}
             bookmarkedIds={bookmarkedIds}
@@ -198,38 +174,29 @@ export default function HomeScreen() {
         </View>
       )}
 
-      {/* Cuisine Pills */}
-      <View className="mt-6">
-        <Text
-          className="px-4 mb-3 text-lg text-ink"
-          style={{ fontFamily: fonts.display }}
-        >
-          Cuisines
-        </Text>
+      {/* Cuisines */}
+      <View style={s.section}>
+        <Text style={s.sectionTitle}>Cuisines</Text>
         <FlatList
           data={CUISINES}
           renderItem={({ item }) => (
-            <View className="mr-2">
-              <TagPill tag={item} />
-            </View>
+            <CuisinePill
+              name={item}
+              onPress={() => router.push(`/cuisine/${item.toLowerCase()}`)}
+            />
           )}
           keyExtractor={(item) => item}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ paddingHorizontal: 16 }}
+          contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
         />
       </View>
 
-      {/* Recently Added (vertical list) */}
-      <View className="mt-6 px-4 pb-8">
-        <Text
-          className="mb-3 text-lg text-ink"
-          style={{ fontFamily: fonts.display }}
-        >
-          Recently Added
-        </Text>
+      {/* Recently Added */}
+      <View style={[s.section, { paddingHorizontal: 16, paddingBottom: 32 }]}>
+        <Text style={[s.sectionTitle, { paddingHorizontal: 0 }]}>Recently Added</Text>
         {recentRecipes.map((recipe) => (
-          <View key={recipe.id} className="mb-3">
+          <View key={recipe.id} style={{ marginBottom: 12 }}>
             <RecipeCard
               recipe={recipe}
               bookmarked={bookmarkedIds.has(recipe.id)}
@@ -240,19 +207,77 @@ export default function HomeScreen() {
         {recent.hasNextPage && (
           <Pressable
             onPress={() => recent.fetchNextPage()}
-            className="items-center py-4"
+            style={s.loadMore}
             accessibilityRole="button"
             accessibilityLabel="Load more recipes"
           >
-            <Text
-              className="text-base"
-              style={{ fontFamily: fonts.bodyMed, color: colors.orange }}
-            >
-              Load more
-            </Text>
+            <Text style={s.loadMoreText}>Load more</Text>
           </Pressable>
         )}
       </View>
     </ScrollView>
   );
 }
+
+const s = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  greetingWrap: {
+    paddingHorizontal: 16,
+    paddingTop: 60,
+    paddingBottom: 4,
+  },
+  greeting: {
+    fontFamily: fonts.display,
+    fontSize: 26,
+    color: colors.ink,
+  },
+  searchBar: {
+    marginHorizontal: 16,
+    marginVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.bgMuted,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  searchPlaceholder: {
+    marginLeft: 12,
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: colors.inkFaint,
+  },
+  section: {
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontFamily: fonts.display,
+    fontSize: 18,
+    color: colors.ink,
+    paddingHorizontal: 16,
+    marginBottom: 12,
+  },
+  cuisinePill: {
+    backgroundColor: colors.orangeLight,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 99,
+  },
+  cuisinePillText: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 13,
+    color: colors.orange,
+  },
+  loadMore: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  loadMoreText: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 15,
+    color: colors.orange,
+  },
+});

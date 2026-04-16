@@ -1,7 +1,6 @@
 import React, { forwardRef, useCallback, useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import GorhomBottomSheet from '@gorhom/bottom-sheet';
-import { BottomSheet } from '@/components/BottomSheet';
+import { BottomSheet, type BottomSheetRef } from '@/components/BottomSheet';
 
 export interface SearchFilters {
   maxTime?: number;
@@ -74,7 +73,7 @@ export interface FilterSheetProps {
   onApply: (filters: SearchFilters) => void;
 }
 
-export const FilterSheet = forwardRef<GorhomBottomSheet, FilterSheetProps>(
+export const FilterSheet = forwardRef<BottomSheetRef, FilterSheetProps>(
   function FilterSheet({ visible, onDismiss, onApply }, ref) {
     const [maxTime, setMaxTime] = useState<number | undefined>(undefined);
     const [cuisines, setCuisines] = useState<string[]>([]);

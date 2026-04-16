@@ -1,6 +1,5 @@
-import { MMKV } from "react-native-mmkv";
-
-const storage = new MMKV({ id: "flags" });
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useEffect, useState } from "react";
 
 export const DEFAULT_FLAGS = {
   voiceGuidance: true,
@@ -14,9 +13,15 @@ export const DEFAULT_FLAGS = {
 export type Flag = keyof typeof DEFAULT_FLAGS;
 
 export function useFlag(flag: Flag): boolean {
-  const override = storage.getString(`flag:${flag}`);
-  if (override !== undefined) {
-    return override === "true";
-  }
-  return DEFAULT_FLAGS[flag];
+  const [value, setValue] = useState(DEFAULT_FLAGS[flag]);
+
+  useEffect(() => {
+    AsyncStorage.getItem(`flag:${flag}`).then((override) => {
+      if (override !== null) {
+        setValue(override === "true");
+      }
+    });
+  }, [flag]);
+
+  return value;
 }

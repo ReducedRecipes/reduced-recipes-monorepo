@@ -8,9 +8,8 @@ import {
   Alert,
   Share,
 } from 'react-native';
-import GorhomBottomSheet from '@gorhom/bottom-sheet';
 import { useShoppingList } from '@/hooks/useShoppingList';
-import { BottomSheet } from '@/components/BottomSheet';
+import { BottomSheet, type BottomSheetRef } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
 import { ShoppingCartIcon } from '@/components/icons';
 import type { ShoppingItem } from '@/stores/shopping.store';
@@ -35,7 +34,7 @@ export default function ShoppingListScreen() {
     totalCount,
   } = useShoppingList();
 
-  const bottomSheetRef = useRef<GorhomBottomSheet>(null);
+  const bottomSheetRef = useRef<BottomSheetRef>(null);
   const [manualText, setManualText] = useState('');
 
   const recipePills = useMemo<RecipePill[]>(() => {

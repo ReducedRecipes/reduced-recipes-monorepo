@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { colors, fonts } from '@/constants/theme';
 
 export interface ErrorStateProps {
   message: string;
@@ -8,18 +9,40 @@ export interface ErrorStateProps {
 
 export function ErrorState({ message, onRetry }: ErrorStateProps) {
   return (
-    <View className="flex-1 items-center justify-center px-8 py-12">
-      <Text className="text-center font-body text-base text-error mb-4">
-        {message}
-      </Text>
-      <Pressable
-        onPress={onRetry}
-        className="rounded-lg bg-orange px-6 py-3 active:opacity-80"
-        accessibilityRole="button"
-        accessibilityLabel="Retry"
-      >
-        <Text className="font-body-med text-base text-white">Retry</Text>
+    <View style={s.container}>
+      <Text style={s.message}>{message}</Text>
+      <Pressable onPress={onRetry} style={s.button} accessibilityRole="button" accessibilityLabel="Retry">
+        <Text style={s.buttonText}>Retry</Text>
       </Pressable>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  container: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 32,
+    paddingVertical: 48,
+    backgroundColor: colors.bg,
+  },
+  message: {
+    fontFamily: fonts.body,
+    fontSize: 15,
+    color: colors.error,
+    textAlign: 'center',
+    marginBottom: 16,
+  },
+  button: {
+    backgroundColor: colors.orange,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  buttonText: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 15,
+    color: '#FFFFFF',
+  },
+});

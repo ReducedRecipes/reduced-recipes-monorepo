@@ -18,10 +18,11 @@ config.resolver.alias = {
   '@rr/shared': path.resolve(monorepoRoot, 'packages/shared/src/types.ts'),
 };
 
-// Force single React copy to avoid "Invalid hook call" errors
+// Force single React copy and correct css-interop version
 config.resolver.extraNodeModules = {
   react: path.resolve(monorepoRoot, 'node_modules/react'),
   'react-native': path.resolve(monorepoRoot, 'node_modules/react-native'),
+  'react-native-css-interop': path.resolve(projectRoot, 'node_modules/react-native-css-interop'),
 };
 
 module.exports = withNativeWind(config, {
