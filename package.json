@@ -11,7 +11,11 @@
     "db:migrate:preview": "wrangler d1 migrations apply reduced-recipes-preview --config packages/workers/wrangler.api.toml --env preview",
     "seed": "pnpm tsx scripts/seed-domains.ts",
     "typecheck": "pnpm -r typecheck",
-    "test": "vitest run"
+    "test": "vitest run",
+    "mobile": "pnpm --filter @rr/mobile start",
+    "mobile:ios": "pnpm --filter @rr/mobile ios",
+    "mobile:android": "pnpm --filter @rr/mobile android",
+    "mobile:build": "pnpm --filter @rr/mobile build"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
@@ -21,6 +25,7 @@
     "tsx": "^4.7.0",
     "typescript": "^5.4.0",
     "vitest": "^3.2.4",
-    "wrangler": "^3.50.0"
+    "wrangler": "^3.50.0",
+    "zustand": "^5.0.12"
   }
 }
