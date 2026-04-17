@@ -7,10 +7,8 @@ type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
 const notifications = new Hono<AuthEnv>();
 
-notifications.use('*', requireAuth);
-
 // GET /api/v1/notifications — list user's notifications with cursor pagination
-notifications.get('/api/v1/notifications', async (c) => {
+notifications.get('/api/v1/notifications', requireAuth, async (c) => {
   const userId = c.get('userId');
   const cursor = c.req.query('cursor');
   const limitParam = c.req.query('limit');
@@ -48,7 +46,7 @@ notifications.get('/api/v1/notifications', async (c) => {
 });
 
 // POST /api/v1/notifications/:id/read — mark a single notification as read
-notifications.post('/api/v1/notifications/:id/read', async (c) => {
+notifications.post('/api/v1/notifications/:id/read', requireAuth, async (c) => {
   const userId = c.get('userId');
   const notificationId = c.req.param('id');
 
@@ -75,7 +73,7 @@ notifications.post('/api/v1/notifications/:id/read', async (c) => {
 });
 
 // POST /api/v1/notifications/read-all — mark all unread notifications as read
-notifications.post('/api/v1/notifications/read-all', async (c) => {
+notifications.post('/api/v1/notifications/read-all', requireAuth, async (c) => {
   const userId = c.get('userId');
 
   await c.env.USERS_DB!.prepare(
@@ -88,7 +86,7 @@ notifications.post('/api/v1/notifications/read-all', async (c) => {
 });
 
 // GET /api/v1/notifications/unread-count — get count of unread notifications
-notifications.get('/api/v1/notifications/unread-count', async (c) => {
+notifications.get('/api/v1/notifications/unread-count', requireAuth, async (c) => {
   const userId = c.get('userId');
 
   const row = await c.env.USERS_DB!.prepare(

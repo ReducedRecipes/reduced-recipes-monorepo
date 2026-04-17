@@ -7,10 +7,8 @@ type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
 const bookmarks = new Hono<AuthEnv>();
 
-bookmarks.use('*', requireAuth);
-
 // POST /api/v1/bookmarks — add a recipe to the default Saved collection
-bookmarks.post('/api/v1/bookmarks', async (c) => {
+bookmarks.post('/api/v1/bookmarks', requireAuth, async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json<{ recipe_id: string }>();
 
@@ -74,7 +72,7 @@ bookmarks.post('/api/v1/bookmarks', async (c) => {
 });
 
 // DELETE /api/v1/bookmarks/:id — remove a bookmark (must be owned by user)
-bookmarks.delete('/api/v1/bookmarks/:id', async (c) => {
+bookmarks.delete('/api/v1/bookmarks/:id', requireAuth, async (c) => {
   const userId = c.get('userId');
   const bookmarkId = c.req.param('id');
 
@@ -99,7 +97,7 @@ bookmarks.delete('/api/v1/bookmarks/:id', async (c) => {
 });
 
 // GET /api/v1/bookmarks — list user's bookmarks with cursor pagination
-bookmarks.get('/api/v1/bookmarks', async (c) => {
+bookmarks.get('/api/v1/bookmarks', requireAuth, async (c) => {
   const userId = c.get('userId');
   const cursor = c.req.query('cursor');
   const limitParam = c.req.query('limit');
