@@ -89,8 +89,8 @@ jobs:
 
       - name: Generate preview wrangler config
         run: |
-          # Remove existing [env.preview] stub to avoid duplicate key error
-          sed -i '/^\[env\.preview\]/,/^$/d' packages/workers/wrangler.api.toml
+          # Remove the existing two-line [env.preview] stub to avoid duplicate key error
+          sed -i '/^\[env\.preview\]$/d; /^name = "rr-api-preview"$/d' packages/workers/wrangler.api.toml
           cat >> packages/workers/wrangler.api.toml << 'TOML'
 
           # --- Preview overrides (auto-generated) ---
