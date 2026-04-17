@@ -26,46 +26,44 @@ jobs:
       - name: Create or get Cloudflare resources
         id: resources
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
         run: |
           set -euo pipefail
+          API="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID"
+          AUTH="Authorization: Bearer $CF_API_TOKEN"
 
-          get_or_create_d1() {
-            local name="$1"
-            # Try to find existing
-            local existing
-            existing=$(npx wrangler d1 list 2>/dev/null | grep "$name" | head -1 | awk '{print $1}' || true)
-            if [ -n "$existing" ] && [ "$existing" != "┌" ]; then
-              echo "$existing"
-              return
-            fi
-            # Create new
-            npx wrangler d1 create "$name" 2>&1 | sed -n 's/.*database_id = "\([^"]*\)".*/\1/p'
-          }
+          # --- D1 Database ---
+          USERS_DB_ID=$(curl -s -H "$AUTH" "$API/d1/database" \
+            | jq -r '.result[] | select(.name=="reduced-recipes-users-preview") | .uuid' || true)
+          if [ -z "$USERS_DB_ID" ]; then
+            USERS_DB_ID=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+              -d '{"name":"reduced-recipes-users-preview"}' "$API/d1/database" \
+              | jq -r '.result.uuid')
+          fi
 
-          get_or_create_kv() {
-            local name="$1"
-            # Try to find existing
-            local existing
-            existing=$(npx wrangler kv namespace list 2>/dev/null | grep "$name" | head -1 | awk '{print $1}' || true)
-            if [ -n "$existing" ] && [ "$existing" != "┌" ]; then
-              echo "$existing"
-              return
-            fi
-            # Create new
-            npx wrangler kv namespace create "$name" 2>&1 | sed -n 's/.*id = "\([^"]*\)".*/\1/p'
-          }
+          # --- KV: sessions ---
+          SESSION_KV_ID=$(curl -s -H "$AUTH" "$API/storage/kv/namespaces" \
+            | jq -r '.result[] | select(.title=="rr-sessions-preview") | .id' || true)
+          if [ -z "$SESSION_KV_ID" ]; then
+            SESSION_KV_ID=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+              -d '{"title":"rr-sessions-preview"}' "$API/storage/kv/namespaces" \
+              | jq -r '.result.id')
+          fi
 
-          USERS_DB_ID=$(get_or_create_d1 "reduced-recipes-users-preview")
-          SESSION_KV_ID=$(get_or_create_kv "rr-sessions-preview")
-          USER_CACHE_KV_ID=$(get_or_create_kv "rr-user-cache-preview")
+          # --- KV: user cache ---
+          USER_CACHE_KV_ID=$(curl -s -H "$AUTH" "$API/storage/kv/namespaces" \
+            | jq -r '.result[] | select(.title=="rr-user-cache-preview") | .id' || true)
+          if [ -z "$USER_CACHE_KV_ID" ]; then
+            USER_CACHE_KV_ID=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+              -d '{"title":"rr-user-cache-preview"}' "$API/storage/kv/namespaces" \
+              | jq -r '.result.id')
+          fi
 
           echo "Users DB: $USERS_DB_ID"
           echo "Session KV: $SESSION_KV_ID"
           echo "User Cache KV: $USER_CACHE_KV_ID"
 
-          # Fail if any ID is empty
           if [ -z "$USERS_DB_ID" ] || [ -z "$SESSION_KV_ID" ] || [ -z "$USER_CACHE_KV_ID" ]; then
             echo "::error::Failed to create one or more Cloudflare resources"
             exit 1
