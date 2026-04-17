@@ -1,11 +1,30 @@
+import { useState, useEffect } from "react";
 import { Link, Outlet } from "react-router-dom";
 import SearchBar from "./SearchBar";
 import { LoginButton } from "./LoginButton";
 import NotificationBell from "./NotificationBell";
+import { DietaryOnboarding } from "./DietaryOnboarding";
 
 export default function Layout() {
+  const [showDietaryOnboarding, setShowDietaryOnboarding] = useState(false);
+
+  useEffect(() => {
+    if (localStorage.getItem("show_dietary_onboarding") === "true") {
+      setShowDietaryOnboarding(true);
+    }
+  }, []);
+
+  const handleDietaryOnboardingClose = () => {
+    localStorage.removeItem("show_dietary_onboarding");
+    setShowDietaryOnboarding(false);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
+      <DietaryOnboarding
+        isOpen={showDietaryOnboarding}
+        onClose={handleDietaryOnboardingClose}
+      />
       <header className="sticky top-0 z-10 border-b border-gray-200 bg-white shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-3">
           <Link to="/" className="text-xl font-bold text-orange-600">

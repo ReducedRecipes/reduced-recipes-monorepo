@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
-import { apiFetch } from "../lib/api";
+import { apiFetch, getDietaryPreferences, setDietaryPreferences } from "../lib/api";
 import { DIETARY_LABELS, type DietaryRestriction } from "@rr/shared/dietary";
 
 export default function SettingsPage() {
@@ -9,6 +9,45 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [selectedRestrictions, setSelectedRestrictions] = useState<Set<string>>(new Set());
+  const [dietarySaving, setDietarySaving] = useState(false);
+  const [matchingCount, setMatchingCount] = useState<number | null>(null);
+  const [dietaryLoaded, setDietaryLoaded] = useState(false);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    getDietaryPreferences()
+      .then((res) => {
+        setSelectedRestrictions(new Set(res.restrictions));
+        setDietaryLoaded(true);
+      })
+      .catch(() => setDietaryLoaded(true));
+  }, [isAuthenticated]);
+
+  const toggleRestriction = (key: string) => {
+    setSelectedRestrictions((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) {
+        next.delete(key);
+      } else {
+        next.add(key);
+      }
+      return next;
+    });
+    setMatchingCount(null);
+  };
+
+  const handleSaveDietary = async () => {
+    setDietarySaving(true);
+    try {
+      const res = await setDietaryPreferences(Array.from(selectedRestrictions));
+      setMatchingCount(res.matching_recipe_count);
+    } catch {
+      // allow retry
+    } finally {
+      setDietarySaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -69,14 +108,40 @@ export default function SettingsPage() {
           Select your dietary restrictions to filter recipes automatically.
         </p>
         <div className="flex flex-wrap gap-2">
-          {(Object.keys(DIETARY_LABELS) as DietaryRestriction[]).map((key) => (
-            <button
-              key={key}
-              className="rounded-full border border-gray-300 px-3 py-1.5 text-sm text-gray-700 hover:border-orange-500 hover:text-orange-600 transition-colors"
-            >
-              {DIETARY_LABELS[key]}
-            </button>
-          ))}
+          {(Object.keys(DIETARY_LABELS) as DietaryRestriction[]).map((key) => {
+            const isSelected = selectedRestrictions.has(key);
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => toggleRestriction(key)}
+                disabled={!dietaryLoaded}
+                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
+                  isSelected
+                    ? "border-orange-500 bg-orange-100 text-orange-800"
+                    : "border-gray-300 bg-white text-gray-700 hover:border-orange-500 hover:text-orange-600"
+                } disabled:opacity-50`}
+              >
+                {DIETARY_LABELS[key]}
+              </button>
+            );
+          })}
+        </div>
+        {matchingCount !== null && (
+          <p className="mt-3 text-sm text-gray-600">
+            <span className="font-semibold text-orange-700">{matchingCount}</span>{" "}
+            recipes match your preferences
+          </p>
+        )}
+        <div className="mt-4">
+          <button
+            type="button"
+            onClick={handleSaveDietary}
+            disabled={dietarySaving || !dietaryLoaded}
+            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+          >
+            {dietarySaving ? "Saving..." : "Save preferences"}
+          </button>
         </div>
       </section>
 
