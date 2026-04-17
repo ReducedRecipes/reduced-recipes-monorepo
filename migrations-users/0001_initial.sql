@@ -76,8 +76,9 @@ CREATE TABLE IF NOT EXISTS recipe_views (
   user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   recipe_id       TEXT NOT NULL,
   source          TEXT NOT NULL DEFAULT 'view',  -- 'view', 'cooked'
+  viewed_date     TEXT NOT NULL DEFAULT (date('now')),  -- YYYY-MM-DD for dedup
   viewed_at       TEXT NOT NULL DEFAULT (datetime('now')),
-  UNIQUE(user_id, recipe_id, date(viewed_at))
+  UNIQUE(user_id, recipe_id, viewed_date)
 );
 
 CREATE INDEX IF NOT EXISTS idx_recipe_views_user ON recipe_views(user_id, viewed_at DESC);

@@ -231,7 +231,7 @@ describe('GET /api/v1/recipes/:id', () => {
     if (usersDb.prepare.mock.calls.length > 0) {
       const sql = usersDb.prepare.mock.calls[0]![0] as string;
       expect(sql).toContain('INSERT OR IGNORE INTO recipe_views');
-      expect(sql).toContain('user_id, recipe_id, source, viewed_at');
+      expect(sql).toContain('user_id, recipe_id, source, viewed_date, viewed_at');
       expect(sql).not.toContain('(id,');
       // Should bind only 2 params (userId, recipeId), not 3
       expect(usersStmt.bind).toHaveBeenCalledWith('user-123', 'r1');

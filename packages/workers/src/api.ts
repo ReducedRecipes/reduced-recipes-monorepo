@@ -102,8 +102,8 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
     c.executionCtx.waitUntil(
       c.env.USERS_DB
         .prepare(
-          `INSERT OR IGNORE INTO recipe_views (user_id, recipe_id, source, viewed_at)
-           VALUES (?, ?, 'view', datetime('now'))`,
+          `INSERT OR IGNORE INTO recipe_views (user_id, recipe_id, source, viewed_date, viewed_at)
+           VALUES (?, ?, 'view', date('now'), datetime('now'))`,
         )
         .bind(userId, id)
         .run()
