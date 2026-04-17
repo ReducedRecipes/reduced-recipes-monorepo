@@ -7,9 +7,13 @@ interface ApiError {
 }
 
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = localStorage.getItem("session_token");
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
   const res = await fetch(`${BASE_URL}${path}`, {
     credentials: "include",
     ...init,
+    headers: { ...headers, ...(init?.headers as Record<string, string>) },
   });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiError | null;

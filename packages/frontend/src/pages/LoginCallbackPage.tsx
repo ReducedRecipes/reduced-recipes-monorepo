@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
+import { useAuthStore } from "../stores/auth.store";
+import { apiFetch } from "../lib/api";
+import type { User } from "@rr/shared";
 
 export default function LoginCallbackPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { checkAuth, login } = useAuth();
+  const { setUser, setToken } = useAuthStore();
   const [error, setError] = useState<string | null>(null);
 
   const status = searchParams.get("status");
   const isNewUser = searchParams.get("is_new_user") === "true";
-  const returnTo = searchParams.get("return_to") || "/";
+  const sessionToken = searchParams.get("session_token");
   const errorMessage = searchParams.get("error");
 
   useEffect(() => {
@@ -19,20 +21,26 @@ export default function LoginCallbackPage() {
       return;
     }
 
-    if (status === "success") {
+    if (status === "success" && sessionToken) {
       (async () => {
         try {
-          await checkAuth();
+          // Store token first so apiFetch can use it
+          setToken(sessionToken);
+
+          // Fetch user profile with the new token
+          const data = await apiFetch<{ user: User }>("/auth/me");
+          setUser(data.user, isNewUser);
+
           if (isNewUser) {
             localStorage.setItem("show_dietary_onboarding", "true");
           }
-          navigate(returnTo, { replace: true });
+          navigate("/", { replace: true });
         } catch {
           setError("Failed to verify authentication. Please try again.");
         }
       })();
     }
-  }, [status, isNewUser, returnTo, errorMessage, checkAuth, navigate]);
+  }, [status, isNewUser, sessionToken, errorMessage, setUser, setToken, navigate]);
 
   if (error) {
     return (
@@ -46,7 +54,7 @@ export default function LoginCallbackPage() {
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Sign in failed</h2>
           <p className="text-gray-600 mb-6">{error}</p>
           <button
-            onClick={() => login()}
+            onClick={() => navigate("/", { replace: true })}
             className="bg-green-600 text-white rounded-lg px-6 py-2 hover:bg-green-700 transition-colors"
           >
             Try again

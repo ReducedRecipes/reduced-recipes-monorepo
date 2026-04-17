@@ -1,5 +1,7 @@
 import { Link, Outlet } from "react-router-dom";
 import SearchBar from "./SearchBar";
+import { LoginButton } from "./LoginButton";
+import NotificationBell from "./NotificationBell";
 
 export default function Layout() {
   return (
@@ -12,14 +14,18 @@ export default function Layout() {
           <div className="mx-4 hidden flex-1 sm:block">
             <SearchBar />
           </div>
-          <nav className="flex gap-4 text-sm text-gray-600">
-            <Link to="/" className="hover:text-orange-600">
-              Home
-            </Link>
-            <Link to="/remove" className="hover:text-orange-600">
-              Opt-out
-            </Link>
-          </nav>
+          <div className="flex items-center gap-3">
+            <nav className="flex gap-4 text-sm text-gray-600">
+              <Link to="/" className="hover:text-orange-600">
+                Home
+              </Link>
+              <Link to="/remove" className="hover:text-orange-600">
+                Opt-out
+              </Link>
+            </nav>
+            <NotificationBell />
+            <LoginButton />
+          </div>
         </div>
         <div className="px-4 pb-3 sm:hidden">
           <SearchBar />

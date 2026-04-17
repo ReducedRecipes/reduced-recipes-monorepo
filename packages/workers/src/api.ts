@@ -58,7 +58,22 @@ async function toRecipeSummaries(db: D1Database, rows: Record<string, unknown>[]
 app.use(
   '*',
   cors({
-    origin: ['https://reducedrecipes.com', 'https://reduced-recipes.pages.dev', 'http://localhost:5173'],
+    origin: (origin) => {
+      const allowed = [
+        'https://reducedrecipes.com',
+        'https://reduced-recipes.pages.dev',
+        'http://localhost:5173',
+      ];
+      // Allow all *.reduced-recipes.pages.dev preview URLs
+      if (origin.endsWith('.reduced-recipes.pages.dev') || allowed.includes(origin)) {
+        return origin;
+      }
+      // Allow workers.dev preview URLs
+      if (origin.endsWith('.workers.dev')) {
+        return origin;
+      }
+      return allowed[0];
+    },
     allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
     allowHeaders: ['Content-Type', 'Authorization', 'X-Dietary-Prefs'],
     credentials: true,

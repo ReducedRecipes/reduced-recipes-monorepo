@@ -205,7 +205,9 @@ auth.get('/api/v1/auth/google/callback', async (c) => {
   });
 
   const returnTo = authState.return_to || '/';
-  return c.redirect(returnTo, 302);
+  const separator = returnTo.includes('?') ? '&' : '?';
+  const redirectUrl = `${returnTo}${separator}status=success&is_new_user=${isNewUser}&session_token=${sessionToken}`;
+  return c.redirect(redirectUrl, 302);
 });
 
 // ── POST /api/v1/auth/logout ─────────────────────────────────────────────

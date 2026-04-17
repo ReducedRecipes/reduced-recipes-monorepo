@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useRecipe } from "../hooks/useRecipe";
+import { BookmarkButton } from "../components/BookmarkButton";
 import type { RecipeDocument } from "@rr/shared/types";
 
 function formatTime(minutes: number): string {
@@ -135,8 +136,11 @@ export default function RecipePage() {
         <div className="aspect-[16/9] w-full rounded-lg bg-gray-200" />
       )}
 
-      {/* Title */}
-      <h1 className="mt-6 text-3xl font-bold">{recipe.title}</h1>
+      {/* Title + Bookmark */}
+      <div className="mt-6 flex items-start justify-between gap-4">
+        <h1 className="text-3xl font-bold">{recipe.title}</h1>
+        <BookmarkButton recipeId={recipe.id} />
+      </div>
 
       {/* Metadata */}
       <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">

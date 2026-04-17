@@ -11,6 +11,8 @@ export function useAuth() {
   const { isLoading } = useQuery({
     queryKey: ["auth", "me"],
     queryFn: async () => {
+      const token = localStorage.getItem("session_token");
+      if (!token) return null;
       try {
         const data = await apiFetch<{ user: User }>("/auth/me");
         setUser(data.user);
@@ -31,7 +33,8 @@ export function useAuth() {
   };
 
   const login = async (returnTo?: string) => {
-    const { url } = await getGoogleAuthUrl("web", returnTo);
+    const destination = returnTo ?? `${window.location.origin}/auth/callback`;
+    const { url } = await getGoogleAuthUrl("web", destination);
     window.location.href = url;
   };
 
