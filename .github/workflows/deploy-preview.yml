@@ -96,6 +96,8 @@ jobs:
           # --- Preview overrides (auto-generated) ---
           [env.preview]
           name = "rr-api-preview"
+          workers_dev = true
+          routes = []
 
           [[env.preview.d1_databases]]
           binding = "DB"
