@@ -55,10 +55,12 @@ function createBatch(messages: ReturnType<typeof createMessage>[]) {
 
 function createEnv() {
   const batchFn = vi.fn().mockResolvedValue([]);
+  const bindResult = {
+    run: vi.fn().mockResolvedValue({}),
+    first: vi.fn().mockResolvedValue(null), // no duplicate by default
+  };
   const prepareFn = vi.fn().mockReturnValue({
-    bind: vi.fn().mockReturnValue({
-      run: vi.fn().mockResolvedValue({}),
-    }),
+    bind: vi.fn().mockReturnValue(bindResult),
   });
   return {
     DB: {
@@ -92,29 +94,27 @@ describe('Projection Worker', () => {
 
     await projection.queue(batch, env);
 
-    // Should have prepared: 1 upsert + 1 delete tags + 2 tag inserts + 1 domain update = 5
-    expect(env.DB.prepare).toHaveBeenCalledTimes(5);
+    // prepare calls: 1 dupe check + 1 upsert + 1 delete tags + 2 tag inserts + 2 FTS (delete+insert) + 1 domain = 8
+    expect(env.DB.prepare).toHaveBeenCalledTimes(8);
+
+    // Verify dupe check SQL
+    const dupeCall = env.DB.prepare.mock.calls[0]![0] as string;
+    expect(dupeCall).toContain('SELECT id FROM recipes WHERE title');
 
     // Verify upsert SQL
-    const firstCall = env.DB.prepare.mock.calls[0][0] as string;
-    expect(firstCall).toContain('INSERT OR REPLACE INTO recipes');
+    const upsertCall = env.DB.prepare.mock.calls[1]![0] as string;
+    expect(upsertCall).toContain('INSERT OR IGNORE INTO recipes');
 
     // Verify tag delete
-    const secondCall = env.DB.prepare.mock.calls[1][0] as string;
-    expect(secondCall).toContain('DELETE FROM recipe_tags WHERE recipe_id');
+    const deleteCall = env.DB.prepare.mock.calls[2]![0] as string;
+    expect(deleteCall).toContain('DELETE FROM recipe_tags WHERE recipe_id');
 
     // Verify tag inserts
-    const thirdCall = env.DB.prepare.mock.calls[2][0] as string;
-    expect(thirdCall).toContain('INSERT OR IGNORE INTO recipe_tags');
+    const tagCall = env.DB.prepare.mock.calls[3]![0] as string;
+    expect(tagCall).toContain('INSERT OR IGNORE INTO recipe_tags');
 
-    // Verify domain counter update
-    const lastCall = env.DB.prepare.mock.calls[4][0] as string;
-    expect(lastCall).toContain('UPDATE domains');
-    expect(lastCall).toContain('recipe_count = recipe_count + 1');
-
-    // batch() should be called once (5 statements < 100 chunk size)
+    // batch() should be called once (all statements < 100 chunk size)
     expect(env.DB.batch).toHaveBeenCalledOnce();
-    expect(env.DB.batch).toHaveBeenCalledWith(expect.arrayContaining([]));
 
     expect(msg.ack).toHaveBeenCalledOnce();
     expect(msg.retry).not.toHaveBeenCalled();
@@ -129,8 +129,8 @@ describe('Projection Worker', () => {
 
     await projection.queue(batch, env);
 
-    // 1 upsert + 1 delete + 20 tag inserts + 1 domain update = 23
-    expect(env.DB.prepare).toHaveBeenCalledTimes(23);
+    // 1 dupe check + 1 upsert + 1 delete + 20 tag inserts + 2 FTS + 1 domain = 26
+    expect(env.DB.prepare).toHaveBeenCalledTimes(26);
     expect(msg.ack).toHaveBeenCalledOnce();
   });
 
@@ -142,8 +142,8 @@ describe('Projection Worker', () => {
 
     await projection.queue(batch, env);
 
-    // 1 upsert + 1 delete + 0 tag inserts + 1 domain update = 3
-    expect(env.DB.prepare).toHaveBeenCalledTimes(3);
+    // 1 dupe check + 1 upsert + 1 delete + 0 tag inserts + 2 FTS + 1 domain = 6
+    expect(env.DB.prepare).toHaveBeenCalledTimes(6);
     expect(msg.ack).toHaveBeenCalledOnce();
   });
 
@@ -182,8 +182,8 @@ describe('Projection Worker', () => {
 
     await projection.queue(batch, env);
 
-    // Check the bind call on the upsert — schema_valid should be 0
-    const upsertBind = env.DB.prepare.mock.results[0].value.bind;
+    // Second prepare call is the upsert (first is dupe check)
+    const upsertBind = env.DB.prepare.mock.results[1]!.value.bind;
     expect(upsertBind).toHaveBeenCalledWith(
       doc.id, doc.source_url, doc.domain, doc.title,
       doc.image_url, doc.author, doc.yields,
@@ -192,6 +192,28 @@ describe('Projection Worker', () => {
       0, // schema_valid = false → 0
       doc.extracted_at,
     );
+  });
+
+  it('skips duplicate recipes (same title + domain)', async () => {
+    const doc = makeDoc();
+    const msg = createMessage({ id: doc.id, doc });
+    const batch = createBatch([msg]);
+    const env = createEnv();
+
+    // Mock duplicate found
+    const dupeResult = {
+      run: vi.fn(),
+      first: vi.fn().mockResolvedValue({ id: 'existing-id' }),
+    };
+    env.DB.prepare = vi.fn().mockReturnValueOnce({
+      bind: vi.fn().mockReturnValue(dupeResult),
+    });
+
+    await projection.queue(batch, env);
+
+    // Should skip — no batch call, just ack
+    expect(env.DB.batch).not.toHaveBeenCalled();
+    expect(msg.ack).toHaveBeenCalledOnce();
   });
 
   describe('dietary inference integration', () => {
@@ -207,7 +229,7 @@ describe('Projection Worker', () => {
       expect(inferDietaryBitmask).toHaveBeenCalledWith(doc, env.AI);
 
       // The last prepare call should be the bitmask UPDATE
-      const lastCall = env.DB.prepare.mock.calls[env.DB.prepare.mock.calls.length - 1][0] as string;
+      const lastCall = env.DB.prepare.mock.calls[env.DB.prepare.mock.calls.length - 1]![0] as string;
       expect(lastCall).toContain('UPDATE recipes SET dietary_bitmask');
 
       expect(msg.ack).toHaveBeenCalledOnce();

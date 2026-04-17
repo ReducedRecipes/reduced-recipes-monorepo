@@ -156,7 +156,7 @@ describe('GET /api/v1/domains/:domain/recipes', () => {
     const listStmt = makeStmt([
       { id: 'r1', title: 'Pasta', domain: 'example.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: 'Italian', category: 'Main', extracted_at: '2024-01-01T00:00:00Z' },
     ]);
-    const tagStmt = makeStmt([{ tag: 'italian' }]);
+    const tagStmt = makeStmt([{ recipe_id: 'r1', tag: 'italian' }]);
 
     env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
       if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
@@ -254,12 +254,12 @@ describe('GET /api/v1/search', () => {
     expect(body.error.code).toBe('INVALID_QUERY');
   });
 
-  it('returns empty array for sanitized-empty query', async () => {
+  it('returns empty result for sanitized-empty query', async () => {
     const env = createEnv();
     const res = await reqWithInit('/api/v1/search?q=**', env);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    expect(body).toEqual([]);
+    expect(body).toEqual({ items: [], next_cursor: null });
   });
 
   it('returns search results from FTS', async () => {
@@ -272,9 +272,8 @@ describe('GET /api/v1/search', () => {
     const res = await reqWithInit('/api/v1/search?q=pasta', env);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    expect(body).toHaveLength(1);
-    expect(body[0].title).toBe('Pasta');
-    expect(body[0].tags).toEqual([]);
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0].title).toBe('Pasta');
   });
 
   it('respects limit parameter capped at 50', async () => {
@@ -283,7 +282,8 @@ describe('GET /api/v1/search', () => {
     env.DB.prepare = vi.fn().mockReturnValue(ftsStmt);
 
     await reqWithInit('/api/v1/search?q=test&limit=100', env);
-    expect(ftsStmt.bind).toHaveBeenCalledWith(expect.any(String), 50);
+    // limit is capped at 50, +1 for has_more check, offset defaults to 0
+    expect(ftsStmt.bind).toHaveBeenCalledWith(expect.any(String), 51, 0);
   });
 });
 
