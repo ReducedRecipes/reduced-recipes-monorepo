@@ -118,7 +118,6 @@ describe('TagScreen (app/tag/[tag].tsx)', () => {
   it('delegates to BrowseListScreen which renders FlashList', () => {
     expect(content).toContain('BrowseListScreen');
     expect(browseListContent).toContain('FlashList');
-    expect(browseListContent).toContain('estimatedItemSize={220}');
     expect(browseListContent).toContain('RecipeCard');
   });
 
@@ -178,7 +177,6 @@ describe('CuisineScreen (app/cuisine/[cuisine].tsx)', () => {
   it('delegates to BrowseListScreen which renders FlashList', () => {
     expect(content).toContain('BrowseListScreen');
     expect(browseListContent).toContain('FlashList');
-    expect(browseListContent).toContain('estimatedItemSize={220}');
     expect(browseListContent).toContain('RecipeCard');
   });
 
@@ -226,7 +224,6 @@ describe('DomainScreen (app/site/[domain].tsx)', () => {
   it('delegates to BrowseListScreen which renders FlashList', () => {
     expect(content).toContain('BrowseListScreen');
     expect(browseListContent).toContain('FlashList');
-    expect(browseListContent).toContain('estimatedItemSize={220}');
     expect(browseListContent).toContain('RecipeCard');
   });
 

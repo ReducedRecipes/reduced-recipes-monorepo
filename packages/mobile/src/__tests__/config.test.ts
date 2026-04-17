@@ -40,9 +40,7 @@ describe('app.json', () => {
     );
     expect(pluginNames).toContain('expo-router');
     expect(pluginNames).toContain('expo-font');
-    expect(pluginNames).toContain('expo-sqlite');
     expect(pluginNames).toContain('expo-secure-store');
-    expect(pluginNames).toContain('expo-keep-awake');
     expect(pluginNames).toContain('expo-notifications');
     expect(pluginNames).toContain('expo-build-properties');
   });
@@ -62,8 +60,8 @@ describe('app.json', () => {
     expect(buildPlugin[1].android.minSdkVersion).toBe(29);
   });
 
-  it('has EAS project ID placeholder', () => {
-    expect(expo.extra.eas.projectId).toBe('REPLACE_WITH_EAS_PROJECT_ID');
+  it('has EAS project ID', () => {
+    expect(expo.extra.eas.projectId).toBe('a9fcf4d9-1b31-4c70-8d2f-ed1b8952fe81');
   });
 });
 

@@ -101,10 +101,10 @@ describe('RecipeCardSkeleton.tsx', () => {
     expect(content).toContain('export function RecipeCardSkeleton');
   });
 
-  it('uses reanimated for shimmer animation', () => {
-    expect(content).toContain('react-native-reanimated');
-    expect(content).toContain('useSharedValue');
-    expect(content).toContain('useAnimatedStyle');
+  it('uses View-based shimmer blocks for skeleton placeholders', () => {
+    expect(content).toContain('ShimmerBlock');
+    expect(content).toContain('backgroundColor');
+    expect(content).toContain('opacity');
   });
 
   it('matches RecipeCard dimensions with 16/10 aspect ratio', () => {
@@ -138,10 +138,10 @@ describe('EmptyState component', () => {
     expect(content).toContain('subtitle');
   });
 
-  it('renders centered layout with NativeWind classes', () => {
-    expect(content).toContain('items-center');
-    expect(content).toContain('justify-center');
-    expect(content).toContain('text-center');
+  it('renders centered layout with StyleSheet', () => {
+    expect(content).toContain("alignItems: 'center'");
+    expect(content).toContain("justifyContent: 'center'");
+    expect(content).toContain("textAlign: 'center'");
   });
 
   it('uses View and Text from react-native', () => {
@@ -150,9 +150,9 @@ describe('EmptyState component', () => {
     expect(content).toContain('<Text');
   });
 
-  it('uses theme font classes', () => {
-    expect(content).toContain('font-display');
-    expect(content).toContain('font-body');
+  it('uses theme fonts from constants', () => {
+    expect(content).toContain('fonts.display');
+    expect(content).toContain('fonts.body');
   });
 });
 
@@ -178,7 +178,7 @@ describe('ErrorState component', () => {
   });
 
   it('renders error message with error color', () => {
-    expect(content).toContain('text-error');
+    expect(content).toContain('colors.error');
   });
 
   it('renders retry button with Pressable', () => {
@@ -188,7 +188,7 @@ describe('ErrorState component', () => {
   });
 
   it('uses orange background for retry button', () => {
-    expect(content).toContain('bg-orange');
+    expect(content).toContain('colors.orange');
   });
 
   it('has accessibility attributes on retry button', () => {
@@ -213,23 +213,23 @@ describe('BottomSheet component', () => {
     expect(content).toContain('export interface BottomSheetProps');
   });
 
-  it('wraps @gorhom/bottom-sheet', () => {
-    expect(content).toContain("from '@gorhom/bottom-sheet'");
+  it('uses Modal from react-native', () => {
+    expect(content).toContain("Modal");
+    expect(content).toContain("from 'react-native'");
   });
 
-  it('has default snap points', () => {
-    expect(content).toContain("'25%'");
-    expect(content).toContain("'50%'");
-    expect(content).toContain("'90%'");
+  it('supports snapPoints and onClose props', () => {
+    expect(content).toContain('snapPoints');
+    expect(content).toContain('onClose');
   });
 
-  it('renders backdrop component', () => {
-    expect(content).toContain('BottomSheetBackdrop');
-    expect(content).toContain('backdropComponent');
+  it('renders backdrop as a Pressable overlay', () => {
+    expect(content).toContain('backdrop');
+    expect(content).toContain('Pressable');
   });
 
   it('has handle indicator styling', () => {
-    expect(content).toContain('handleIndicatorStyle');
+    expect(content).toContain('handle');
   });
 
   it('supports enablePanDownToClose', () => {

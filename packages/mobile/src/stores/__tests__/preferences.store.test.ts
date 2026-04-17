@@ -1,5 +1,4 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { act } from "@testing-library/react";
 
 vi.mock("react-native-mmkv", () => {
   const store = new Map<string, string>();
@@ -18,14 +17,11 @@ import { usePreferencesStore } from "../preferences.store";
 
 describe("preferences.store", () => {
   beforeEach(() => {
-    // Reset store to defaults between tests
-    act(() => {
-      usePreferencesStore.setState({
-        theme: "system",
-        textSize: "md",
-        defaultServings: 2,
-        dietaryFilters: [],
-      });
+    usePreferencesStore.setState({
+      theme: "system",
+      textSize: "md",
+      defaultServings: 2,
+      dietaryFilters: [],
     });
   });
 
@@ -41,67 +37,67 @@ describe("preferences.store", () => {
 
   describe("setTheme", () => {
     it("sets theme to light", () => {
-      act(() => usePreferencesStore.getState().setTheme("light"));
+      usePreferencesStore.getState().setTheme("light");
       expect(usePreferencesStore.getState().theme).toBe("light");
     });
 
     it("sets theme to dark", () => {
-      act(() => usePreferencesStore.getState().setTheme("dark"));
+      usePreferencesStore.getState().setTheme("dark");
       expect(usePreferencesStore.getState().theme).toBe("dark");
     });
 
     it("sets theme to system", () => {
-      act(() => usePreferencesStore.getState().setTheme("dark"));
-      act(() => usePreferencesStore.getState().setTheme("system"));
+      usePreferencesStore.getState().setTheme("dark");
+      usePreferencesStore.getState().setTheme("system");
       expect(usePreferencesStore.getState().theme).toBe("system");
     });
   });
 
   describe("setTextSize", () => {
     it("sets text size to sm", () => {
-      act(() => usePreferencesStore.getState().setTextSize("sm"));
+      usePreferencesStore.getState().setTextSize("sm");
       expect(usePreferencesStore.getState().textSize).toBe("sm");
     });
 
     it("sets text size to lg", () => {
-      act(() => usePreferencesStore.getState().setTextSize("lg"));
+      usePreferencesStore.getState().setTextSize("lg");
       expect(usePreferencesStore.getState().textSize).toBe("lg");
     });
 
     it("sets text size to xl", () => {
-      act(() => usePreferencesStore.getState().setTextSize("xl"));
+      usePreferencesStore.getState().setTextSize("xl");
       expect(usePreferencesStore.getState().textSize).toBe("xl");
     });
   });
 
   describe("setDefaultServings", () => {
     it("sets default servings", () => {
-      act(() => usePreferencesStore.getState().setDefaultServings(4));
+      usePreferencesStore.getState().setDefaultServings(4);
       expect(usePreferencesStore.getState().defaultServings).toBe(4);
     });
 
     it("sets servings to 1", () => {
-      act(() => usePreferencesStore.getState().setDefaultServings(1));
+      usePreferencesStore.getState().setDefaultServings(1);
       expect(usePreferencesStore.getState().defaultServings).toBe(1);
     });
   });
 
   describe("toggleDietary", () => {
     it("adds a filter when not present", () => {
-      act(() => usePreferencesStore.getState().toggleDietary("Vegan"));
+      usePreferencesStore.getState().toggleDietary("Vegan");
       expect(usePreferencesStore.getState().dietaryFilters).toEqual(["Vegan"]);
     });
 
     it("removes a filter when already present", () => {
-      act(() => usePreferencesStore.getState().toggleDietary("Vegan"));
-      act(() => usePreferencesStore.getState().toggleDietary("Vegan"));
+      usePreferencesStore.getState().toggleDietary("Vegan");
+      usePreferencesStore.getState().toggleDietary("Vegan");
       expect(usePreferencesStore.getState().dietaryFilters).toEqual([]);
     });
 
     it("handles multiple filters", () => {
-      act(() => usePreferencesStore.getState().toggleDietary("Vegan"));
-      act(() => usePreferencesStore.getState().toggleDietary("Gluten-Free"));
-      act(() => usePreferencesStore.getState().toggleDietary("Keto"));
+      usePreferencesStore.getState().toggleDietary("Vegan");
+      usePreferencesStore.getState().toggleDietary("Gluten-Free");
+      usePreferencesStore.getState().toggleDietary("Keto");
       expect(usePreferencesStore.getState().dietaryFilters).toEqual([
         "Vegan",
         "Gluten-Free",
@@ -110,9 +106,9 @@ describe("preferences.store", () => {
     });
 
     it("removes only the targeted filter", () => {
-      act(() => usePreferencesStore.getState().toggleDietary("Vegan"));
-      act(() => usePreferencesStore.getState().toggleDietary("Gluten-Free"));
-      act(() => usePreferencesStore.getState().toggleDietary("Vegan"));
+      usePreferencesStore.getState().toggleDietary("Vegan");
+      usePreferencesStore.getState().toggleDietary("Gluten-Free");
+      usePreferencesStore.getState().toggleDietary("Vegan");
       expect(usePreferencesStore.getState().dietaryFilters).toEqual([
         "Gluten-Free",
       ]);
