@@ -167,7 +167,7 @@ jobs:
           echo "${{ secrets.ADMIN_TOKEN }}" | npx wrangler secret put ADMIN_TOKEN --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
           echo "${{ secrets.GOOGLE_CLIENT_ID }}" | npx wrangler secret put GOOGLE_CLIENT_ID --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
           echo "${{ secrets.GOOGLE_CLIENT_SECRET }}" | npx wrangler secret put GOOGLE_CLIENT_SECRET --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
-          echo "https://rr-api-preview.${{ secrets.CF_ACCOUNT_ID }}.workers.dev/api/v1/auth/google/callback" | npx wrangler secret put GOOGLE_REDIRECT_URI --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
+          echo "https://rr-api-preview.nikrich.workers.dev/api/v1/auth/google/callback" | npx wrangler secret put GOOGLE_REDIRECT_URI --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
           echo "${{ github.sha }}" | npx wrangler secret put SESSION_SECRET --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
 
       - name: Deploy API worker (preview)
