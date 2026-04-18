@@ -38,23 +38,20 @@ queue = "parse-jobs"
 binding = "PROJECTION_QUEUE"
 queue = "projection-jobs"
 
-# Phase 1a — Users database
 [[d1_databases]]
 binding = "USERS_DB"
-database_id = "TBD"
+database_id = "3bb2302a-7f7a-43c9-b3e7-de5870824869"
 database_name = "reduced-recipes-users"
 migrations_dir = "../../migrations-users"
 
-# Phase 1a — Session and user cache KV namespaces
 [[kv_namespaces]]
 binding = "SESSION_KV"
-id = "TBD"
+id = "b780ce4935dd4cd6834defdb30c2137f"
 
 [[kv_namespaces]]
 binding = "USER_CACHE_KV"
-id = "TBD"
+id = "41828007810046b2bc6feab80aece86a"
 
-# Phase 1a — Workers AI binding
 [ai]
 binding = "AI"
 
