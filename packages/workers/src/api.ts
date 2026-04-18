@@ -8,6 +8,8 @@ import authRoutes from './routes/auth';
 import bookmarkRoutes from './routes/bookmarks';
 import notificationRoutes from './routes/notifications';
 import userRoutes from './routes/users';
+import collectionsRoutes from './routes/collections';
+import syncRoutes from './routes/sync';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -431,6 +433,8 @@ app.route('/', authRoutes);
 app.route('/', bookmarkRoutes);
 app.route('/', notificationRoutes);
 app.route('/', userRoutes);
+app.route('/', collectionsRoutes);
+app.route('/', syncRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
