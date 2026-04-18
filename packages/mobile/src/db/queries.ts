@@ -115,6 +115,71 @@ export async function searchSaved(
   return rows.map(deserializeRow);
 }
 
+// --- Offline bookmark actions ---
+
+export interface OfflineBookmarkAction {
+  id: string;
+  recipe_id: string;
+  collection_id: string | null;
+  action: 'add' | 'remove';
+  client_timestamp: string;
+  synced: boolean;
+}
+
+export async function insertOfflineAction(
+  db: SQLiteDatabase,
+  action: Omit<OfflineBookmarkAction, 'id' | 'synced'>
+): Promise<void> {
+  const id = Math.random().toString(36).slice(2) + Date.now().toString(36);
+  await db.runAsync(
+    `INSERT INTO offline_bookmarks (id, recipe_id, collection_id, action, client_timestamp, synced)
+     VALUES (?, ?, ?, ?, ?, 0)`,
+    [id, action.recipe_id, action.collection_id, action.action, action.client_timestamp]
+  );
+}
+
+export async function getPendingActions(
+  db: SQLiteDatabase
+): Promise<OfflineBookmarkAction[]> {
+  const rows = await db.getAllAsync<OfflineBookmarkRow>(
+    'SELECT * FROM offline_bookmarks WHERE synced = 0 ORDER BY client_timestamp ASC'
+  );
+  return rows.map(deserializeOfflineRow);
+}
+
+export async function markActionSynced(
+  db: SQLiteDatabase,
+  id: string
+): Promise<void> {
+  await db.runAsync(
+    'UPDATE offline_bookmarks SET synced = 1 WHERE id = ?',
+    [id]
+  );
+}
+
+export async function clearSyncedActions(
+  db: SQLiteDatabase
+): Promise<void> {
+  await db.runAsync('DELETE FROM offline_bookmarks WHERE synced = 1');
+}
+
+interface OfflineBookmarkRow {
+  id: string;
+  recipe_id: string;
+  collection_id: string | null;
+  action: string;
+  client_timestamp: string;
+  synced: number;
+}
+
+function deserializeOfflineRow(row: OfflineBookmarkRow): OfflineBookmarkAction {
+  return {
+    ...row,
+    action: row.action as 'add' | 'remove',
+    synced: row.synced === 1,
+  };
+}
+
 // --- Internal helpers ---
 
 interface SavedRecipeRow {

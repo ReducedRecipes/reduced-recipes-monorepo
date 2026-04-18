@@ -33,3 +33,17 @@ CREATE INDEX IF NOT EXISTS idx_saved_recipes_saved_at ON saved_recipes(saved_at)
 CREATE INDEX IF NOT EXISTS idx_saved_recipes_cuisine ON saved_recipes(cuisine);
 CREATE INDEX IF NOT EXISTS idx_saved_recipes_category ON saved_recipes(category);
 `;
+
+export const OFFLINE_BOOKMARKS_SCHEMA = `
+CREATE TABLE IF NOT EXISTS offline_bookmarks (
+  id TEXT PRIMARY KEY NOT NULL,
+  recipe_id TEXT NOT NULL,
+  collection_id TEXT,
+  action TEXT NOT NULL CHECK (action IN ('add', 'remove')),
+  client_timestamp TEXT NOT NULL,
+  synced INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS idx_offline_bookmarks_synced ON offline_bookmarks(synced);
+CREATE INDEX IF NOT EXISTS idx_offline_bookmarks_recipe ON offline_bookmarks(recipe_id);
+`;
