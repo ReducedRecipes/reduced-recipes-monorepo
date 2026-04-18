@@ -119,8 +119,9 @@ export function getMe(): Promise<{ user: User }> {
 
 // ── Users ──
 
-export function getUser(id: string): Promise<User> {
-  return apiFetch<User>(`/users/${encodeURIComponent(id)}`);
+export async function getUser(id: string): Promise<User> {
+  const res = await apiFetch<{ user: User }>(`/users/${encodeURIComponent(id)}`);
+  return res.user;
 }
 
 export function updateProfile(data: { display_name?: string; profile_public?: boolean }): Promise<User> {
