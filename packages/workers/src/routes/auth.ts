@@ -187,12 +187,11 @@ auth.get('/api/v1/auth/google/callback', async (c) => {
 
   // Platform-aware response
   if (authState.platform === 'mobile') {
-    return c.json({
-      session_token: sessionToken,
-      user,
-      is_new_user: isNewUser,
-      intent: authState.intent || null,
-    });
+    // Redirect to app deep link with token so expo-web-browser can capture it
+    const returnTo = authState.return_to || 'reducedrecipes://auth/callback';
+    const sep = returnTo.includes('?') ? '&' : '?';
+    const mobileRedirect = `${returnTo}${sep}token=${sessionToken}&is_new_user=${isNewUser}`;
+    return c.redirect(mobileRedirect, 302);
   }
 
   // Web: redirect with cookie

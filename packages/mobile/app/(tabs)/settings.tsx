@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
-import { useSQLiteContext } from 'expo-sqlite';
+import * as SQLite from 'expo-sqlite';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useShoppingList } from '@/hooks/useShoppingList';
 import { colors, fonts } from '@/constants/theme';
@@ -45,7 +45,10 @@ export default function SettingsScreen() {
     toggleDietary,
   } = usePreferences();
   const { clearAll } = useShoppingList();
-  const db = useSQLiteContext();
+  const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
+  useEffect(() => {
+    SQLite.openDatabaseAsync('recipes.db').then(setDb).catch(() => {});
+  }, []);
   const [downloadedCount, setDownloadedCount] = useState<number | null>(null);
 
   // Auth state
@@ -85,6 +88,7 @@ export default function SettingsScreen() {
   }, [sessionToken]);
 
   useEffect(() => {
+    if (!db) return;
     db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM saved_recipes')
       .then((row) => setDownloadedCount(row?.count ?? 0))
       .catch(() => setDownloadedCount(0));
@@ -103,12 +107,12 @@ export default function SettingsScreen() {
   const handleSignIn = async () => {
     setIsLoading(true);
     try {
-      const urlRes = await fetch(`${API_BASE}/auth/google/url?platform=mobile`);
+      const returnTo = `${APP_SCHEME}://auth/callback`;
+      const urlRes = await fetch(`${API_BASE}/auth/google/url?platform=mobile&return_to=${encodeURIComponent(returnTo)}`);
       if (!urlRes.ok) throw new Error('Failed to get auth URL');
       const { url } = (await urlRes.json()) as { url: string };
 
-      const redirectUrl = `${APP_SCHEME}://auth/callback`;
-      const result = await WebBrowser.openAuthSessionAsync(url, redirectUrl);
+      const result = await WebBrowser.openAuthSessionAsync(url, returnTo);
 
       if (result.type === 'success' && result.url) {
         const parsed = new URL(result.url);
@@ -188,7 +192,7 @@ export default function SettingsScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await db.runAsync('DELETE FROM saved_recipes');
+              await db?.runAsync('DELETE FROM saved_recipes');
               setDownloadedCount(0);
             } catch {
               // ignore
