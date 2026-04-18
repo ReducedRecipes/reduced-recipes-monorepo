@@ -120,8 +120,8 @@ describe('POST /api/v1/sync/bookmarks', () => {
     expect(res.status).toBe(200);
     const json = await res.json() as { results: Array<{ recipe_id: string; status: string }> };
     expect(json.results).toHaveLength(1);
-    expect(json.results[0].status).toBe('applied');
-    expect(json.results[0].recipe_id).toBe('r1');
+    expect(json.results[0]!.status).toBe('applied');
+    expect(json.results[0]!.recipe_id).toBe('r1');
   });
 
   it('applies add action when client timestamp is newer than server', async () => {
@@ -133,7 +133,7 @@ describe('POST /api/v1/sync/bookmarks', () => {
     });
     expect(res.status).toBe(200);
     const json = await res.json() as { results: Array<{ recipe_id: string; status: string }> };
-    expect(json.results[0].status).toBe('applied');
+    expect(json.results[0]!.status).toBe('applied');
   });
 
   it('returns conflict on add when server timestamp is newer', async () => {
@@ -145,8 +145,8 @@ describe('POST /api/v1/sync/bookmarks', () => {
     });
     expect(res.status).toBe(200);
     const json = await res.json() as { results: Array<{ recipe_id: string; status: string; server_state?: { exists: boolean; updated_at: string } }> };
-    expect(json.results[0].status).toBe('conflict');
-    expect(json.results[0].server_state).toEqual({
+    expect(json.results[0]!.status).toBe('conflict');
+    expect(json.results[0]!.server_state).toEqual({
       exists: true,
       updated_at: '2024-06-01T00:00:00.000Z',
     });
@@ -161,7 +161,7 @@ describe('POST /api/v1/sync/bookmarks', () => {
     });
     expect(res.status).toBe(200);
     const json = await res.json() as { results: Array<{ recipe_id: string; status: string }> };
-    expect(json.results[0].status).toBe('applied');
+    expect(json.results[0]!.status).toBe('applied');
   });
 
   it('returns conflict on remove when server timestamp is newer', async () => {
@@ -173,8 +173,8 @@ describe('POST /api/v1/sync/bookmarks', () => {
     });
     expect(res.status).toBe(200);
     const json = await res.json() as { results: Array<{ recipe_id: string; status: string; server_state?: { exists: boolean; updated_at: string } }> };
-    expect(json.results[0].status).toBe('conflict');
-    expect(json.results[0].server_state).toEqual({
+    expect(json.results[0]!.status).toBe('conflict');
+    expect(json.results[0]!.server_state).toEqual({
       exists: true,
       updated_at: '2024-06-01T00:00:00.000Z',
     });
@@ -187,7 +187,7 @@ describe('POST /api/v1/sync/bookmarks', () => {
     });
     expect(res.status).toBe(200);
     const json = await res.json() as { results: Array<{ recipe_id: string; status: string }> };
-    expect(json.results[0].status).toBe('applied');
+    expect(json.results[0]!.status).toBe('applied');
   });
 
   it('handles batch with mixed results', async () => {
@@ -244,7 +244,7 @@ describe('POST /api/v1/sync/bookmarks', () => {
     // Verify the SELECT used the custom collection_id
     const usersDb = (env as unknown as { USERS_DB: { prepare: ReturnType<typeof vi.fn> } }).USERS_DB;
     const selectBookmarkCall = usersDb.prepare.mock.calls.find(
-      (call: string[]) => call[0].includes('SELECT') && call[0].includes('bookmarks') && call[0].includes('recipe_id'),
+      (call: string[]) => call[0]?.includes('SELECT') && call[0]?.includes('bookmarks') && call[0]?.includes('recipe_id'),
     );
     expect(selectBookmarkCall).toBeTruthy();
   });
