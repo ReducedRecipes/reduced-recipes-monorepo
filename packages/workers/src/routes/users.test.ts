@@ -397,3 +397,134 @@ describe('GET /api/v1/dietary-preferences/recipe-count', () => {
     expect(res.status).toBe(400);
   });
 });
+
+// ── Follow / Unfollow Tests ──────────────────────────────────────────────
+
+const targetUser = {
+  id: 'user-2',
+  email: 'other@example.com',
+  name: 'Other User',
+  picture_url: 'https://img.com/other.jpg',
+  profile_public: 1,
+  tier: 'free',
+  created_at: '2024-01-01T00:00:00',
+  updated_at: '2024-01-01T00:00:00',
+};
+
+describe('POST /api/v1/users/:id/follow', () => {
+  it('follows a public user and creates notification', async () => {
+    const env = createEnv();
+
+    env.USERS_DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM users WHERE id')) return makeStmt([testUser]);
+      if (sql.includes('SELECT id, profile_public FROM users')) return makeStmt([targetUser]);
+      if (sql.includes('SELECT follower_id FROM follows')) return makeStmt([]);
+      return makeStmt();
+    });
+    env.USERS_DB.batch = vi.fn().mockResolvedValue([makeD1Result(), makeD1Result()]);
+
+    const res = await authedReq('/api/v1/users/user-2/follow', env, { method: 'POST' });
+    expect(res.status).toBe(201);
+    const body = await res.json() as { success: boolean };
+    expect(body.success).toBe(true);
+    expect(env.USERS_DB.batch).toHaveBeenCalled();
+  });
+
+  it('returns 401 without auth', async () => {
+    const env = createEnv();
+    const res = await unauthReq('/api/v1/users/user-2/follow', env, { method: 'POST' });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 400 when following yourself', async () => {
+    const env = createEnv();
+
+    env.USERS_DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM users WHERE id')) return makeStmt([testUser]);
+      return makeStmt();
+    });
+
+    const res = await authedReq('/api/v1/users/user-1/follow', env, { method: 'POST' });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: { message: string } };
+    expect(body.error.message).toContain('yourself');
+  });
+
+  it('returns 404 if target user does not exist', async () => {
+    const env = createEnv();
+
+    env.USERS_DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM users WHERE id')) return makeStmt([testUser]);
+      if (sql.includes('SELECT id, profile_public FROM users')) return makeStmt([]);
+      return makeStmt();
+    });
+
+    const res = await authedReq('/api/v1/users/nonexistent/follow', env, { method: 'POST' });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 403 if target profile is private', async () => {
+    const env = createEnv();
+    const privateTarget = { ...targetUser, profile_public: 0 };
+
+    env.USERS_DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM users WHERE id')) return makeStmt([testUser]);
+      if (sql.includes('SELECT id, profile_public FROM users')) return makeStmt([privateTarget]);
+      return makeStmt();
+    });
+
+    const res = await authedReq('/api/v1/users/user-2/follow', env, { method: 'POST' });
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 409 if already following', async () => {
+    const env = createEnv();
+
+    env.USERS_DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM users WHERE id')) return makeStmt([testUser]);
+      if (sql.includes('SELECT id, profile_public FROM users')) return makeStmt([targetUser]);
+      if (sql.includes('SELECT follower_id FROM follows')) return makeStmt([{ follower_id: 'user-1' }]);
+      return makeStmt();
+    });
+
+    const res = await authedReq('/api/v1/users/user-2/follow', env, { method: 'POST' });
+    expect(res.status).toBe(409);
+  });
+});
+
+describe('DELETE /api/v1/users/:id/follow', () => {
+  it('unfollows a user', async () => {
+    const env = createEnv();
+    const deleteStmt = makeStmt();
+
+    env.USERS_DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM users WHERE id')) return makeStmt([testUser]);
+      if (sql.includes('SELECT follower_id FROM follows')) return makeStmt([{ follower_id: 'user-1' }]);
+      if (sql.includes('DELETE FROM follows')) return deleteStmt;
+      return makeStmt();
+    });
+
+    const res = await authedReq('/api/v1/users/user-2/follow', env, { method: 'DELETE' });
+    expect(res.status).toBe(204);
+    expect(deleteStmt.run).toHaveBeenCalled();
+  });
+
+  it('returns 401 without auth', async () => {
+    const env = createEnv();
+    const res = await unauthReq('/api/v1/users/user-2/follow', env, { method: 'DELETE' });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 if not following', async () => {
+    const env = createEnv();
+
+    env.USERS_DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SELECT * FROM users WHERE id')) return makeStmt([testUser]);
+      if (sql.includes('SELECT follower_id FROM follows')) return makeStmt([]);
+      return makeStmt();
+    });
+
+    const res = await authedReq('/api/v1/users/user-2/follow', env, { method: 'DELETE' });
+    expect(res.status).toBe(404);
+  });
+});
