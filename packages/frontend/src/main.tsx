@@ -13,6 +13,7 @@ import RemovePage from "./pages/RemovePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import LoginCallbackPage from "./pages/LoginCallbackPage";
 import ProfilePage from "./pages/ProfilePage";
+import UserProfilePage from "./pages/UserProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import "./index.css";
 
@@ -39,6 +40,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/site/:domain" element={<DomainPage />} />
             <Route path="/remove" element={<RemovePage />} />
             <Route path="/auth/callback" element={<LoginCallbackPage />} />
+            <Route path="/user/:id" element={<UserProfilePage />} />
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFoundPage />} />

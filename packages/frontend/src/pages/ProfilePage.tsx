@@ -1,9 +1,12 @@
 import { useAuth } from "../hooks/useAuth";
+import { useFollow } from "../hooks/useFollow";
 import { useNavigate } from "react-router-dom";
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { followerCount, followingCount, isLoading: followLoading } =
+    useFollow(user?.id ?? "");
 
   if (isLoading) {
     return (
@@ -38,6 +41,22 @@ export default function ProfilePage() {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">{user.name}</h2>
             <p className="text-sm text-gray-500">{user.email}</p>
+            {!followLoading && (
+              <div className="mt-1 flex gap-3 text-sm text-gray-600">
+                <span>
+                  <span className="font-semibold text-gray-900">
+                    {followerCount}
+                  </span>{" "}
+                  {followerCount === 1 ? "follower" : "followers"}
+                </span>
+                <span>
+                  <span className="font-semibold text-gray-900">
+                    {followingCount}
+                  </span>{" "}
+                  following
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
