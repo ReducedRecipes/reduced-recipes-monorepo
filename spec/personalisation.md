@@ -63,18 +63,33 @@ A shared API client is extracted to `@rr/shared/api-client.ts` to ensure consist
 
 ## 2. Phased Milestones
 
-### Phase 1a — Identity & Simple Bookmarks (Weeks 1-4)
+### Phase 1a — Identity & Simple Bookmarks ✅ Completed 2026-04-18
 
-| Deliverable | Description |
-|---|---|
-| Auth Worker | CF Workers-based auth with Google SSO + PKCE, session management via KV, platform-aware token delivery |
-| User profiles | Profile page showing name, picture, join date, privacy toggle |
-| Onboarding flow | Post-signup dietary preference selection with live matching recipe count |
-| Dietary filtering | Hard-filter exclusion of non-matching recipes via bitmask approach, powered by Workers AI inference |
-| Simple bookmarks | Single "Saved" list — bookmark/unbookmark recipes |
-| Privacy controls | Public/private profile toggle |
-| Notifications table | Schema and in-app notification bell (renders notifications from all phases) |
-| Consent records | GDPR consent tracking table and collection flow |
+| Deliverable | Status | Notes |
+|---|---|---|
+| Auth Worker | ✅ Done | Google SSO + PKCE on Hono API worker. Platform-aware: cookies for web, Bearer for mobile. Session KV with 30-day TTL, PKCE code_challenge via crypto.subtle. `requireAuth`/`optionalAuth` middleware. |
+| User profiles | ✅ Done | `GET /users/:id`, `PATCH /users/me`, `DELETE /users/me` (GDPR), `GET /users/me/export`. Profile page on web frontend. |
+| Onboarding flow | ✅ Done | Post-signup dietary onboarding modal on web. 16 dietary restriction chips with live matching recipe count. |
+| Dietary filtering | ✅ Done | Bitmask filtering on `/recipes`, `/search`, `/domains/:domain/recipes`. Workers AI inference pipeline in projection worker classifies recipes. `X-Dietary-Prefs` header for guests. |
+| Simple bookmarks | ✅ Done | `POST/DELETE/GET /bookmarks` with default "Saved" collection. BookmarkButton on recipe detail pages (web). |
+| Privacy controls | ✅ Done | `profile_public` toggle on user profile. Public/private profile visibility. |
+| Notifications table | ✅ Done | `GET /notifications`, `POST /notifications/:id/read`, `POST /notifications/read-all`, `GET /notifications/unread-count`. NotificationBell component on web. |
+| Consent records | ✅ Done | `consent_records` table. Terms + privacy consent auto-recorded on sign-up with IP + User-Agent. |
+| Recipe view tracking | ✅ Done | Fire-and-forget `INSERT OR IGNORE` into `recipe_views` on `GET /recipes/:id` for authed users. Deduped by user+recipe+date. |
+| Security headers | ✅ Done | CSP, HSTS, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy on all responses. |
+| CORS | ✅ Done | Dynamic origin matching for `*.reduced-recipes.pages.dev` and `*.workers.dev` preview URLs. |
+| Mobile auth store | ✅ Done | Zustand + expo-secure-store persistence. Mobile onboarding dietary flow and settings account section built. |
+| Frontend auth | ✅ Done | Auth store with localStorage token persistence. LoginButton, LoginCallbackPage, ProfilePage, SettingsPage with dietary toggles and data export. |
+
+**Infrastructure created:**
+- D1 database: `reduced-recipes-users` (preview: `reduced-recipes-users-preview`)
+- KV namespaces: `rr-sessions`, `rr-user-cache` (preview variants created)
+- Workers AI binding for dietary inference
+- Preview deploy workflow (`.github/workflows/deploy-preview.yml`)
+- Preview API: `https://rr-api-preview.nikrich.workers.dev`
+- Preview frontend: `https://preview.reduced-recipes.pages.dev`
+
+**PRs merged to feature branch:** #119–#162 (44 PRs total across backend, frontend, mobile)
 
 ### Phase 1b — Collections, Follows & Offline Sync (Weeks 5-7)
 
