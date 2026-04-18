@@ -13,9 +13,9 @@ const mockGetGoogleAuthUrl = vi.mocked(getGoogleAuthUrl);
 
 const mockUser = {
   id: "u-123",
-  display_name: "Test User",
+  name: "Test User",
   email: "test@example.com",
-  avatar_url: null,
+  picture_url: null,
   profile_public: false,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",

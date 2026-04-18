@@ -124,7 +124,7 @@ export async function getUser(id: string): Promise<User> {
   return res.user;
 }
 
-export function updateProfile(data: { display_name?: string; profile_public?: boolean }): Promise<User> {
+export function updateProfile(data: { name?: string; profile_public?: boolean }): Promise<User> {
   return apiFetch<User>("/users/me", {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
