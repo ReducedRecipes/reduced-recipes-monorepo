@@ -34,10 +34,18 @@ function createMockUsersDB(overrides: {
   collections?: Record<string, unknown>[];
   existingName?: string | null;
   maxPosition?: number | null;
+  collectionById?: Record<string, unknown> | null;
+  duplicateNameOnUpdate?: boolean;
+  defaultCollection?: { id: string } | null;
+  bookmarks?: Record<string, unknown>[];
 } = {}) {
   const collectionsList = overrides.collections ?? [];
   const existingName = overrides.existingName ?? null;
   const maxPosition = overrides.maxPosition ?? null;
+  const collectionById = overrides.collectionById === undefined ? null : overrides.collectionById;
+  const duplicateNameOnUpdate = overrides.duplicateNameOnUpdate ?? false;
+  const defaultCollection = overrides.defaultCollection === undefined ? null : overrides.defaultCollection;
+  const bookmarksList = overrides.bookmarks ?? [];
 
   return {
     prepare: vi.fn((sql: string) => {
@@ -48,14 +56,28 @@ function createMockUsersDB(overrides: {
           first: vi.fn().mockResolvedValue(TEST_USER),
         };
       }
-      // SELECT collections list
+      // SELECT collections list (ORDER BY)
       if (sql.includes('FROM collections') && sql.includes('ORDER BY')) {
         return {
           bind: vi.fn().mockReturnThis(),
           all: vi.fn().mockResolvedValue(makeD1Result(collectionsList as Record<string, unknown>[])),
         };
       }
-      // Check duplicate name
+      // SELECT collection by id + user_id (PATCH/DELETE/GET bookmarks ownership check)
+      if (sql.includes('FROM collections') && sql.includes('WHERE id = ?') && !sql.includes('DELETE') && !sql.includes('UPDATE')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          first: vi.fn().mockResolvedValue(collectionById),
+        };
+      }
+      // Check duplicate name with id != ? (PATCH rename check)
+      if (sql.includes('SELECT id FROM collections') && sql.includes('id != ?')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          first: vi.fn().mockResolvedValue(duplicateNameOnUpdate ? { id: 'other-col' } : null),
+        };
+      }
+      // Check duplicate name (POST create check)
       if (sql.includes('SELECT id FROM collections') && sql.includes('name')) {
         return {
           bind: vi.fn().mockReturnThis(),
@@ -74,6 +96,41 @@ function createMockUsersDB(overrides: {
         return {
           bind: vi.fn().mockReturnThis(),
           run: vi.fn().mockResolvedValue(makeD1Result()),
+        };
+      }
+      // UPDATE collections
+      if (sql.includes('UPDATE collections')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          run: vi.fn().mockResolvedValue(makeD1Result()),
+        };
+      }
+      // DELETE collections
+      if (sql.includes('DELETE FROM collections')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          run: vi.fn().mockResolvedValue(makeD1Result()),
+        };
+      }
+      // SELECT default collection (is_default = 1)
+      if (sql.includes('is_default = 1')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          first: vi.fn().mockResolvedValue(defaultCollection),
+        };
+      }
+      // UPDATE bookmarks (move to default)
+      if (sql.includes('UPDATE bookmarks')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          run: vi.fn().mockResolvedValue(makeD1Result()),
+        };
+      }
+      // SELECT bookmarks
+      if (sql.includes('FROM bookmarks')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockResolvedValue(makeD1Result(bookmarksList as Record<string, unknown>[])),
         };
       }
       return {
@@ -268,5 +325,197 @@ describe('POST /api/v1/collections', () => {
     expect(res.status).toBe(201);
     const body = await res.json() as { position: number };
     expect(body.position).toBe(0);
+  });
+});
+
+// ── PATCH /api/v1/collections/:id ─────────────────────────────────────
+
+describe('PATCH /api/v1/collections/:id', () => {
+  const existingCol = {
+    id: 'col-2', user_id: 'user-1', name: 'Dinner', is_default: 0,
+    is_public: 0, position: 1, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z',
+  };
+
+  it('returns 401 without auth', async () => {
+    const env = makeEnv();
+    const res = await req('/api/v1/collections/col-2', env, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'New Name' }),
+      headers: { 'Content-Type': 'application/json' },
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 if collection not found', async () => {
+    const env = makeEnv({ usersDB: createMockUsersDB({ collectionById: null }) });
+    const res = await req('/api/v1/collections/nonexistent', env, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'New Name' }),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 if name is empty', async () => {
+    const env = makeEnv({ usersDB: createMockUsersDB({ collectionById: existingCol }) });
+    const res = await req('/api/v1/collections/col-2', env, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: '  ' }),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 409 if renamed name conflicts with another collection', async () => {
+    const env = makeEnv({ usersDB: createMockUsersDB({ collectionById: existingCol, duplicateNameOnUpdate: true }) });
+    const res = await req('/api/v1/collections/col-2', env, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Saved' }),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(409);
+  });
+
+  it('updates name successfully', async () => {
+    const env = makeEnv({ usersDB: createMockUsersDB({ collectionById: existingCol }) });
+    const res = await req('/api/v1/collections/col-2', env, {
+      method: 'PATCH',
+      body: JSON.stringify({ name: 'Lunch Ideas' }),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { name: string; id: string };
+    expect(body.name).toBe('Lunch Ideas');
+    expect(body.id).toBe('col-2');
+  });
+
+  it('updates is_public and position', async () => {
+    const env = makeEnv({ usersDB: createMockUsersDB({ collectionById: existingCol }) });
+    const res = await req('/api/v1/collections/col-2', env, {
+      method: 'PATCH',
+      body: JSON.stringify({ is_public: true, position: 5 }),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { is_public: number; position: number };
+    expect(body.is_public).toBe(1);
+    expect(body.position).toBe(5);
+  });
+
+  it('returns current state when no fields provided', async () => {
+    const env = makeEnv({ usersDB: createMockUsersDB({ collectionById: existingCol }) });
+    const res = await req('/api/v1/collections/col-2', env, {
+      method: 'PATCH',
+      body: JSON.stringify({}),
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(200);
+    const body = await res.json() as { name: string };
+    expect(body.name).toBe('Dinner');
+  });
+});
+
+// ── DELETE /api/v1/collections/:id ────────────────────────────────────
+
+describe('DELETE /api/v1/collections/:id', () => {
+  it('returns 401 without auth', async () => {
+    const env = makeEnv();
+    const res = await req('/api/v1/collections/col-2', env, { method: 'DELETE' });
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 if collection not found', async () => {
+    const env = makeEnv({ usersDB: createMockUsersDB({ collectionById: null }) });
+    const res = await req('/api/v1/collections/nonexistent', env, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 400 when trying to delete default collection', async () => {
+    const env = makeEnv({
+      usersDB: createMockUsersDB({ collectionById: { id: 'col-1', is_default: 1 } }),
+    });
+    const res = await req('/api/v1/collections/col-1', env, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: { code: string } };
+    expect(body.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('deletes collection and migrates bookmarks to default', async () => {
+    const env = makeEnv({
+      usersDB: createMockUsersDB({
+        collectionById: { id: 'col-2', is_default: 0 },
+        defaultCollection: { id: 'col-1' },
+      }),
+    });
+    const res = await req('/api/v1/collections/col-2', env, {
+      method: 'DELETE',
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(204);
+  });
+});
+
+// ── GET /api/v1/collections/:id/bookmarks ─────────────────────────────
+
+describe('GET /api/v1/collections/:id/bookmarks', () => {
+  it('returns 401 without auth', async () => {
+    const env = makeEnv();
+    const res = await req('/api/v1/collections/col-1/bookmarks', env);
+    expect(res.status).toBe(401);
+  });
+
+  it('returns 404 if collection not found', async () => {
+    const env = makeEnv({ usersDB: createMockUsersDB({ collectionById: null }) });
+    const res = await req('/api/v1/collections/nonexistent/bookmarks', env, {
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns paginated bookmarks for a collection', async () => {
+    const bookmarks = [
+      { id: 'bk-1', user_id: 'user-1', collection_id: 'col-1', recipe_id: 'r-1', created_at: '2024-01-02T00:00:00Z', updated_at: '2024-01-02T00:00:00Z' },
+      { id: 'bk-2', user_id: 'user-1', collection_id: 'col-1', recipe_id: 'r-2', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    ];
+
+    const env = makeEnv({
+      usersDB: createMockUsersDB({
+        collectionById: { id: 'col-1' },
+        bookmarks,
+      }),
+    });
+
+    const res = await req('/api/v1/collections/col-1/bookmarks', env, {
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json() as { items: unknown[]; next_cursor: string | null };
+    expect(body.items).toHaveLength(2);
+    expect(body.next_cursor).toBeNull();
+  });
+
+  it('returns empty array for collection with no bookmarks', async () => {
+    const env = makeEnv({
+      usersDB: createMockUsersDB({
+        collectionById: { id: 'col-1' },
+        bookmarks: [],
+      }),
+    });
+
+    const res = await req('/api/v1/collections/col-1/bookmarks', env, {
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json() as { items: unknown[]; next_cursor: string | null };
+    expect(body.items).toHaveLength(0);
+    expect(body.next_cursor).toBeNull();
   });
 });
