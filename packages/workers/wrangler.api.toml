@@ -38,6 +38,15 @@ queue = "parse-jobs"
 binding = "PROJECTION_QUEUE"
 queue = "projection-jobs"
 
+[[queues.producers]]
+binding = "INGREDIENT_PARSE_QUEUE"
+queue = "ingredient-parse-jobs"
+
+[[queues.consumers]]
+queue = "ingredient-parse-jobs"
+max_batch_size = 10
+max_batch_timeout = 5
+
 [[d1_databases]]
 binding = "USERS_DB"
 database_id = "3bb2302a-7f7a-43c9-b3e7-de5870824869"
@@ -51,6 +60,15 @@ id = "b780ce4935dd4cd6834defdb30c2137f"
 [[kv_namespaces]]
 binding = "USER_CACHE_KV"
 id = "41828007810046b2bc6feab80aece86a"
+
+[durable_objects]
+bindings = [
+  { name = "SHOPPING_LIST_DO", class_name = "ShoppingListDO" },
+]
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ShoppingListDO"]
 
 [ai]
 binding = "AI"
