@@ -37,6 +37,9 @@ queue = "parse-jobs"
 binding = "PROJECTION_QUEUE"
 queue = "projection-jobs"
 
+[ai]
+binding = "AI"
+
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"
 DEFAULT_CRAWL_DELAY_MS = "2000"

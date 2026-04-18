@@ -2,12 +2,13 @@ import type { Env } from '@rr/shared/env';
 import type { ProjectionJob, RecipeDocument } from '@rr/shared';
 import { chunk } from '@rr/shared/utils';
 import { inferDietaryBitmask } from './helpers/dietary-inference';
+import { translateRecipe } from './helpers/translate';
 
 export default {
   async queue(batch: MessageBatch<ProjectionJob>, env: Env) {
     for (const msg of batch.messages) {
       try {
-        const doc: RecipeDocument = msg.body.doc;
+        let doc: RecipeDocument = msg.body.doc;
 
         // ── Skip duplicates: same title + domain already exists ───
         const existing = await env.DB.prepare(
@@ -17,6 +18,15 @@ export default {
         if (existing) {
           msg.ack();
           continue;
+        }
+
+        // ── Translate non-English recipes ───────────────────────────
+        if (env.AI && doc.original_language && doc.original_language !== 'en') {
+          try {
+            doc = await translateRecipe(doc, env.AI);
+          } catch (error) {
+            console.warn('Translation failed for recipe', doc.id, error);
+          }
         }
 
         // ── Skip category/listing pages (not actual recipe URLs) ──

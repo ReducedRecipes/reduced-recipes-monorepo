@@ -4,28 +4,31 @@ import { chunk, chunks } from '@rr/shared/utils';
 import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
 async function runScheduled(env: Env) {
-    // 1. Pull due URLs — pick up to 5 per domain, spread across domains
-    //    Two lightweight queries instead of one expensive window function
-    const domains = await env.DB.prepare(`
-      SELECT DISTINCT domain FROM crawl_queue
-      WHERE status = 'pending' AND next_crawl <= datetime('now')
-      LIMIT 100
-    `).all<{ domain: string }>();
+    // 1. Pull due URLs — use the domains table (small, ~400 rows) instead
+    //    of scanning 500k+ crawl_queue rows for DISTINCT domain.
+    //    Grab 100 random domains × 20 URLs each = up to 2000 URLs per run.
+    //    Combined with 30-min cron, this gives same throughput with 6x fewer scans.
+    const domains = await env.DB.prepare(
+      'SELECT domain FROM domains WHERE active = 1 ORDER BY RANDOM() LIMIT 100',
+    ).all<{ domain: string }>();
 
     const due: { results: CrawlJob[] } = { results: [] };
     if (domains.results.length > 0) {
-      const perDomain = Math.max(1, Math.floor(500 / domains.results.length));
-      const stmts = domains.results.map((d) =>
-        env.DB.prepare(`
-          SELECT url, domain FROM crawl_queue
-          WHERE status = 'pending' AND domain = ? AND next_crawl <= datetime('now')
-          ORDER BY priority ASC, next_crawl ASC
-          LIMIT ?
-        `).bind(d.domain, Math.min(perDomain, 10)),
-      );
-      const results = await env.DB.batch(stmts);
-      for (const r of results) {
-        due.results.push(...(r.results as unknown as CrawlJob[]));
+      // D1 batch limit is 100 statements — split into 2 batches if needed
+      const domainChunks = chunk(domains.results, 50);
+      for (const domainBatch of domainChunks) {
+        const stmts = domainBatch.map((d) =>
+          env.DB.prepare(`
+            SELECT url, domain FROM crawl_queue
+            WHERE status = 'pending' AND domain = ? AND next_crawl <= datetime('now')
+            ORDER BY priority ASC, next_crawl ASC
+            LIMIT 20
+          `).bind(d.domain),
+        );
+        const results = await env.DB.batch(stmts);
+        for (const r of results) {
+          due.results.push(...(r.results as unknown as CrawlJob[]));
+        }
       }
     }
 

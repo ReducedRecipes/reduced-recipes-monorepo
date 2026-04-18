@@ -19,6 +19,10 @@ export interface RecipeDocument {
   schema_valid: boolean;
   extracted_at: string;
   last_checked: string;
+  /** ISO 639-1 language code of the original recipe (e.g., 'de', 'fr', 'ja'). */
+  original_language?: string;
+  /** Title in the original language before translation. */
+  original_title?: string;
 }
 
 /** Lean recipe summary used for list/search views (projected into D1). */

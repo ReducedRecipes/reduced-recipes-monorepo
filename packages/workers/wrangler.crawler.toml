@@ -6,6 +6,7 @@ compatibility_date = "2024-05-01"
 queue = "crawl-jobs"
 max_batch_size = 10
 max_retries = 3
+max_concurrency = 5
 dead_letter_queue = "crawl-dlq"
 
 [[d1_databases]]
