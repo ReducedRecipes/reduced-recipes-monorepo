@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '@rr/shared/env';
 import type { Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
+import { parseCursorPagination } from './helpers';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -266,9 +267,7 @@ bookmarks.delete('/api/v1/bookmarks/:id', requireAuth, async (c) => {
 // GET /api/v1/bookmarks — list user's bookmarks with cursor pagination
 bookmarks.get('/api/v1/bookmarks', requireAuth, async (c) => {
   const userId = c.get('userId');
-  const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
+  const { limit, cursor, limitPlusOne } = parseCursorPagination(c);
 
   const conditions = ['user_id = ?'];
   const params: (string | number)[] = [userId];
@@ -279,7 +278,7 @@ bookmarks.get('/api/v1/bookmarks', requireAuth, async (c) => {
   }
 
   const whereClause = `WHERE ${conditions.join(' AND ')}`;
-  params.push(limit + 1);
+  params.push(limitPlusOne);
 
   const result = await c.env.USERS_DB!.prepare(
     `SELECT id, user_id, collection_id, recipe_id, created_at, updated_at

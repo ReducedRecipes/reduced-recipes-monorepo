@@ -2,6 +2,7 @@ import { Hono } from 'hono';
 import type { Env } from '@rr/shared/env';
 import type { Collection, Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
+import { parseCursorPagination } from './helpers';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -219,9 +220,7 @@ collections.delete('/api/v1/collections/:id', requireAuth, async (c) => {
 collections.get('/api/v1/collections/:id/bookmarks', requireAuth, async (c) => {
   const userId = c.get('userId');
   const collectionId = c.req.param('id');
-  const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
+  const { limit, cursor, limitPlusOne } = parseCursorPagination(c);
 
   // Verify collection ownership
   const col = await c.env.USERS_DB!.prepare(
@@ -246,7 +245,7 @@ collections.get('/api/v1/collections/:id/bookmarks', requireAuth, async (c) => {
   }
 
   const whereClause = `WHERE ${conditions.join(' AND ')}`;
-  params.push(limit + 1);
+  params.push(limitPlusOne);
 
   const result = await c.env.USERS_DB!.prepare(
     `SELECT id, user_id, collection_id, recipe_id, created_at, updated_at

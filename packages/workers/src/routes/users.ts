@@ -12,11 +12,13 @@
  */
 
 import { Hono } from 'hono';
+import type { Context } from 'hono';
 import type { Env } from '@rr/shared/env';
 import type { User, Collection } from '@rr/shared';
 import { isValidRestriction, restrictionsToMask } from '@rr/shared/dietary';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { deleteAllSessions } from '../lib/session';
+import { parseCursorPagination } from './helpers';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string; user: User } };
 
@@ -282,14 +284,17 @@ users.get('/api/v1/dietary-preferences/recipe-count', async (c) => {
   return c.json({ count });
 });
 
-// ── GET /api/v1/users/:id/followers — paginated followers list ────────
-users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
+// ── Shared follow-list helper (followers & following) ─────────────────
+async function getFollowList(
+  c: Context<AuthEnv>,
+  direction: 'followers' | 'following',
+) {
   const usersDB = c.env.USERS_DB;
   if (!usersDB) {
     return c.json({ error: { code: 'SERVER_ERROR', message: 'Users DB not configured' } }, 500);
   }
 
-  const targetId = c.req.param('id');
+  const targetId = c.req.param('id')!;
   const requesterId = c.get('userId');
 
   // Check target user exists
@@ -301,14 +306,17 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
     return c.json({ error: { code: 'NOT_FOUND', message: 'User not found' } }, 404);
   }
 
-  const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
+  const { limit, cursor, limitPlusOne } = parseCursorPagination(c);
+
+  // For followers: JOIN on follower_id, WHERE following_id = target
+  // For following: JOIN on following_id, WHERE follower_id = target
+  const joinCol = direction === 'followers' ? 'f.follower_id' : 'f.following_id';
+  const whereCol = direction === 'followers' ? 'f.following_id' : 'f.follower_id';
 
   let sql = `SELECT u.id, u.name, u.picture_url AS profile_image_url, f.created_at as followed_at
     FROM follows f
-    JOIN users u ON u.id = f.follower_id
-    WHERE f.following_id = ?`;
+    JOIN users u ON u.id = ${joinCol}
+    WHERE ${whereCol} = ?`;
   const params: (string | number)[] = [targetId];
 
   if (cursor) {
@@ -317,7 +325,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   }
 
   sql += ' ORDER BY f.created_at DESC LIMIT ?';
-  params.push(limit + 1);
+  params.push(limitPlusOne);
 
   const result = await usersDB.prepare(sql).bind(...params).all();
   const rows = (result.results ?? []) as unknown as {
@@ -334,7 +342,6 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
     next_cursor = lastRow ? lastRow.followed_at : null;
   }
 
-  // If authenticated, check if requester follows each user
   let items: Array<{
     id: string;
     name: string;
@@ -343,14 +350,14 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   }>;
 
   if (requesterId) {
-    const followerIds = rows.map((r) => r.id);
-    if (followerIds.length > 0) {
-      const placeholders = followerIds.map(() => '?').join(',');
+    const userIds = rows.map((r) => r.id);
+    if (userIds.length > 0) {
+      const placeholders = userIds.map(() => '?').join(',');
       const followResult = await usersDB
         .prepare(
           `SELECT following_id FROM follows WHERE follower_id = ? AND following_id IN (${placeholders})`,
         )
-        .bind(requesterId, ...followerIds)
+        .bind(requesterId, ...userIds)
         .all();
       const followingSet = new Set(
         ((followResult.results ?? []) as unknown as { following_id: string }[]).map(
@@ -375,100 +382,16 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   }
 
   return c.json({ items, next_cursor });
+}
+
+// ── GET /api/v1/users/:id/followers — paginated followers list ────────
+users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
+  return getFollowList(c, 'followers');
 });
 
 // ── GET /api/v1/users/:id/following — paginated following list ───────
 users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
-  const usersDB = c.env.USERS_DB;
-  if (!usersDB) {
-    return c.json({ error: { code: 'SERVER_ERROR', message: 'Users DB not configured' } }, 500);
-  }
-
-  const targetId = c.req.param('id');
-  const requesterId = c.get('userId');
-
-  // Check target user exists
-  const targetUser = await usersDB
-    .prepare('SELECT id FROM users WHERE id = ?')
-    .bind(targetId)
-    .first();
-  if (!targetUser) {
-    return c.json({ error: { code: 'NOT_FOUND', message: 'User not found' } }, 404);
-  }
-
-  const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
-
-  let sql = `SELECT u.id, u.name, u.picture_url AS profile_image_url, f.created_at as followed_at
-    FROM follows f
-    JOIN users u ON u.id = f.following_id
-    WHERE f.follower_id = ?`;
-  const params: (string | number)[] = [targetId];
-
-  if (cursor) {
-    sql += ' AND f.created_at < ?';
-    params.push(cursor);
-  }
-
-  sql += ' ORDER BY f.created_at DESC LIMIT ?';
-  params.push(limit + 1);
-
-  const result = await usersDB.prepare(sql).bind(...params).all();
-  const rows = (result.results ?? []) as unknown as {
-    id: string;
-    name: string;
-    profile_image_url: string;
-    followed_at: string;
-  }[];
-
-  let next_cursor: string | null = null;
-  if (rows.length > limit) {
-    rows.pop();
-    const lastRow = rows[rows.length - 1];
-    next_cursor = lastRow ? lastRow.followed_at : null;
-  }
-
-  let items: Array<{
-    id: string;
-    name: string;
-    profile_image_url: string;
-    is_following?: boolean;
-  }>;
-
-  if (requesterId) {
-    const followingIds = rows.map((r) => r.id);
-    if (followingIds.length > 0) {
-      const placeholders = followingIds.map(() => '?').join(',');
-      const followResult = await usersDB
-        .prepare(
-          `SELECT following_id FROM follows WHERE follower_id = ? AND following_id IN (${placeholders})`,
-        )
-        .bind(requesterId, ...followingIds)
-        .all();
-      const followingSet = new Set(
-        ((followResult.results ?? []) as unknown as { following_id: string }[]).map(
-          (r) => r.following_id,
-        ),
-      );
-      items = rows.map((r) => ({
-        id: r.id,
-        name: r.name,
-        profile_image_url: r.profile_image_url,
-        is_following: followingSet.has(r.id),
-      }));
-    } else {
-      items = [];
-    }
-  } else {
-    items = rows.map((r) => ({
-      id: r.id,
-      name: r.name,
-      profile_image_url: r.profile_image_url,
-    }));
-  }
-
-  return c.json({ items, next_cursor });
+  return getFollowList(c, 'following');
 });
 
 // ── GET /api/v1/users/:id/collections — public collections ──────────
