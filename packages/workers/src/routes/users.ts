@@ -282,4 +282,107 @@ users.get('/api/v1/dietary-preferences/recipe-count', async (c) => {
   return c.json({ count });
 });
 
+// ── POST /api/v1/users/:id/follow — follow a user ────────────────────
+users.post('/api/v1/users/:id/follow', requireAuth, async (c) => {
+  const usersDB = c.env.USERS_DB;
+  if (!usersDB) {
+    return c.json(
+      { error: { code: 'SERVER_ERROR', message: 'Users DB not configured' } },
+      500,
+    );
+  }
+
+  const followerId = c.get('userId');
+  const followingId = c.req.param('id');
+
+  // Cannot follow yourself
+  if (followerId === followingId) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: 'Cannot follow yourself' } },
+      400,
+    );
+  }
+
+  // Check target user exists
+  const targetUser = (await usersDB
+    .prepare('SELECT id, profile_public FROM users WHERE id = ?')
+    .bind(followingId)
+    .first()) as { id: string; profile_public: number } | null;
+
+  if (!targetUser) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'User not found' } }, 404);
+  }
+
+  // Cannot follow private profiles
+  if (targetUser.profile_public === 0) {
+    return c.json(
+      { error: { code: 'FORBIDDEN', message: 'Cannot follow a private profile' } },
+      403,
+    );
+  }
+
+  // Check if already following
+  const existing = await usersDB
+    .prepare('SELECT follower_id FROM follows WHERE follower_id = ? AND following_id = ?')
+    .bind(followerId, followingId)
+    .first();
+
+  if (existing) {
+    return c.json(
+      { error: { code: 'ALREADY_FOLLOWING', message: 'Already following this user' } },
+      409,
+    );
+  }
+
+  const now = new Date().toISOString();
+
+  // Insert follow and create notification in a batch
+  await usersDB.batch([
+    usersDB
+      .prepare('INSERT INTO follows (follower_id, following_id, created_at) VALUES (?, ?, ?)')
+      .bind(followerId, followingId, now),
+    usersDB
+      .prepare(
+        'INSERT INTO notifications (user_id, type, payload, created_at) VALUES (?, ?, ?, ?)',
+      )
+      .bind(followingId, 'new_follower', JSON.stringify({ follower_id: followerId }), now),
+  ]);
+
+  return c.json({ success: true }, 201);
+});
+
+// ── DELETE /api/v1/users/:id/follow — unfollow a user ────────────────
+users.delete('/api/v1/users/:id/follow', requireAuth, async (c) => {
+  const usersDB = c.env.USERS_DB;
+  if (!usersDB) {
+    return c.json(
+      { error: { code: 'SERVER_ERROR', message: 'Users DB not configured' } },
+      500,
+    );
+  }
+
+  const followerId = c.get('userId');
+  const followingId = c.req.param('id');
+
+  // Check if following
+  const existing = await usersDB
+    .prepare('SELECT follower_id FROM follows WHERE follower_id = ? AND following_id = ?')
+    .bind(followerId, followingId)
+    .first();
+
+  if (!existing) {
+    return c.json(
+      { error: { code: 'NOT_FOUND', message: 'Not following this user' } },
+      404,
+    );
+  }
+
+  await usersDB
+    .prepare('DELETE FROM follows WHERE follower_id = ? AND following_id = ?')
+    .bind(followerId, followingId)
+    .run();
+
+  return c.body(null, 204);
+});
+
 export default users;
