@@ -64,8 +64,7 @@ export default function UserProfilePage() {
             />
           ) : (
             <div className="flex h-20 w-20 items-center justify-center rounded-full bg-orange-600 text-2xl font-bold text-white">
-              {profile.name?.charAt(0).toUpperCase() ||
-                profile.email.charAt(0).toUpperCase()}
+              {(profile.name ?? profile.email ?? "?").charAt(0).toUpperCase()}
             </div>
           )}
           <div className="flex-1">
