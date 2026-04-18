@@ -1,9 +1,13 @@
 import { useAuth } from "../hooks/useAuth";
+import { useFollow } from "../hooks/useFollow";
 import { useNavigate } from "react-router-dom";
+import { CollectionList } from "../components/CollectionList";
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const { followerCount, followingCount, isLoading: followLoading } =
+    useFollow(user?.id ?? "");
 
   if (isLoading) {
     return (
@@ -38,6 +42,22 @@ export default function ProfilePage() {
           <div>
             <h2 className="text-lg font-semibold text-gray-900">{user.name}</h2>
             <p className="text-sm text-gray-500">{user.email}</p>
+            {!followLoading && (
+              <div className="mt-1 flex gap-3 text-sm text-gray-600">
+                <span>
+                  <span className="font-semibold text-gray-900">
+                    {followerCount}
+                  </span>{" "}
+                  {followerCount === 1 ? "follower" : "followers"}
+                </span>
+                <span>
+                  <span className="font-semibold text-gray-900">
+                    {followingCount}
+                  </span>{" "}
+                  following
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -61,6 +81,14 @@ export default function ProfilePage() {
             <dd className="text-gray-900">{user.profile_public ? "Public" : "Private"}</dd>
           </div>
         </dl>
+      </div>
+
+      {/* Collections */}
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          My Collections
+        </h2>
+        <CollectionList />
       </div>
     </div>
   );

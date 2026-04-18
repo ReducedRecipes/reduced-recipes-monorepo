@@ -12,9 +12,25 @@ export interface AuthState {
   clearUser: () => void;
 }
 
+function safeLocalStorage() {
+  try {
+    // Verify localStorage is fully functional (may not be in test environments)
+    if (typeof localStorage !== "undefined" && typeof localStorage.getItem === "function") {
+      return localStorage;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function getStoredToken(): string | null {
+  return safeLocalStorage()?.getItem("session_token") ?? null;
+}
+
 export const useAuthStore = create<AuthState>()((set) => ({
   user: null,
-  token: localStorage.getItem("session_token"),
+  token: getStoredToken(),
   isAuthenticated: false,
   isNewUser: false,
 
@@ -22,12 +38,12 @@ export const useAuthStore = create<AuthState>()((set) => ({
     set({ user, isAuthenticated: true, isNewUser: isNew }),
 
   setToken: (token) => {
-    localStorage.setItem("session_token", token);
+    safeLocalStorage()?.setItem("session_token", token);
     set({ token });
   },
 
   clearUser: () => {
-    localStorage.removeItem("session_token");
+    safeLocalStorage()?.removeItem("session_token");
     set({ user: null, token: null, isAuthenticated: false, isNewUser: false });
   },
 }));

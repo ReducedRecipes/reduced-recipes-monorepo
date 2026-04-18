@@ -7,10 +7,11 @@ import type { RecipeSummary } from "@rr/shared";
 
 vi.mock("../../lib/api", () => ({
   searchRecipes: vi.fn(),
+  apiFetch: vi.fn(),
 }));
 
-import { searchRecipes } from "../../lib/api";
-const mockSearchRecipes = vi.mocked(searchRecipes);
+import { apiFetch } from "../../lib/api";
+const mockApiFetch = vi.mocked(apiFetch);
 
 afterEach(() => {
   cleanup();
@@ -26,7 +27,7 @@ function createWrapper() {
   );
 }
 
-const mockResults = {
+const mockPage = {
   items: [
     {
       id: "r1",
@@ -46,17 +47,17 @@ const mockResults = {
 
 describe("useSearch", () => {
   it("fetches search results for a query", async () => {
-    mockSearchRecipes.mockResolvedValueOnce(mockResults);
+    mockApiFetch.mockResolvedValueOnce(mockPage);
     const { result } = renderHook(() => useSearch("pasta"), {
       wrapper: createWrapper(),
     });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(result.current.data).toEqual(mockResults);
-    expect(mockSearchRecipes).toHaveBeenCalledWith("pasta");
+    expect(result.current.data?.pages[0]).toEqual(mockPage);
+    expect(mockApiFetch).toHaveBeenCalled();
   });
 
   it("isLoading is true initially for valid query", () => {
-    mockSearchRecipes.mockReturnValue(new Promise(() => {}));
+    mockApiFetch.mockReturnValue(new Promise(() => {}));
     const { result } = renderHook(() => useSearch("pasta"), {
       wrapper: createWrapper(),
     });
@@ -68,7 +69,7 @@ describe("useSearch", () => {
       wrapper: createWrapper(),
     });
     expect(result.current.isFetching).toBe(false);
-    expect(mockSearchRecipes).not.toHaveBeenCalled();
+    expect(mockApiFetch).not.toHaveBeenCalled();
   });
 
   it("query is disabled when query string is empty", () => {
@@ -76,6 +77,6 @@ describe("useSearch", () => {
       wrapper: createWrapper(),
     });
     expect(result.current.isFetching).toBe(false);
-    expect(mockSearchRecipes).not.toHaveBeenCalled();
+    expect(mockApiFetch).not.toHaveBeenCalled();
   });
 });

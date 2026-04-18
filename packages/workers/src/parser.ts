@@ -1,6 +1,7 @@
 import type { Env } from '@rr/shared/env';
 import type { ParseJob, ProjectionJob, RecipeDocument } from '@rr/shared';
 import { extractSchemaOrg, normaliseRecipe } from '@rr/shared/extract';
+import { detectLanguage } from './helpers/detect-language';
 
 export default {
   async queue(batch: MessageBatch<ParseJob>, env: Env) {
@@ -30,6 +31,12 @@ export default {
 
         // ── Normalise into RecipeDocument ───────────────────────────
         const doc: RecipeDocument = normaliseRecipe(schema, url);
+
+        // ── Detect source language ─────────────────────────────────
+        const sourceLang = detectLanguage(html);
+        if (sourceLang) {
+          doc.original_language = sourceLang;
+        }
 
         // ── Validate required fields ────────────────────────────────
         if (!doc.title || doc.ingredients.length === 0) {

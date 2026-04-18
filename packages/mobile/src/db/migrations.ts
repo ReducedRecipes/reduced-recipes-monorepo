@@ -1,7 +1,7 @@
 import type { SQLiteDatabase } from 'expo-sqlite';
-import { SCHEMA } from './schema';
+import { SCHEMA, OFFLINE_BOOKMARKS_SCHEMA } from './schema';
 
-const CURRENT_VERSION = 1;
+const CURRENT_VERSION = 2;
 
 /**
  * Run migrations idempotently. Tracks schema version in a meta table
@@ -21,8 +21,15 @@ export async function runMigrations(db: SQLiteDatabase): Promise<void> {
   );
   const currentVersion = row?.version ?? 0;
 
-  if (currentVersion < CURRENT_VERSION) {
+  if (currentVersion < 1) {
     await db.execAsync(SCHEMA);
+  }
+
+  if (currentVersion < 2) {
+    await db.execAsync(OFFLINE_BOOKMARKS_SCHEMA);
+  }
+
+  if (currentVersion < CURRENT_VERSION) {
     await db.runAsync(
       `INSERT INTO schema_version (id, version) VALUES (1, ?)
        ON CONFLICT(id) DO UPDATE SET version = excluded.version`,

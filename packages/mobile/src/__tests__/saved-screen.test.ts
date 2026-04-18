@@ -122,7 +122,7 @@ describe('SavedScreen (S-30)', () => {
   });
 
   it('displays recipe count in header', () => {
-    expect(content).toContain('recipes.length');
+    expect(content).toContain('displayData.length');
     expect(content).toContain("'recipe'");
     expect(content).toContain("'recipes'");
     expect(content).toContain('saved');

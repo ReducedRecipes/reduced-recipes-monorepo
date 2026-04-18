@@ -19,6 +19,10 @@ export interface RecipeDocument {
   schema_valid: boolean;
   extracted_at: string;
   last_checked: string;
+  /** ISO 639-1 language code of the original recipe (e.g., 'de', 'fr', 'ja'). */
+  original_language?: string;
+  /** Title in the original language before translation. */
+  original_title?: string;
 }
 
 /** Lean recipe summary used for list/search views (projected into D1). */
@@ -108,6 +112,28 @@ export interface RecipeView {
   recipe_id: string;
   source: string;
   viewed_at: string;
+}
+
+/** A follow relationship between two users. */
+export interface Follow {
+  follower_id: string;
+  following_id: string;
+  created_at: string;
+}
+
+/** A bookmark sync action sent from mobile clients during offline sync. */
+export interface BookmarkSyncAction {
+  recipe_id: string;
+  collection_id: string | null;
+  action: 'add' | 'remove';
+  client_timestamp: string;
+}
+
+/** Result of a single bookmark sync action from the server. */
+export interface BookmarkSyncResult {
+  recipe_id: string;
+  status: 'applied' | 'conflict';
+  server_state?: { exists: boolean; updated_at: string };
 }
 
 /** Job enqueued to the crawl queue. */

@@ -166,7 +166,7 @@ describe('SettingsScreen (S-32)', () => {
   });
 
   it('queries downloaded recipe count from SQLite', () => {
-    expect(content).toContain('useSQLiteContext');
+    expect(content).toContain('openDatabaseAsync');
     expect(content).toContain('SELECT COUNT(*)');
     expect(content).toContain('saved_recipes');
     expect(content).toContain('downloadedCount');

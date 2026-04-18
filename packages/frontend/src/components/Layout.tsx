@@ -4,8 +4,10 @@ import SearchBar from "./SearchBar";
 import { LoginButton } from "./LoginButton";
 import NotificationBell from "./NotificationBell";
 import { DietaryOnboarding } from "./DietaryOnboarding";
+import { useAuth } from "../hooks/useAuth";
 
 export default function Layout() {
+  const { isAuthenticated } = useAuth();
   const [showDietaryOnboarding, setShowDietaryOnboarding] = useState(false);
 
   useEffect(() => {
@@ -41,6 +43,11 @@ export default function Layout() {
               <Link to="/remove" className="hover:text-orange-600">
                 Opt-out
               </Link>
+              {isAuthenticated && (
+                <Link to="/saved" className="hover:text-orange-600">
+                  Saved
+                </Link>
+              )}
             </nav>
             <NotificationBell />
             <LoginButton />
