@@ -14,6 +14,12 @@ vi.mock('react-native', () => ({
   FlatList: vi.fn(() => ({ type: 'FlatList' })),
   Pressable: vi.fn(({ children }: any) => ({ type: 'Pressable', children })),
   RefreshControl: vi.fn(() => ({ type: 'RefreshControl' })),
+  StyleSheet: { create: (s: any) => s },
+  ActivityIndicator: vi.fn(() => ({ type: 'ActivityIndicator' })),
+}));
+
+vi.mock('react-native-safe-area-context', () => ({
+  useSafeAreaInsets: () => ({ top: 0, bottom: 0, left: 0, right: 0 }),
 }));
 
 vi.mock('expo-image', () => ({
@@ -48,10 +54,6 @@ vi.mock('@/components/RecipeCard', () => ({
   RecipeCard: vi.fn(() => ({ type: 'RecipeCard' })),
 }));
 
-vi.mock('@/components/TagPill', () => ({
-  TagPill: vi.fn(() => ({ type: 'TagPill' })),
-}));
-
 vi.mock('@/components/ErrorState', () => ({
   ErrorState: vi.fn(() => ({ type: 'ErrorState' })),
 }));
@@ -59,6 +61,13 @@ vi.mock('@/components/ErrorState', () => ({
 vi.mock('@/components/icons', () => ({
   SearchIcon: vi.fn(() => ({ type: 'SearchIcon' })),
 }));
+
+vi.mock('@/constants/theme', () => ({
+  colors: { bg: '#FAFAF8', bgMuted: '#F0F0EE', ink: '#1A1A18', inkMuted: '#6B7280', inkFaint: '#9CA3AF', orange: '#E85D26', orangeLight: '#FFF0EB' },
+  fonts: { display: 'Lora_600SemiBold', body: 'DMSans_400Regular', bodyMed: 'DMSans_500Medium' },
+}));
+
+vi.mock('@rr/shared', () => ({}));
 
 describe('HomeScreen (S-26)', () => {
   it('exports a default component', async () => {
@@ -126,7 +135,7 @@ describe('HomeScreen (S-26)', () => {
   it('renders cuisine pills for navigation', () => {
     const filePath = resolve(__dirname, '../../app/(tabs)/index.tsx');
     const content = readFileSync(filePath, 'utf-8');
-    expect(content).toContain('TagPill');
+    expect(content).toContain('CuisinePill');
     expect(content).toContain('Italian');
     expect(content).toContain('Mexican');
     expect(content).toContain('Japanese');

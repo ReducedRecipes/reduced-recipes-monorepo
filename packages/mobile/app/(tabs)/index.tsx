@@ -110,7 +110,7 @@ export default function HomeScreen() {
       if (isSaved(id)) {
         unsave(id);
       } else {
-        save(id);
+        save(id as any);
       }
     },
     [isSaved, save, unsave],

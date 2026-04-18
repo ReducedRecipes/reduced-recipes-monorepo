@@ -1,4 +1,5 @@
-import type { Env, CrawlJob, ParseJob } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { CrawlJob, ParseJob } from '@rr/shared';
 import { checkRobots } from '@rr/shared/robots';
 
 export default {

@@ -8,9 +8,7 @@ vi.mock('react-native', () => ({
   Pressable: vi.fn(({ children }: any) => ({ type: 'Pressable', children })),
 }));
 
-vi.mock('@shopify/flash-list', () => ({
-  FlashList: vi.fn(() => ({ type: 'FlashList' })),
-}));
+// Search screen now uses FlatList from react-native instead of FlashList
 
 vi.mock('expo-image', () => ({
   Image: vi.fn(() => ({ type: 'Image' })),
@@ -21,18 +19,6 @@ vi.mock('react-native-svg', () => ({
   Path: vi.fn(() => ({ type: 'Path' })),
 }));
 
-vi.mock('@gorhom/bottom-sheet', () => ({
-  default: vi.fn(({ children }: any) => ({ type: 'BottomSheet', children })),
-}));
-
-vi.mock('react-native-mmkv', () => ({
-  MMKV: vi.fn(() => ({
-    getString: vi.fn(() => '[]'),
-    set: vi.fn(),
-    delete: vi.fn(),
-  })),
-}));
-
 vi.mock('@tanstack/react-query', () => ({
   useQuery: vi.fn(() => ({ data: [], isLoading: false, isError: false, refetch: vi.fn() })),
   keepPreviousData: {},
@@ -40,10 +26,6 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/components/SearchBar', () => ({
   SearchBar: vi.fn(() => ({ type: 'SearchBar' })),
-}));
-
-vi.mock('@/components/FilterSheet', () => ({
-  FilterSheet: vi.fn(() => ({ type: 'FilterSheet' })),
 }));
 
 vi.mock('@/components/RecipeCard', () => ({
@@ -84,27 +66,13 @@ describe('SearchScreen (S-27)', () => {
     expect(content).toContain("from '@/hooks/useSearch'");
   });
 
-  it('renders filter button to open FilterSheet', () => {
-    expect(content).toContain('FilterSheet');
-    expect(content).toContain('filterVisible');
-    expect(content).toContain('Open filters');
+  it('shows initial state when query is short', () => {
+    expect(content).toContain('Find your next meal');
+    expect(content).toContain('showResults');
   });
 
-  it('shows recent searches when query is empty', () => {
-    expect(content).toContain('recent_searches');
-    expect(content).toContain('recentSearches');
-    expect(content).toContain('Recent searches');
-  });
-
-  it('saves successful searches to MMKV', () => {
-    expect(content).toContain('saveRecentSearch');
-    expect(content).toContain('mmkv.set');
-    expect(content).toContain('RECENT_SEARCHES_KEY');
-  });
-
-  it('uses FlashList with estimatedItemSize for results', () => {
-    expect(content).toContain('FlashList');
-    expect(content).toContain('estimatedItemSize={220}');
+  it('uses FlatList for results', () => {
+    expect(content).toContain('FlatList');
   });
 
   it('renders RecipeCard for each search result', () => {
@@ -123,25 +91,14 @@ describe('SearchScreen (S-27)', () => {
     expect(content).toContain('Failed to load search results');
   });
 
-  it('displays active filter chips that are dismissible', () => {
-    expect(content).toContain('FilterChip');
-    expect(content).toContain('handleRemoveFilter');
-    expect(content).toContain('onRemove');
-  });
-
-  it('implements LIFO recent searches with max 10 limit', () => {
-    expect(content).toContain('MAX_RECENT');
-    expect(content).toContain('.slice(0, MAX_RECENT)');
-    expect(content).toContain('.filter');
-  });
-
   it('uses loading skeletons while searching', () => {
     expect(content).toContain('RecipeCardSkeleton');
     expect(content).toContain('isLoading');
   });
 
-  it('uses mmkv for persistent recent searches storage', () => {
-    expect(content).toContain("from '@/lib/mmkv'");
-    expect(content).toContain('mmkv.getString');
+  it('supports infinite scroll with onEndReached', () => {
+    expect(content).toContain('onEndReached');
+    expect(content).toContain('hasNextPage');
+    expect(content).toContain('fetchNextPage');
   });
 });

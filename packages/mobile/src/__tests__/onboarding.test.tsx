@@ -1,6 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeAll } from "vitest";
 import { resolve } from "path";
 import { readFileSync, existsSync } from "fs";
+
+// Set React Native globals before any imports
+(globalThis as any).__DEV__ = true;
 
 // Mock all external dependencies
 vi.mock("react-native", () => ({
@@ -8,6 +11,7 @@ vi.mock("react-native", () => ({
   Text: vi.fn(({ children }: any) => ({ type: "Text", children })),
   Pressable: vi.fn(({ children }: any) => ({ type: "Pressable", children })),
   FlatList: vi.fn(() => ({ type: "FlatList" })),
+  ActivityIndicator: vi.fn(() => ({ type: "ActivityIndicator" })),
   useWindowDimensions: () => ({ width: 375, height: 812 }),
 }));
 
@@ -20,11 +24,43 @@ vi.mock("@/lib/mmkv", () => ({
 }));
 
 vi.mock("@/stores/preferences.store", () => ({
-  usePreferencesStore: (selector: (s: Record<string, unknown>) => unknown) =>
+  usePreferencesStore: Object.assign(
+    (selector: (s: Record<string, unknown>) => unknown) =>
+      selector({
+        toggleDietary: vi.fn(),
+        dietaryFilters: [],
+      }),
+    { getState: () => ({ dietaryFilters: [] }) },
+  ),
+}));
+
+vi.mock("@/stores/auth.store", () => ({
+  useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
     selector({
-      toggleDietary: vi.fn(),
-      dietaryFilters: [],
+      sessionToken: null,
+      isAuthenticated: false,
     }),
+}));
+
+vi.mock("@rr/shared/dietary", () => ({
+  DIETARY_LABELS: {
+    vegan: "Vegan",
+    vegetarian: "Vegetarian",
+    "gluten-free": "Gluten-free",
+    "dairy-free": "Dairy-free",
+    keto: "Keto",
+    paleo: "Paleo",
+    "nut-free": "Nut-free",
+    "soy-free": "Soy-free",
+    "egg-free": "Egg-free",
+    "fish-free": "Fish-free",
+    "shellfish-free": "Shellfish-free",
+    "low-sodium": "Low-sodium",
+    "low-sugar": "Low-sugar",
+    "high-protein": "High-protein",
+    "low-carb": "Low-carb",
+    "whole30": "Whole30",
+  },
 }));
 
 vi.mock("@/constants/theme", () => ({
@@ -70,12 +106,13 @@ describe("Onboarding Screen (S-25)", () => {
     expect(source).toContain("Just the good stuff.");
   });
 
-  it("includes dietary preference options", () => {
+  it("includes dietary preference options via DIETARY_LABELS", () => {
     const source = readFileSync(ONBOARDING_FILE, "utf-8");
     expect(source).toContain("Any dietary preferences?");
-    for (const option of ["None", "Vegan", "Vegetarian", "Gluten-free", "Dairy-free", "Keto"]) {
-      expect(source).toContain(option);
-    }
+    // S-5 replaced hardcoded options with shared DIETARY_LABELS
+    expect(source).toContain("DIETARY_LABELS");
+    expect(source).toContain("ALL_DIETARY_OPTIONS");
+    expect(source).toContain("@rr/shared/dietary");
   });
 
   it("sets ONBOARDING_COMPLETE in MMKV on completion", () => {

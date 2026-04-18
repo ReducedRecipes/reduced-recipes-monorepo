@@ -35,20 +35,79 @@ export interface RecipeSummary {
   tags: string[];
 }
 
-/** Cloudflare Worker environment bindings. */
-export interface Env {
-  DB: D1Database;
-  RECIPES_KV: KVNamespace;
-  CACHE_KV: KVNamespace;
-  IMAGES_R2: R2Bucket;
-  CRAWL_QUEUE: Queue;
-  PARSE_QUEUE: Queue;
-  PROJECTION_QUEUE: Queue;
-  ADMIN_TOKEN: string;
-  BOT_USER_AGENT: string;
-  DEFAULT_CRAWL_DELAY_MS: string;
-  MAX_QUEUE_BATCH: string;
-  ENVIRONMENT: string;
+/** User profile stored in users DB. */
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  picture_url: string | null;
+  profile_public: number;
+  tier: string;
+  created_at: string;
+  updated_at: string;
+}
+
+/** External auth provider link for a user. */
+export interface UserAuthProvider {
+  user_id: string;
+  provider: string;
+  provider_id: string;
+  provider_email: string;
+  provider_name: string | null;
+  provider_avatar: string | null;
+}
+
+/** A user's saved recipe collection. */
+export interface Collection {
+  id: string;
+  user_id: string;
+  name: string;
+  is_default: number;
+  is_public: number;
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** A bookmarked recipe within a collection. */
+export interface Bookmark {
+  id: string;
+  user_id: string;
+  collection_id: string;
+  recipe_id: string;
+  recipe_deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** In-app notification. */
+export interface Notification {
+  id: string;
+  user_id: string;
+  type: string;
+  payload: string;
+  read: number;
+  created_at: string;
+}
+
+/** GDPR consent record. */
+export interface ConsentRecord {
+  id: string;
+  user_id: string;
+  consent_type: string;
+  granted: number;
+  ip_address: string;
+  user_agent: string;
+  created_at: string;
+}
+
+/** Recipe view tracking entry. */
+export interface RecipeView {
+  id: string;
+  user_id: string;
+  recipe_id: string;
+  source: string;
+  viewed_at: string;
 }
 
 /** Job enqueued to the crawl queue. */

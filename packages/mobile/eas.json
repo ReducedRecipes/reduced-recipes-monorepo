@@ -5,6 +5,8 @@
   },
   "build": {
     "development": {
+      "node": "20.19.0",
+      "pnpm": "9.15.0",
       "developmentClient": true,
       "distribution": "internal",
       "ios": {
@@ -16,12 +18,15 @@
       }
     },
     "preview": {
+      "node": "20.19.0",
+      "pnpm": "9.15.0",
       "distribution": "internal",
       "ios": {
         "resourceClass": "m1-medium"
       },
       "android": {
-        "resourceClass": "m1-medium"
+        "buildType": "apk",
+        "resourceClass": "medium"
       },
       "env": {
         "EXPO_PUBLIC_API_BASE": "https://reducedrecipes.com",
@@ -30,12 +35,14 @@
       "channel": "preview"
     },
     "production": {
+      "node": "20.19.0",
+      "pnpm": "9.15.0",
       "autoIncrement": true,
       "ios": {
         "resourceClass": "m1-medium"
       },
       "android": {
-        "resourceClass": "m1-medium"
+        "resourceClass": "medium"
       },
       "env": {
         "EXPO_PUBLIC_API_BASE": "https://reducedrecipes.com",
@@ -54,14 +61,6 @@
         "serviceAccountKeyPath": "./google-services.json",
         "track": "internal"
       }
-    }
-  },
-  "update": {
-    "production": {
-      "channel": "production"
-    },
-    "preview": {
-      "channel": "preview"
     }
   }
 }

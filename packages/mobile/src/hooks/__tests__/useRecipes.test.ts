@@ -29,8 +29,8 @@ describe("useRecipes", () => {
   });
 
   it("includes filter params in queryKey for cache isolation", () => {
-    const r1 = useRecipes({ tag: "vegan" });
-    const r2 = useRecipes({ max_time: 30 });
+    const r1 = useRecipes({ tag: "vegan" }) as any;
+    const r2 = useRecipes({ max_time: 30 }) as any;
     expect(r1.queryKey).toEqual(["recipes", { tag: "vegan" }]);
     expect(r2.queryKey).toEqual(["recipes", { max_time: 30 }]);
   });
@@ -39,7 +39,7 @@ describe("useRecipes", () => {
     const page = { items: [{ id: "1" }], next_cursor: "cur1" };
     vi.mocked(api.recipes.list).mockResolvedValueOnce(page as any);
 
-    const result = useRecipes({ tag: "quick" });
+    const result = useRecipes({ tag: "quick" }) as any;
     const data = await result.queryFn({ pageParam: "my-cursor" });
 
     expect(api.recipes.list).toHaveBeenCalledWith({
@@ -50,13 +50,13 @@ describe("useRecipes", () => {
   });
 
   it("getNextPageParam extracts next_cursor", () => {
-    const result = useRecipes();
+    const result = useRecipes() as any;
     const next = result.getNextPageParam({ items: [], next_cursor: "abc" } as any);
     expect(next).toBe("abc");
   });
 
   it("getNextPageParam returns undefined when next_cursor is null", () => {
-    const result = useRecipes();
+    const result = useRecipes() as any;
     const next = result.getNextPageParam({ items: [], next_cursor: null } as any);
     expect(next).toBeUndefined();
   });

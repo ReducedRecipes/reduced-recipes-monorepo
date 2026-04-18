@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
-  Share,
+  Image,
   StyleSheet,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
@@ -16,8 +16,18 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { useShoppingList } from '@/hooks/useShoppingList';
 import { colors, fonts } from '@/constants/theme';
 import type { Theme, TextSize } from '@/stores/preferences.store';
+import { useAuthStore } from '@/stores/auth.store';
+import { DIETARY_LABELS, type DietaryRestriction } from '@rr/shared/dietary';
+import type { User } from '@rr/shared';
 
-const DIETARY_OPTIONS = ['Vegan', 'Vegetarian', 'Gluten-free', 'Dairy-free', 'Keto'];
+const API_BASE = `${process.env.EXPO_PUBLIC_API_BASE || 'https://reducedrecipes.com'}/api/v1`;
+const APP_SCHEME = 'reducedrecipes';
+
+const ALL_DIETARY_OPTIONS = Object.entries(DIETARY_LABELS).map(([key, label]) => ({
+  key: key as DietaryRestriction,
+  label,
+}));
+
 const TEXT_SIZE_LABELS: Record<TextSize, string> = { sm: 'Small', md: 'Medium', lg: 'Large', xl: 'Extra Large' };
 const TEXT_SIZE_ORDER: TextSize[] = ['sm', 'md', 'lg', 'xl'];
 const THEME_ORDER: Theme[] = ['system', 'light', 'dark'];
@@ -38,7 +48,43 @@ export default function SettingsScreen() {
   const db = useSQLiteContext();
   const [downloadedCount, setDownloadedCount] = useState<number | null>(null);
 
-  React.useEffect(() => {
+  // Auth state
+  const sessionToken = useAuthStore((s) => s.sessionToken);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const setSession = useAuthStore((s) => s.setSession);
+  const clearSession = useAuthStore((s) => s.clearSession);
+  const hydrateFromStorage = useAuthStore((s) => s.hydrateFromStorage);
+  const [userInfo, setUserInfo] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Debounce timer for dietary sync
+  const dietarySyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Hydrate auth on mount
+  useEffect(() => {
+    hydrateFromStorage();
+  }, [hydrateFromStorage]);
+
+  // Fetch user info when authenticated
+  useEffect(() => {
+    if (!sessionToken) {
+      setUserInfo(null);
+      return;
+    }
+    fetch(`${API_BASE}/auth/me`, {
+      headers: { Authorization: `Bearer ${sessionToken}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Not authenticated');
+        return res.json() as Promise<{ user: User }>;
+      })
+      .then((data) => setUserInfo(data.user))
+      .catch(() => {
+        setUserInfo(null);
+      });
+  }, [sessionToken]);
+
+  useEffect(() => {
     db.getFirstAsync<{ count: number }>('SELECT COUNT(*) as count FROM saved_recipes')
       .then((row) => setDownloadedCount(row?.count ?? 0))
       .catch(() => setDownloadedCount(0));
@@ -46,12 +92,89 @@ export default function SettingsScreen() {
 
   const cycleTextSize = () => {
     const idx = TEXT_SIZE_ORDER.indexOf(textSize);
-    setTextSize(TEXT_SIZE_ORDER[(idx + 1) % TEXT_SIZE_ORDER.length]);
+    setTextSize(TEXT_SIZE_ORDER[(idx + 1) % TEXT_SIZE_ORDER.length]!);
   };
 
   const cycleTheme = () => {
     const idx = THEME_ORDER.indexOf(theme);
-    setTheme(THEME_ORDER[(idx + 1) % THEME_ORDER.length]);
+    setTheme(THEME_ORDER[(idx + 1) % THEME_ORDER.length]!);
+  };
+
+  const handleSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const urlRes = await fetch(`${API_BASE}/auth/google/url?platform=mobile`);
+      if (!urlRes.ok) throw new Error('Failed to get auth URL');
+      const { url } = (await urlRes.json()) as { url: string };
+
+      const redirectUrl = `${APP_SCHEME}://auth/callback`;
+      const result = await WebBrowser.openAuthSessionAsync(url, redirectUrl);
+
+      if (result.type === 'success' && result.url) {
+        const parsed = new URL(result.url);
+        const token = parsed.searchParams.get('token');
+        if (token) {
+          // Fetch user info with the token
+          const meRes = await fetch(`${API_BASE}/auth/me`, {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (meRes.ok) {
+            const data = (await meRes.json()) as { user: User };
+            setSession(token, data.user);
+          }
+        }
+      }
+    } catch {
+      Alert.alert('Sign In Failed', 'Could not complete sign in. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignOut = async () => {
+    try {
+      if (sessionToken) {
+        await fetch(`${API_BASE}/auth/logout`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${sessionToken}` },
+        });
+      }
+    } catch {
+      // Ignore logout API errors — clear local state regardless
+    }
+    clearSession();
+    setUserInfo(null);
+  };
+
+  // Sync dietary preferences to server when authenticated
+  const syncDietaryToServer = useCallback(
+    (filters: string[]) => {
+      if (!sessionToken) return;
+      fetch(`${API_BASE}/users/me/dietary-preferences`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${sessionToken}`,
+        },
+        body: JSON.stringify({ restrictions: filters }),
+      }).catch(() => {
+        // Silent fail — local state is still saved via MMKV
+      });
+    },
+    [sessionToken],
+  );
+
+  const handleToggleDietary = (filter: string) => {
+    toggleDietary(filter);
+
+    if (sessionToken) {
+      // Debounce server sync
+      if (dietarySyncTimer.current) clearTimeout(dietarySyncTimer.current);
+      const newFilters = dietaryFilters.includes(filter)
+        ? dietaryFilters.filter((f) => f !== filter)
+        : [...dietaryFilters, filter];
+      dietarySyncTimer.current = setTimeout(() => syncDietaryToServer(newFilters), 500);
+    }
   };
 
   const handleClearCache = () => {
@@ -97,6 +220,43 @@ export default function SettingsScreen() {
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.title}>Settings</Text>
 
+      {/* ACCOUNT */}
+      <Text style={styles.sectionHeader}>ACCOUNT</Text>
+      <View style={styles.section}>
+        {isAuthenticated && userInfo ? (
+          <>
+            <View style={styles.accountRow}>
+              {userInfo.picture_url ? (
+                <Image source={{ uri: userInfo.picture_url }} style={styles.avatar} />
+              ) : (
+                <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                  <Text style={styles.avatarInitial}>
+                    {userInfo.name?.charAt(0)?.toUpperCase() || '?'}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.accountInfo}>
+                <Text style={styles.accountName}>{userInfo.name}</Text>
+                <Text style={styles.accountEmail}>{userInfo.email}</Text>
+              </View>
+            </View>
+            <TouchableOpacity style={styles.row} onPress={handleSignOut}>
+              <Text style={[styles.rowLabel, styles.destructiveText]}>Sign Out</Text>
+            </TouchableOpacity>
+          </>
+        ) : (
+          <TouchableOpacity
+            style={styles.signInButton}
+            onPress={handleSignIn}
+            disabled={isLoading}
+          >
+            <Text style={styles.signInText}>
+              {isLoading ? 'Signing in…' : 'Sign in with Google'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </View>
+
       {/* PREFERENCES */}
       <Text style={styles.sectionHeader}>PREFERENCES</Text>
       <View style={styles.section}>
@@ -107,22 +267,22 @@ export default function SettingsScreen() {
           </Text>
         </TouchableOpacity>
         <View style={styles.dietaryOptions}>
-          {DIETARY_OPTIONS.map((option) => (
+          {ALL_DIETARY_OPTIONS.map(({ key, label }) => (
             <TouchableOpacity
-              key={option}
+              key={key}
               style={[
                 styles.dietaryChip,
-                dietaryFilters.includes(option) && styles.dietaryChipActive,
+                dietaryFilters.includes(key) && styles.dietaryChipActive,
               ]}
-              onPress={() => toggleDietary(option)}
+              onPress={() => handleToggleDietary(key)}
             >
               <Text
                 style={[
                   styles.dietaryChipText,
-                  dietaryFilters.includes(option) && styles.dietaryChipTextActive,
+                  dietaryFilters.includes(key) && styles.dietaryChipTextActive,
                 ]}
               >
-                {option}
+                {label}
               </Text>
             </TouchableOpacity>
           ))}
@@ -266,6 +426,54 @@ const styles = StyleSheet.create({
   },
   destructiveText: {
     color: colors.error,
+  },
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.bgMuted,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    marginRight: 12,
+  },
+  avatarPlaceholder: {
+    backgroundColor: colors.orangeLight,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarInitial: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 18,
+    color: colors.orange,
+  },
+  accountInfo: {
+    flex: 1,
+  },
+  accountName: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 16,
+    color: colors.ink,
+  },
+  accountEmail: {
+    fontFamily: fonts.body,
+    fontSize: 13,
+    color: colors.inkMuted,
+    marginTop: 2,
+  },
+  signInButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    alignItems: 'center',
+  },
+  signInText: {
+    fontFamily: fonts.bodyMed,
+    fontSize: 15,
+    color: colors.orange,
   },
   dietaryOptions: {
     flexDirection: 'row',

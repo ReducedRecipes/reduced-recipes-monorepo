@@ -1,5 +1,7 @@
-import type { Env, ProjectionJob, RecipeDocument } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { ProjectionJob, RecipeDocument } from '@rr/shared';
 import { chunk } from '@rr/shared/utils';
+import { inferDietaryBitmask } from './helpers/dietary-inference';
 
 export default {
   async queue(batch: MessageBatch<ProjectionJob>, env: Env) {
@@ -109,6 +111,18 @@ export default {
         const batches = chunk(statements, 100);
         for (const batch of batches) {
           await env.DB.batch(batch);
+        }
+
+        // 7. Best-effort dietary inference — runs after recipe is stored
+        if (env.AI) {
+          try {
+            const bitmask = await inferDietaryBitmask(doc, env.AI);
+            await env.DB.prepare(
+              'UPDATE recipes SET dietary_bitmask = ? WHERE id = ?',
+            ).bind(bitmask, doc.id).run();
+          } catch (error) {
+            console.warn('Dietary inference failed for recipe', doc.id, error);
+          }
         }
 
         msg.ack();

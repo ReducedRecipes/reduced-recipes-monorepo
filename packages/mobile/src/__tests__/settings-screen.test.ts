@@ -15,6 +15,7 @@ vi.mock('react-native', () => ({
   ScrollView: vi.fn(({ children }: any) => ({ type: 'ScrollView', children })),
   TouchableOpacity: vi.fn(({ children }: any) => ({ type: 'TouchableOpacity', children })),
   Switch: vi.fn(() => ({ type: 'Switch' })),
+  Image: vi.fn(() => ({ type: 'Image' })),
   Alert: { alert: vi.fn() },
   Share: { share: vi.fn() },
   StyleSheet: {
@@ -25,6 +26,7 @@ vi.mock('react-native', () => ({
 
 vi.mock('expo-web-browser', () => ({
   openBrowserAsync: vi.fn(),
+  openAuthSessionAsync: vi.fn(),
 }));
 
 vi.mock('expo-constants', () => ({
@@ -55,6 +57,42 @@ vi.mock('@/hooks/useShoppingList', () => ({
   }),
 }));
 
+vi.mock('@/stores/auth.store', () => ({
+  useAuthStore: (selector: (s: Record<string, unknown>) => unknown) =>
+    selector({
+      sessionToken: null,
+      isAuthenticated: false,
+      setSession: vi.fn(),
+      clearSession: vi.fn(),
+      hydrateFromStorage: vi.fn(),
+    }),
+}));
+
+vi.mock('@rr/shared/dietary', () => ({
+  DIETARY_LABELS: {
+    vegan: 'Vegan',
+    vegetarian: 'Vegetarian',
+    'gluten-free': 'Gluten-free',
+    'dairy-free': 'Dairy-free',
+    keto: 'Keto',
+    paleo: 'Paleo',
+    'nut-free': 'Nut-free',
+    'soy-free': 'Soy-free',
+    'egg-free': 'Egg-free',
+    'fish-free': 'Fish-free',
+    'shellfish-free': 'Shellfish-free',
+    'low-sodium': 'Low-sodium',
+    'low-sugar': 'Low-sugar',
+    'high-protein': 'High-protein',
+    'low-carb': 'Low-carb',
+    whole30: 'Whole30',
+  },
+}));
+
+vi.mock('@rr/shared', () => ({
+  // User type is only imported as a type, no runtime value needed
+}));
+
 describe('SettingsScreen (S-32)', () => {
   const filePath = resolve(__dirname, '../../app/(tabs)/settings.tsx');
   const content = readFileSync(filePath, 'utf-8');
@@ -83,17 +121,17 @@ describe('SettingsScreen (S-32)', () => {
     expect(content).toContain('clearAll');
   });
 
-  it('shows dietary filter options', () => {
-    expect(content).toContain('Vegan');
-    expect(content).toContain('Vegetarian');
-    expect(content).toContain('Gluten-free');
-    expect(content).toContain('Dairy-free');
-    expect(content).toContain('Keto');
+  it('shows dietary filter options via DIETARY_LABELS', () => {
+    // S-6 replaced hardcoded options with shared DIETARY_LABELS
+    expect(content).toContain('DIETARY_LABELS');
+    expect(content).toContain('ALL_DIETARY_OPTIONS');
+    expect(content).toContain('@rr/shared/dietary');
     expect(content).toContain('dietaryFilters');
   });
 
   it('has dietary filter toggle via toggleDietary', () => {
-    expect(content).toContain('toggleDietary(option)');
+    // S-6 renamed parameter from option to filter
+    expect(content).toContain('toggleDietary(filter)');
   });
 
   it('has default serving size stepper', () => {

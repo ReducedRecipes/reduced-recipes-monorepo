@@ -38,13 +38,35 @@ queue = "parse-jobs"
 binding = "PROJECTION_QUEUE"
 queue = "projection-jobs"
 
+[[d1_databases]]
+binding = "USERS_DB"
+database_id = "3bb2302a-7f7a-43c9-b3e7-de5870824869"
+database_name = "reduced-recipes-users"
+migrations_dir = "../../migrations-users"
+
+[[kv_namespaces]]
+binding = "SESSION_KV"
+id = "b780ce4935dd4cd6834defdb30c2137f"
+
+[[kv_namespaces]]
+binding = "USER_CACHE_KV"
+id = "41828007810046b2bc6feab80aece86a"
+
+[ai]
+binding = "AI"
+
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"
 DEFAULT_CRAWL_DELAY_MS = "2000"
 MAX_QUEUE_BATCH = "10"
 ENVIRONMENT = "production"
 
-# ADMIN_TOKEN should be set as a secret via `wrangler secret put ADMIN_TOKEN`
+# Secrets (set via `wrangler secret put <NAME>`):
+#   ADMIN_TOKEN
+#   GOOGLE_CLIENT_ID
+#   GOOGLE_CLIENT_SECRET
+#   GOOGLE_REDIRECT_URI
+#   SESSION_SECRET
 
 [env.preview]
 name = "rr-api-preview"

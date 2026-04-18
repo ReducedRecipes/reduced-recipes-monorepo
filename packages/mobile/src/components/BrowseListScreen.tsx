@@ -53,7 +53,7 @@ export function BrowseListScreen({
         {headerComponent}
         <ErrorState
           message={`Failed to load recipes for "${title}"`}
-          onRetry={onRetry}
+          onRetry={onRetry!}
         />
       </View>
     );
@@ -86,7 +86,6 @@ export function BrowseListScreen({
             />
           </View>
         )}
-        estimatedItemSize={220}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.3}
         ListFooterComponent={

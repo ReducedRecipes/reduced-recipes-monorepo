@@ -21,6 +21,7 @@ vi.mock('react-native', () => ({
   Text: vi.fn(({ children }: any) => ({ type: 'Text', children })),
   Pressable: vi.fn(({ children }: any) => ({ type: 'Pressable', children })),
   ScrollView: vi.fn(({ children }: any) => ({ type: 'ScrollView', children })),
+  StyleSheet: { create: (s: any) => s },
   Share: { share: vi.fn() },
   Keyboard: { dismiss: vi.fn() },
 }));
@@ -110,16 +111,19 @@ vi.mock('@/components/icons', () => ({
 vi.mock('@/constants/theme', () => ({
   colors: {
     bg: '#FAFAF8',
+    bgMuted: '#F0F0EE',
     ink: '#1A1A18',
     inkMuted: '#6B7280',
     inkFaint: '#9CA3AF',
     orange: '#E85D26',
+    orangeLight: '#FFF0EB',
   },
   fonts: {
     display: 'Lora_600SemiBold',
     body: 'DMSans_400Regular',
     bodyMed: 'DMSans_500Medium',
   },
+  shadow: { sm: {} },
 }));
 
 const SCREEN_PATH = resolve(__dirname, '../../app/recipe/[id].tsx');
@@ -168,9 +172,9 @@ describe('Recipe Detail Screen (S-28)', () => {
       expect(source).toContain('instructions');
     });
 
-    it('renders TagPill components for tags', () => {
-      expect(source).toContain('TagPill');
+    it('renders tags inline', () => {
       expect(source).toContain('recipe.tags');
+      expect(source).toContain('tag');
     });
 
     it('has Start Cooking button linking to cook route', () => {
@@ -189,9 +193,9 @@ describe('Recipe Detail Screen (S-28)', () => {
       expect(source).toContain('reducedrecipes.com/recipe/');
     });
 
-    it('uses TimeChip and DomainBadge metadata components', () => {
-      expect(source).toContain('TimeChip');
-      expect(source).toContain('DomainBadge');
+    it('displays cook time and domain metadata inline', () => {
+      expect(source).toContain('cook_time');
+      expect(source).toContain('recipe.domain');
     });
 
     it('handles loading state', () => {

@@ -10,7 +10,8 @@
  * the final API response matches the original input.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import type { Env, CrawlJob, ParseJob, ProjectionJob, RecipeDocument } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { CrawlJob, ParseJob, ProjectionJob, RecipeDocument } from '@rr/shared';
 import parser from './parser';
 import projection from './projection';
 
@@ -344,6 +345,7 @@ describe('Pipeline Integration: Orchestrator → Crawler → Parser → Projecti
               sql,
               params,
               run: vi.fn(async () => ({ success: true })),
+              first: vi.fn(async () => null), // no duplicate found
             };
             projStatements.push({ sql, params });
             return stmt;
@@ -381,20 +383,25 @@ describe('Pipeline Integration: Orchestrator → Crawler → Parser → Projecti
     expect(projDb.batch).toHaveBeenCalled();
 
     // Verify the SQL statements projection built
-    // 1: INSERT OR REPLACE INTO recipes
+    // 0: SELECT id FROM recipes (duplicate check)
+    // 1: INSERT OR IGNORE INTO recipes
     // 2: DELETE FROM recipe_tags WHERE recipe_id = ?
     // 3+: INSERT OR IGNORE INTO recipe_tags for each tag (up to 20)
+    // FTS delete + insert
     // Last: UPDATE domains SET recipe_count = ...
-    expect(projStatements.length).toBeGreaterThanOrEqual(4); // recipe + delete tags + at least 1 tag + domain update
+    expect(projStatements.length).toBeGreaterThanOrEqual(5); // dupe check + recipe + delete tags + at least 1 tag + domain update
 
-    const recipeInsert = projStatements[0]!;
-    expect(recipeInsert.sql).toContain('INSERT OR REPLACE INTO recipes');
+    const dupeCheck = projStatements[0]!;
+    expect(dupeCheck.sql).toContain('SELECT id FROM recipes WHERE title');
+
+    const recipeInsert = projStatements[1]!;
+    expect(recipeInsert.sql).toContain('INSERT OR IGNORE INTO recipes');
     expect(recipeInsert.params[0]).toBe(storedDoc.id); // id
     expect(recipeInsert.params[1]).toBe(TEST_URL); // source_url
     expect(recipeInsert.params[2]).toBe(TEST_DOMAIN); // domain
     expect(recipeInsert.params[3]).toBe('Integration Test Pasta'); // title
 
-    const tagDelete = projStatements[1]!;
+    const tagDelete = projStatements[2]!;
     expect(tagDelete.sql).toContain('DELETE FROM recipe_tags');
     expect(tagDelete.params[0]).toBe(storedDoc.id);
 

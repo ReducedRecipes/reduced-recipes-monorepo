@@ -106,8 +106,8 @@ describe('queries', () => {
         'SELECT * FROM saved_recipes ORDER BY saved_at DESC'
       );
       expect(results).toHaveLength(1);
-      expect(results[0].title).toBe('Test Recipe');
-      expect(results[0].instructions).toEqual(['Mix ingredients', 'Bake at 350F']);
+      expect(results[0]!.title).toBe('Test Recipe');
+      expect(results[0]!.instructions).toEqual(['Mix ingredients', 'Bake at 350F']);
     });
 
     it('returns empty array when no saved recipes', async () => {
@@ -125,7 +125,7 @@ describe('queries', () => {
       await upsertRecipe(db as any, sampleRecipe);
 
       expect(db.runAsync).toHaveBeenCalledTimes(1);
-      const [sql, params] = db.runAsync.mock.calls[0];
+      const [sql, params] = db.runAsync.mock.calls[0]!;
       expect(sql).toContain('INSERT INTO saved_recipes');
       expect(sql).toContain('ON CONFLICT(id) DO UPDATE');
       // Verify parameterized values — no string interpolation
@@ -158,13 +158,13 @@ describe('queries', () => {
       const results = await searchSaved(db as any, 'flour');
 
       expect(db.getAllAsync).toHaveBeenCalledTimes(1);
-      const [sql, params] = db.getAllAsync.mock.calls[0];
+      const [sql, params] = db.getAllAsync.mock.calls[0]!;
       expect(sql).toContain('WHERE title LIKE ?');
       expect(sql).toContain('OR ingredients LIKE ?');
       expect(sql).toContain('OR tags LIKE ?');
       expect(params).toEqual(['%flour%', '%flour%', '%flour%']);
       expect(results).toHaveLength(1);
-      expect(results[0].ingredients).toEqual(['1 cup flour', '2 eggs']);
+      expect(results[0]!.ingredients).toEqual(['1 cup flour', '2 eggs']);
     });
 
     it('returns empty array for no matches', async () => {

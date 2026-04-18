@@ -1,0 +1,205 @@
+name: Deploy Preview
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [feat/implement-phase-1a-of-the-personalisation-spec-at-]
+
+jobs:
+  setup-resources:
+    runs-on: ubuntu-latest
+    outputs:
+      users_db_id: ${{ steps.resources.outputs.users_db_id }}
+      session_kv_id: ${{ steps.resources.outputs.session_kv_id }}
+      user_cache_kv_id: ${{ steps.resources.outputs.user_cache_kv_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      - name: Create or get Cloudflare resources
+        id: resources
+        env:
+          CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CF_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          set -euo pipefail
+          API="https://api.cloudflare.com/client/v4/accounts/$CF_ACCOUNT_ID"
+          AUTH="Authorization: Bearer $CF_API_TOKEN"
+
+          # --- D1 Database ---
+          USERS_DB_ID=$(curl -s -H "$AUTH" "$API/d1/database" \
+            | jq -r '.result[] | select(.name=="reduced-recipes-users-preview") | .uuid' || true)
+          if [ -z "$USERS_DB_ID" ]; then
+            USERS_DB_ID=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+              -d '{"name":"reduced-recipes-users-preview"}' "$API/d1/database" \
+              | jq -r '.result.uuid')
+          fi
+
+          # --- KV: sessions ---
+          SESSION_KV_ID=$(curl -s -H "$AUTH" "$API/storage/kv/namespaces" \
+            | jq -r '.result[] | select(.title=="rr-sessions-preview") | .id' || true)
+          if [ -z "$SESSION_KV_ID" ]; then
+            SESSION_KV_ID=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+              -d '{"title":"rr-sessions-preview"}' "$API/storage/kv/namespaces" \
+              | jq -r '.result.id')
+          fi
+
+          # --- KV: user cache ---
+          USER_CACHE_KV_ID=$(curl -s -H "$AUTH" "$API/storage/kv/namespaces" \
+            | jq -r '.result[] | select(.title=="rr-user-cache-preview") | .id' || true)
+          if [ -z "$USER_CACHE_KV_ID" ]; then
+            USER_CACHE_KV_ID=$(curl -s -X POST -H "$AUTH" -H "Content-Type: application/json" \
+              -d '{"title":"rr-user-cache-preview"}' "$API/storage/kv/namespaces" \
+              | jq -r '.result.id')
+          fi
+
+          echo "Users DB: $USERS_DB_ID"
+          echo "Session KV: $SESSION_KV_ID"
+          echo "User Cache KV: $USER_CACHE_KV_ID"
+
+          if [ -z "$USERS_DB_ID" ] || [ -z "$SESSION_KV_ID" ] || [ -z "$USER_CACHE_KV_ID" ]; then
+            echo "::error::Failed to create one or more Cloudflare resources"
+            exit 1
+          fi
+
+          echo "users_db_id=$USERS_DB_ID" >> "$GITHUB_OUTPUT"
+          echo "session_kv_id=$SESSION_KV_ID" >> "$GITHUB_OUTPUT"
+          echo "user_cache_kv_id=$USER_CACHE_KV_ID" >> "$GITHUB_OUTPUT"
+
+  deploy-workers:
+    runs-on: ubuntu-latest
+    needs: setup-resources
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+
+      - name: Generate preview wrangler config
+        run: |
+          # Remove the existing two-line [env.preview] stub to avoid duplicate key error
+          sed -i '/^\[env\.preview\]$/d; /^name = "rr-api-preview"$/d' packages/workers/wrangler.api.toml
+          cat >> packages/workers/wrangler.api.toml << 'TOML'
+
+          # --- Preview overrides (auto-generated) ---
+          [env.preview]
+          name = "rr-api-preview"
+          workers_dev = true
+          routes = []
+
+          [[env.preview.d1_databases]]
+          binding = "DB"
+          database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+          database_name = "reduced-recipes-prod"
+          migrations_dir = "../../migrations"
+
+          [[env.preview.d1_databases]]
+          binding = "USERS_DB"
+          database_id = "${{ needs.setup-resources.outputs.users_db_id }}"
+          database_name = "reduced-recipes-users-preview"
+          migrations_dir = "../../migrations-users"
+
+          [[env.preview.kv_namespaces]]
+          binding = "RECIPES_KV"
+          id = "1ca521a6b82b499b802318ee8bf747db"
+
+          [[env.preview.kv_namespaces]]
+          binding = "CACHE_KV"
+          id = "18ffdf8619c84b22b4993371e4eb92c7"
+
+          [[env.preview.kv_namespaces]]
+          binding = "SESSION_KV"
+          id = "${{ needs.setup-resources.outputs.session_kv_id }}"
+
+          [[env.preview.kv_namespaces]]
+          binding = "USER_CACHE_KV"
+          id = "${{ needs.setup-resources.outputs.user_cache_kv_id }}"
+
+          [[env.preview.r2_buckets]]
+          binding = "IMAGES_R2"
+          bucket_name = "rr-images"
+
+          [[env.preview.queues.producers]]
+          binding = "CRAWL_QUEUE"
+          queue = "crawl-jobs"
+
+          [[env.preview.queues.producers]]
+          binding = "PARSE_QUEUE"
+          queue = "parse-jobs"
+
+          [[env.preview.queues.producers]]
+          binding = "PROJECTION_QUEUE"
+          queue = "projection-jobs"
+
+          [env.preview.ai]
+          binding = "AI"
+          TOML
+
+      - name: Run users DB migrations (preview)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler d1 migrations apply reduced-recipes-users-preview --remote --config packages/workers/wrangler.api.toml --env preview
+
+      - name: Run recipes DB migrations (preview)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler d1 migrations apply reduced-recipes-prod --remote --config packages/workers/wrangler.api.toml --env preview
+
+      - name: Set secrets for preview worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          echo "${{ secrets.ADMIN_TOKEN }}" | npx wrangler secret put ADMIN_TOKEN --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
+          echo "${{ secrets.GOOGLE_CLIENT_ID }}" | npx wrangler secret put GOOGLE_CLIENT_ID --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
+          echo "${{ secrets.GOOGLE_CLIENT_SECRET }}" | npx wrangler secret put GOOGLE_CLIENT_SECRET --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
+          echo "https://rr-api-preview.nikrich.workers.dev/api/v1/auth/google/callback" | npx wrangler secret put GOOGLE_REDIRECT_URI --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
+          echo "${{ github.sha }}" | npx wrangler secret put SESSION_SECRET --config packages/workers/wrangler.api.toml --env preview 2>/dev/null || true
+
+      - name: Deploy API worker (preview)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: npx wrangler deploy --config packages/workers/wrangler.api.toml --env preview
+
+      - name: Print preview URL
+        run: echo "🚀 Preview API deployed to https://rr-api-preview.${CF_SUBDOMAIN}.workers.dev"
+
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    needs: deploy-workers
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @rr/frontend build
+        env:
+          VITE_API_BASE: https://reducedrecipes.com
+      - uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CF_API_TOKEN }}
+          accountId: ${{ secrets.CF_ACCOUNT_ID }}
+          projectName: reduced-recipes
+          directory: packages/frontend/dist
+          gitHubToken: ${{ secrets.GITHUB_TOKEN }}
+          branch: preview

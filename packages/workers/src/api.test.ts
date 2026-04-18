@@ -156,7 +156,7 @@ describe('GET /api/v1/domains/:domain/recipes', () => {
     const listStmt = makeStmt([
       { id: 'r1', title: 'Pasta', domain: 'example.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: 'Italian', category: 'Main', extracted_at: '2024-01-01T00:00:00Z' },
     ]);
-    const tagStmt = makeStmt([{ tag: 'italian' }]);
+    const tagStmt = makeStmt([{ recipe_id: 'r1', tag: 'italian' }]);
 
     env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
       if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
@@ -177,6 +177,68 @@ describe('GET /api/v1/domains/:domain/recipes', () => {
   });
 });
 
+// ── S-2: Recipe detail + view tracking ──────────────────────────────────
+
+describe('GET /api/v1/recipes/:id', () => {
+  it('returns 404 when recipe not found in KV', async () => {
+    const env = createEnv();
+    const res = await req('/api/v1/recipes/missing-id', env);
+    expect(res.status).toBe(404);
+    const body = await res.json() as any;
+    expect(body.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns recipe document from KV', async () => {
+    const env = createEnv();
+    const doc = { id: 'r1', title: 'Test Recipe', url: 'https://example.com/recipe' };
+    env.RECIPES_KV.get = vi.fn().mockResolvedValue(JSON.stringify(doc));
+
+    const res = await req('/api/v1/recipes/r1', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.title).toBe('Test Recipe');
+    expect(res.headers.get('Cache-Control')).toContain('max-age=3600');
+  });
+
+  it('tracks view without id column (auto-increment) for authenticated users', async () => {
+    const usersStmt = makeStmt();
+    const usersDb = {
+      prepare: vi.fn().mockReturnValue(usersStmt),
+    };
+    const env = createEnv({ USERS_DB: usersDb });
+    const doc = { id: 'r1', title: 'Test Recipe' };
+    env.RECIPES_KV.get = vi.fn().mockResolvedValue(JSON.stringify(doc));
+
+    // Simulate authenticated user via optionalAuth middleware
+    // The middleware sets userId on the context; we mock USERS_DB to verify the SQL
+    const waitUntilPromises: Promise<unknown>[] = [];
+    const res = await app.request('/api/v1/recipes/r1', {}, {
+      ...env,
+      executionCtx: { waitUntil: (p: Promise<unknown>) => waitUntilPromises.push(p) },
+      // optionalAuth reads SESSION_KV; provide a valid session
+      SESSION_KV: {
+        get: vi.fn().mockResolvedValue(JSON.stringify({ userId: 'user-123', expiresAt: Date.now() + 100000 })),
+        put: vi.fn(), delete: vi.fn(), list: vi.fn(), getWithMetadata: vi.fn(),
+      },
+    } as any);
+
+    expect(res.status).toBe(200);
+
+    // Wait for fire-and-forget view tracking
+    await Promise.allSettled(waitUntilPromises);
+
+    // Verify the INSERT does NOT include the id column
+    if (usersDb.prepare.mock.calls.length > 0) {
+      const sql = usersDb.prepare.mock.calls[0]![0] as string;
+      expect(sql).toContain('INSERT OR IGNORE INTO recipe_views');
+      expect(sql).toContain('user_id, recipe_id, source, viewed_date, viewed_at');
+      expect(sql).not.toContain('(id,');
+      // Should bind only 2 params (userId, recipeId), not 3
+      expect(usersStmt.bind).toHaveBeenCalledWith('user-123', 'r1');
+    }
+  });
+});
+
 // ── S-8: Search, Admin, Remove tests ────────────────────────────────────
 
 function reqWithInit(path: string, env: ReturnType<typeof createEnv>, init?: RequestInit) {
@@ -192,12 +254,12 @@ describe('GET /api/v1/search', () => {
     expect(body.error.code).toBe('INVALID_QUERY');
   });
 
-  it('returns empty array for sanitized-empty query', async () => {
+  it('returns empty result for sanitized-empty query', async () => {
     const env = createEnv();
     const res = await reqWithInit('/api/v1/search?q=**', env);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    expect(body).toEqual([]);
+    expect(body).toEqual({ items: [], next_cursor: null });
   });
 
   it('returns search results from FTS', async () => {
@@ -210,9 +272,8 @@ describe('GET /api/v1/search', () => {
     const res = await reqWithInit('/api/v1/search?q=pasta', env);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    expect(body).toHaveLength(1);
-    expect(body[0].title).toBe('Pasta');
-    expect(body[0].tags).toEqual([]);
+    expect(body.items).toHaveLength(1);
+    expect(body.items[0].title).toBe('Pasta');
   });
 
   it('respects limit parameter capped at 50', async () => {
@@ -221,7 +282,8 @@ describe('GET /api/v1/search', () => {
     env.DB.prepare = vi.fn().mockReturnValue(ftsStmt);
 
     await reqWithInit('/api/v1/search?q=test&limit=100', env);
-    expect(ftsStmt.bind).toHaveBeenCalledWith(expect.any(String), 50);
+    // limit is capped at 50, +1 for has_more check, offset defaults to 0
+    expect(ftsStmt.bind).toHaveBeenCalledWith(expect.any(String), 51, 0);
   });
 });
 

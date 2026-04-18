@@ -229,7 +229,7 @@ const mockApi = {
       };
     },
 
-    async search(q: string, limit?: number): Promise<RecipeSummary[]> {
+    async search(q: string, limit?: number): Promise<{ items: RecipeSummary[]; has_more: boolean }> {
       await mockDelay();
       const lower = q.toLowerCase();
       const results = MOCK_RECIPES.filter(
@@ -238,7 +238,8 @@ const mockApi = {
           r.tags?.some((t) => t.includes(lower)) ||
           r.cuisine?.toLowerCase().includes(lower),
       );
-      return results.slice(0, limit ?? 10);
+      const sliced = results.slice(0, limit ?? 10);
+      return { items: sliced, has_more: sliced.length < results.length };
     },
   },
 

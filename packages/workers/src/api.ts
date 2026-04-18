@@ -1,8 +1,16 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import type { Env, RecipeDocument, RecipeSummary } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { RecipeDocument, RecipeSummary, User } from '@rr/shared';
+import { optionalAuth } from './middleware/auth';
+import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
+import authRoutes from './routes/auth';
+import bookmarkRoutes from './routes/bookmarks';
+import notificationRoutes from './routes/notifications';
+import userRoutes from './routes/users';
 
-const app = new Hono<{ Bindings: Env }>();
+type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
+const app = new Hono<AppBindings>();
 
 /** Map a D1 row to a RecipeSummary (without tags). */
 function toRecipeSummary(row: Record<string, unknown>, tags: string[] = []): RecipeSummary {
@@ -31,7 +39,7 @@ async function batchFetchTags(db: D1Database, ids: string[]): Promise<Map<string
   ).bind(...ids).all();
 
   for (const row of result.results ?? []) {
-    const r = row as Record<string, string>;
+    const r = row as { recipe_id: string; tag: string };
     const existing = tagMap.get(r.recipe_id) ?? [];
     existing.push(r.tag);
     tagMap.set(r.recipe_id, existing);
@@ -50,8 +58,25 @@ async function toRecipeSummaries(db: D1Database, rows: Record<string, unknown>[]
 app.use(
   '*',
   cors({
-    origin: ['https://reducedrecipes.com', 'https://reduced-recipes.pages.dev', 'http://localhost:5173'],
-    allowMethods: ['GET', 'POST'],
+    origin: (origin) => {
+      const allowed = [
+        'https://reducedrecipes.com',
+        'https://reduced-recipes.pages.dev',
+        'http://localhost:5173',
+      ];
+      // Allow all *.reduced-recipes.pages.dev preview URLs
+      if (origin.endsWith('.reduced-recipes.pages.dev') || allowed.includes(origin)) {
+        return origin;
+      }
+      // Allow workers.dev preview URLs
+      if (origin.endsWith('.workers.dev')) {
+        return origin;
+      }
+      return allowed[0];
+    },
+    allowMethods: ['GET', 'POST', 'PATCH', 'PUT', 'DELETE'],
+    allowHeaders: ['Content-Type', 'Authorization', 'X-Dietary-Prefs'],
+    credentials: true,
     maxAge: 86400,
   }),
 );
@@ -78,12 +103,27 @@ app.get('/api/v1/health', async (c) => {
 });
 
 // ── Recipe detail ───────────────────────────────────────────────────────
-app.get('/api/v1/recipes/:id', async (c) => {
+app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
   const id = c.req.param('id');
   const value = await c.env.RECIPES_KV.get(`recipe:${id}`, 'text');
 
   if (value === null) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Recipe not found' } }, 404);
+  }
+
+  // Fire-and-forget recipe view tracking for authenticated users
+  const userId = c.get('userId');
+  if (userId && c.env.USERS_DB) {
+    c.executionCtx.waitUntil(
+      c.env.USERS_DB
+        .prepare(
+          `INSERT OR IGNORE INTO recipe_views (user_id, recipe_id, source, viewed_date, viewed_at)
+           VALUES (?, ?, 'view', date('now'), datetime('now'))`,
+        )
+        .bind(userId, id)
+        .run()
+        .catch(() => {}),
+    );
   }
 
   const doc: RecipeDocument = JSON.parse(value);
@@ -93,7 +133,7 @@ app.get('/api/v1/recipes/:id', async (c) => {
 });
 
 // ── List recipes ─────────────────────────────────────────────────────────
-app.get('/api/v1/recipes', async (c) => {
+app.get('/api/v1/recipes', optionalAuth, async (c) => {
   const { tag, domain, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
 
@@ -120,6 +160,10 @@ app.get('/api/v1/recipes', async (c) => {
     conditions.push('r.extracted_at < ?');
     params.push(cursor);
   }
+
+  // Dietary bitmask filtering
+  const dietaryMask = await getDietaryMask(c);
+  applyDietaryFilter(conditions, params, dietaryMask);
 
   let joinClause = '';
   if (tag) {
@@ -185,7 +229,7 @@ app.get('/api/v1/domains', async (c) => {
 });
 
 // ── Domain recipes ───────────────────────────────────────────────────────
-app.get('/api/v1/domains/:domain/recipes', async (c) => {
+app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
   const domain = c.req.param('domain');
   const { tag, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
@@ -209,6 +253,10 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
     conditions.push('r.extracted_at < ?');
     params.push(cursor);
   }
+
+  // Dietary bitmask filtering
+  const dietaryMask = await getDietaryMask(c);
+  applyDietaryFilter(conditions, params, dietaryMask);
 
   let joinClause = '';
   if (tag) {
@@ -238,7 +286,7 @@ app.get('/api/v1/domains/:domain/recipes', async (c) => {
 });
 
 // ── Search ────────────────────────────────────────────────────────────
-app.get('/api/v1/search', async (c) => {
+app.get('/api/v1/search', optionalAuth, async (c) => {
   const q = c.req.query('q') ?? '';
   const limitParam = c.req.query('limit');
   const offsetParam = c.req.query('offset');
@@ -257,15 +305,21 @@ app.get('/api/v1/search', async (c) => {
     return c.json({ items: [], next_cursor: null }, 200);
   }
 
+  // Dietary bitmask filtering for search
+  const dietaryMask = await getDietaryMask(c);
+  const dietaryClause = dietaryMask > 0 ? 'AND (r.dietary_bitmask & ?4) = ?4' : '';
+  const bindParams: (string | number)[] = [sanitized, limit + 1, offset];
+  if (dietaryMask > 0) bindParams.push(dietaryMask);
+
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
             r.yields, r.cuisine, r.category
      FROM recipes_fts fts
      JOIN recipes r ON fts.rowid = r.rowid
-     WHERE recipes_fts MATCH ?1
+     WHERE recipes_fts MATCH ?1 ${dietaryClause}
      LIMIT ?2 OFFSET ?3`,
   )
-    .bind(sanitized, limit + 1, offset)
+    .bind(...bindParams)
     .all();
 
   const rows = results ?? [];
@@ -354,6 +408,29 @@ app.post('/api/v1/remove', async (c) => {
   }));
   return c.json({ ok: true, message: 'Request logged' });
 });
+
+// ── Security headers ────────────────────────────────────────────────────
+app.use('*', async (c, next) => {
+  await next();
+  c.header('X-Content-Type-Options', 'nosniff');
+  c.header('X-Frame-Options', 'DENY');
+  c.header('Referrer-Policy', 'strict-origin-when-cross-origin');
+  c.header('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+  c.header(
+    'Strict-Transport-Security',
+    'max-age=63072000; includeSubDomains; preload',
+  );
+  c.header(
+    'Content-Security-Policy',
+    "default-src 'none'; frame-ancestors 'none'",
+  );
+});
+
+// ── Mount route modules ─────────────────────────────────────────────────
+app.route('/', authRoutes);
+app.route('/', bookmarkRoutes);
+app.route('/', notificationRoutes);
+app.route('/', userRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {

@@ -1,4 +1,5 @@
-import type { Env, CrawlJob } from '@rr/shared';
+import type { Env } from '@rr/shared/env';
+import type { CrawlJob } from '@rr/shared';
 import { chunk, chunks } from '@rr/shared/utils';
 import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 

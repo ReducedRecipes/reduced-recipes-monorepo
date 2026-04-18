@@ -1,29 +1,41 @@
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MMKV } from "react-native-mmkv";
 import type { StateStorage } from "zustand/middleware";
 
-export const mmkv = {
-  getString(key: string): string | undefined {
-    // Sync wrapper — returns undefined immediately, sets value async
-    let result: string | undefined;
-    AsyncStorage.getItem(key).then((v) => { result = v ?? undefined; });
-    return result;
+let _mmkv: MMKV | null = null;
+
+function getMMKV(): MMKV {
+  if (!_mmkv) {
+    try {
+      _mmkv = new MMKV({ id: "rr-mobile" });
+    } catch {
+      // Fallback: MMKV not available (e.g. remote debugger)
+      // Return a no-op instance
+      return {
+        getString: () => undefined,
+        set: () => {},
+        delete: () => {},
+        contains: () => false,
+        getAllKeys: () => [],
+      } as unknown as MMKV;
+    }
+  }
+  return _mmkv;
+}
+
+export const mmkv = new Proxy({} as MMKV, {
+  get(_, prop) {
+    return (getMMKV() as any)[prop];
   },
-  set(key: string, value: string): void {
-    AsyncStorage.setItem(key, value);
-  },
-  delete(key: string): void {
-    AsyncStorage.removeItem(key);
-  },
-};
+});
 
 export const mmkvStorage: StateStorage = {
   getItem(key: string): string | null {
-    return AsyncStorage.getItem(key) as unknown as string | null;
+    return getMMKV().getString(key) ?? null;
   },
   setItem(key: string, value: string): void {
-    AsyncStorage.setItem(key, value);
+    getMMKV().set(key, value);
   },
   removeItem(key: string): void {
-    AsyncStorage.removeItem(key);
+    getMMKV().delete(key);
   },
 };

@@ -1,4 +1,4 @@
-import type { RecipeDocument, RecipeSummary } from "@rr/shared";
+import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification } from "@rr/shared";
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE || ""}/api/v1`;
 
@@ -6,8 +6,15 @@ interface ApiError {
   error: { code: number; message: string };
 }
 
-async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE_URL}${path}`, init);
+export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = localStorage.getItem("session_token");
+  const headers: Record<string, string> = {};
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+  const res = await fetch(`${BASE_URL}${path}`, {
+    credentials: "include",
+    ...init,
+    headers: { ...headers, ...(init?.headers as Record<string, string>) },
+  });
   if (!res.ok) {
     const body = (await res.json().catch(() => null)) as ApiError | null;
     throw new Error(
@@ -36,7 +43,7 @@ export interface RecipeListParams {
   limit?: number;
 }
 
-function buildQuery(params: { [key: string]: string | number | undefined }): string {
+function buildQuery(params: { [key: string]: string | number | string[] | undefined }): string {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     if (v !== undefined && v !== null) sp.set(k, String(v));
@@ -51,11 +58,16 @@ export function fetchRecipes(
   return apiFetch<RecipeListResponse>(`/recipes${buildQuery({ ...params })}`);
 }
 
+export interface SearchResponse {
+  items: RecipeSummary[];
+  has_more: boolean;
+}
+
 export function searchRecipes(
   q: string,
   limit?: number,
-): Promise<RecipeSummary[]> {
-  return apiFetch<RecipeSummary[]>(`/search${buildQuery({ q, limit })}`);
+): Promise<SearchResponse> {
+  return apiFetch<SearchResponse>(`/search${buildQuery({ q, limit })}`);
 }
 
 export function fetchTags(): Promise<{ tag: string; count: number }[]> {
@@ -89,4 +101,104 @@ export function submitRemoval(data: {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),
   });
+}
+
+// ── Auth ──
+
+export function getGoogleAuthUrl(platform: "web" | "mobile", returnTo?: string): Promise<{ url: string }> {
+  return apiFetch<{ url: string }>(`/auth/google/url${buildQuery({ platform, return_to: returnTo })}`);
+}
+
+export function logout(): Promise<void> {
+  return apiFetch<void>("/auth/logout", { method: "POST" });
+}
+
+export function getMe(): Promise<{ user: User }> {
+  return apiFetch<{ user: User }>("/auth/me");
+}
+
+// ── Users ──
+
+export function getUser(id: string): Promise<User> {
+  return apiFetch<User>(`/users/${encodeURIComponent(id)}`);
+}
+
+export function updateProfile(data: { display_name?: string; profile_public?: boolean }): Promise<User> {
+  return apiFetch<User>("/users/me", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteAccount(): Promise<void> {
+  return apiFetch<void>("/users/me", { method: "DELETE" });
+}
+
+export function exportData(): Promise<Record<string, unknown>> {
+  return apiFetch<Record<string, unknown>>("/users/me/export");
+}
+
+// ── Dietary Preferences ──
+
+export function getDietaryPreferences(): Promise<{ restrictions: string[] }> {
+  return apiFetch<{ restrictions: string[] }>("/users/me/dietary-preferences");
+}
+
+export function setDietaryPreferences(restrictions: string[]): Promise<{ restrictions: string[]; matching_recipe_count: number; updated_at: string }> {
+  return apiFetch<{ restrictions: string[]; matching_recipe_count: number; updated_at: string }>("/users/me/dietary-preferences", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ restrictions }),
+  });
+}
+
+export function getDietaryRecipeCount(restrictions: string[]): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>(`/dietary-preferences/recipe-count${buildQuery({ restrictions: restrictions.join(",") })}`);
+}
+
+// ── Bookmarks ──
+
+export function createBookmark(recipeId: string): Promise<Bookmark> {
+  return apiFetch<Bookmark>("/bookmarks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ recipe_id: recipeId }),
+  });
+}
+
+export function deleteBookmark(id: string): Promise<void> {
+  return apiFetch<void>(`/bookmarks/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export interface BookmarkListResponse {
+  items: Bookmark[];
+  next_cursor: string | null;
+}
+
+export function getBookmarks(cursor?: string): Promise<BookmarkListResponse> {
+  return apiFetch<BookmarkListResponse>(`/bookmarks${buildQuery({ cursor })}`);
+}
+
+// ── Notifications ──
+
+export interface NotificationListResponse {
+  items: Notification[];
+  next_cursor: string | null;
+}
+
+export function getNotifications(cursor?: string): Promise<NotificationListResponse> {
+  return apiFetch<NotificationListResponse>(`/notifications${buildQuery({ cursor })}`);
+}
+
+export function markNotificationRead(id: string): Promise<void> {
+  return apiFetch<void>(`/notifications/${encodeURIComponent(id)}/read`, { method: "POST" });
+}
+
+export function markAllNotificationsRead(): Promise<void> {
+  return apiFetch<void>("/notifications/read-all", { method: "POST" });
+}
+
+export function getUnreadNotificationCount(): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>("/notifications/unread-count");
 }

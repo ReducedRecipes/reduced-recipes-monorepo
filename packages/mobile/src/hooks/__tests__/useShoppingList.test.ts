@@ -10,7 +10,7 @@ function groupByCategory(items: ShoppingItem[]): Record<string, ShoppingItem[]> 
     if (!grouped[item.category]) {
       grouped[item.category] = [];
     }
-    grouped[item.category].push(item);
+    grouped[item.category]!.push(item);
   }
   return grouped;
 }
@@ -75,7 +75,7 @@ describe("useShoppingList computed properties", () => {
     expect(items.length).toBe(2);
     expect(getCheckedCount(items)).toBe(0);
 
-    useShoppingStore.getState().toggle(items[0].id);
+    useShoppingStore.getState().toggle(items[0]!.id);
 
     items = useShoppingStore.getState().items;
     expect(getCheckedCount(items)).toBe(1);
