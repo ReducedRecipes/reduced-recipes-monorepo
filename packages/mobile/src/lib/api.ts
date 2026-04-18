@@ -49,6 +49,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     );
   }
 
+  if (res.status === 204) return null as T;
   return res.json() as Promise<T>;
 }
 

@@ -305,7 +305,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   const limitParam = c.req.query('limit');
   const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
 
-  let sql = `SELECT u.id, u.name, u.picture_url, f.created_at as followed_at
+  let sql = `SELECT u.id, u.name, u.picture_url AS profile_image_url, f.created_at as followed_at
     FROM follows f
     JOIN users u ON u.id = f.follower_id
     WHERE f.following_id = ?`;
@@ -323,7 +323,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   const rows = (result.results ?? []) as unknown as {
     id: string;
     name: string;
-    picture_url: string;
+    profile_image_url: string;
     followed_at: string;
   }[];
 
@@ -338,7 +338,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   let items: Array<{
     id: string;
     name: string;
-    picture_url: string;
+    profile_image_url: string;
     is_following?: boolean;
   }>;
 
@@ -360,7 +360,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
       items = rows.map((r) => ({
         id: r.id,
         name: r.name,
-        picture_url: r.picture_url,
+        profile_image_url: r.profile_image_url,
         is_following: followingSet.has(r.id),
       }));
     } else {
@@ -370,7 +370,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
     items = rows.map((r) => ({
       id: r.id,
       name: r.name,
-      picture_url: r.picture_url,
+      profile_image_url: r.profile_image_url,
     }));
   }
 
@@ -400,7 +400,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
   const limitParam = c.req.query('limit');
   const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
 
-  let sql = `SELECT u.id, u.name, u.picture_url, f.created_at as followed_at
+  let sql = `SELECT u.id, u.name, u.picture_url AS profile_image_url, f.created_at as followed_at
     FROM follows f
     JOIN users u ON u.id = f.following_id
     WHERE f.follower_id = ?`;
@@ -418,7 +418,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
   const rows = (result.results ?? []) as unknown as {
     id: string;
     name: string;
-    picture_url: string;
+    profile_image_url: string;
     followed_at: string;
   }[];
 
@@ -432,7 +432,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
   let items: Array<{
     id: string;
     name: string;
-    picture_url: string;
+    profile_image_url: string;
     is_following?: boolean;
   }>;
 
@@ -454,7 +454,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
       items = rows.map((r) => ({
         id: r.id,
         name: r.name,
-        picture_url: r.picture_url,
+        profile_image_url: r.profile_image_url,
         is_following: followingSet.has(r.id),
       }));
     } else {
@@ -464,7 +464,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
     items = rows.map((r) => ({
       id: r.id,
       name: r.name,
-      picture_url: r.picture_url,
+      profile_image_url: r.profile_image_url,
     }));
   }
 

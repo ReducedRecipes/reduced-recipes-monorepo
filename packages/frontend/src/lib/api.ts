@@ -21,6 +21,7 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
       body?.error?.message ?? `API error ${res.status}: ${res.statusText}`,
     );
   }
+  if (res.status === 204) return null as T;
   return res.json() as Promise<T>;
 }
 
