@@ -1,4 +1,4 @@
-import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification } from "@rr/shared";
+import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification, Collection, BookmarkSyncAction, BookmarkSyncResult } from "@rr/shared";
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE || ""}/api/v1`;
 
@@ -159,11 +159,11 @@ export function getDietaryRecipeCount(restrictions: string[]): Promise<{ count: 
 
 // ── Bookmarks ──
 
-export function createBookmark(recipeId: string): Promise<Bookmark> {
+export function createBookmark(recipeId: string, collectionId?: string): Promise<Bookmark> {
   return apiFetch<Bookmark>("/bookmarks", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ recipe_id: recipeId }),
+    body: JSON.stringify({ recipe_id: recipeId, collection_id: collectionId ?? null }),
   });
 }
 
@@ -201,4 +201,104 @@ export function markAllNotificationsRead(): Promise<void> {
 
 export function getUnreadNotificationCount(): Promise<{ count: number }> {
   return apiFetch<{ count: number }>("/notifications/unread-count");
+}
+
+// ── Collections ──
+
+export interface CollectionListResponse {
+  items: Collection[];
+}
+
+export function fetchCollections(): Promise<CollectionListResponse> {
+  return apiFetch<CollectionListResponse>("/collections");
+}
+
+export function createCollection(data: { name: string; is_public?: boolean }): Promise<Collection> {
+  return apiFetch<Collection>("/collections", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateCollection(id: string, data: { name?: string; is_public?: boolean; position?: number }): Promise<Collection> {
+  return apiFetch<Collection>(`/collections/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteCollection(id: string): Promise<void> {
+  return apiFetch<void>(`/collections/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function fetchCollectionBookmarks(id: string, cursor?: string, limit?: number): Promise<BookmarkListResponse> {
+  return apiFetch<BookmarkListResponse>(`/collections/${encodeURIComponent(id)}/bookmarks${buildQuery({ cursor, limit })}`);
+}
+
+// ── Follow System ──
+
+export function followUser(id: string): Promise<{ success: true }> {
+  return apiFetch<{ success: true }>(`/users/${encodeURIComponent(id)}/follow`, { method: "POST" });
+}
+
+export function unfollowUser(id: string): Promise<void> {
+  return apiFetch<void>(`/users/${encodeURIComponent(id)}/follow`, { method: "DELETE" });
+}
+
+export interface FollowListItem {
+  id: string;
+  name: string;
+  profile_image_url: string | null;
+  is_following?: boolean;
+}
+
+export interface FollowListResponse {
+  items: FollowListItem[];
+  next_cursor: string | null;
+}
+
+export function fetchFollowers(id: string, cursor?: string, limit?: number): Promise<FollowListResponse> {
+  return apiFetch<FollowListResponse>(`/users/${encodeURIComponent(id)}/followers${buildQuery({ cursor, limit })}`);
+}
+
+export function fetchFollowing(id: string, cursor?: string, limit?: number): Promise<FollowListResponse> {
+  return apiFetch<FollowListResponse>(`/users/${encodeURIComponent(id)}/following${buildQuery({ cursor, limit })}`);
+}
+
+export function fetchUserCollections(id: string): Promise<CollectionListResponse> {
+  return apiFetch<CollectionListResponse>(`/users/${encodeURIComponent(id)}/collections`);
+}
+
+// ── Bookmark Move & Search ──
+
+export function moveBookmark(bookmarkId: string, targetCollectionId: string): Promise<{ success: true }> {
+  return apiFetch<{ success: true }>("/bookmarks/move", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ bookmark_id: bookmarkId, target_collection_id: targetCollectionId }),
+  });
+}
+
+export interface BookmarkSearchResponse {
+  items: (Bookmark & RecipeSummary)[];
+}
+
+export function searchBookmarks(query: string, collectionId?: string): Promise<BookmarkSearchResponse> {
+  return apiFetch<BookmarkSearchResponse>(`/bookmarks/search${buildQuery({ q: query, collection_id: collectionId })}`);
+}
+
+// ── Bookmark Sync ──
+
+export interface BookmarkSyncResponse {
+  results: BookmarkSyncResult[];
+}
+
+export function syncBookmarks(actions: BookmarkSyncAction[]): Promise<BookmarkSyncResponse> {
+  return apiFetch<BookmarkSyncResponse>("/sync/bookmarks", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ actions }),
+  });
 }
