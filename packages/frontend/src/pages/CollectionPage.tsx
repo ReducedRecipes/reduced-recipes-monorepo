@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueries, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../hooks/useAuth";
-import { fetchCollectionBookmarks, apiFetch } from "../lib/api";
+import { fetchCollectionBookmarks, apiFetch, fetchRecipe } from "../lib/api";
 import type { Bookmark } from "@rr/shared";
+import type { RecipeDocument } from "@rr/shared";
 import RecipeCard from "../components/RecipeCard";
 
 interface Collection {
@@ -56,6 +57,20 @@ export default function CollectionPage() {
 
   const bookmarks = data?.items ?? [];
 
+  // Fetch recipe details for all bookmarks
+  const recipeQueries = useQueries({
+    queries: bookmarks.map((b: Bookmark) => ({
+      queryKey: ["recipe", b.recipe_id],
+      queryFn: () => fetchRecipe(b.recipe_id),
+      staleTime: 10 * 60 * 1000,
+    })),
+  });
+
+  const recipeMap = new Map<string, RecipeDocument>();
+  recipeQueries.forEach((q, i) => {
+    if (q.data) recipeMap.set(bookmarks[i]!.recipe_id, q.data);
+  });
+
   return (
     <div className="mx-auto max-w-5xl py-8">
       <div className="mb-6 flex items-center gap-3">
@@ -85,31 +100,36 @@ export default function CollectionPage() {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {bookmarks.map((bookmark: Bookmark) => (
-            <div key={bookmark.id} className="relative group">
-              <Link to={`/recipe/${bookmark.recipe_id}`}>
-                <div className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md transition-shadow">
-                  <p className="font-medium text-gray-900 truncate">{bookmark.recipe_id}</p>
-                  <p className="text-xs text-gray-400 mt-1">
-                    Saved {new Date(bookmark.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </Link>
-              <button
-                onClick={() => {
-                  setRemovingId(bookmark.id);
-                  removeBookmark.mutate(bookmark.id, {
-                    onSettled: () => setRemovingId(null),
-                  });
-                }}
-                disabled={removingId === bookmark.id}
-                className="absolute top-2 right-2 hidden group-hover:flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 text-xs"
-                title="Remove from collection"
-              >
-                ×
-              </button>
-            </div>
-          ))}
+          {bookmarks.map((bookmark: Bookmark) => {
+            const recipe = recipeMap.get(bookmark.recipe_id);
+            return (
+              <div key={bookmark.id} className="relative group">
+                {recipe ? (
+                  <RecipeCard recipe={{ ...recipe, tags: recipe.tags ?? [] }} />
+                ) : (
+                  <Link to={`/recipe/${bookmark.recipe_id}`}>
+                    <div className="rounded-lg border border-gray-200 bg-white p-4 hover:shadow-md transition-shadow animate-pulse">
+                      <div className="h-4 w-3/4 rounded bg-gray-200" />
+                      <div className="mt-2 h-3 w-1/2 rounded bg-gray-200" />
+                    </div>
+                  </Link>
+                )}
+                <button
+                  onClick={() => {
+                    setRemovingId(bookmark.id);
+                    removeBookmark.mutate(bookmark.id, {
+                      onSettled: () => setRemovingId(null),
+                    });
+                  }}
+                  disabled={removingId === bookmark.id}
+                  className="absolute top-2 right-2 hidden group-hover:flex h-6 w-6 items-center justify-center rounded-full bg-red-100 text-red-600 hover:bg-red-200 text-xs"
+                  title="Remove from collection"
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
