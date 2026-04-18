@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { useCollections } from "../hooks/useCollections";
 import type { Collection } from "@rr/shared";
 
@@ -121,14 +122,17 @@ export function CollectionList() {
                 </div>
               ) : (
                 <>
-                  <span className="text-sm font-medium text-gray-900">
+                  <Link
+                    to={`/collection/${collection.id}`}
+                    className="text-sm font-medium text-gray-900 hover:text-orange-600"
+                  >
                     {collection.name}
                     {collection.is_default === 1 && (
                       <span className="ml-2 text-xs text-gray-400">
                         (default)
                       </span>
                     )}
-                  </span>
+                  </Link>
                   {collection.is_default !== 1 && (
                     <div className="flex items-center gap-2">
                       {deleteConfirmId === collection.id ? (
