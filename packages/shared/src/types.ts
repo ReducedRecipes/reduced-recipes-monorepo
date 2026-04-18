@@ -110,6 +110,28 @@ export interface RecipeView {
   viewed_at: string;
 }
 
+/** A follow relationship between two users. */
+export interface Follow {
+  follower_id: string;
+  following_id: string;
+  created_at: string;
+}
+
+/** A bookmark sync action sent from mobile clients during offline sync. */
+export interface BookmarkSyncAction {
+  recipe_id: string;
+  collection_id: string | null;
+  action: 'add' | 'remove';
+  client_timestamp: string;
+}
+
+/** Result of a single bookmark sync action from the server. */
+export interface BookmarkSyncResult {
+  recipe_id: string;
+  status: 'applied' | 'conflict';
+  server_state?: { exists: boolean; updated_at: string };
+}
+
 /** Job enqueued to the crawl queue. */
 export interface CrawlJob {
   url: string;
