@@ -2,21 +2,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { readFileSync } from "fs";
 import { resolve } from "path";
 
-vi.mock("../../hooks/useAuth", () => ({
-  useAuth: vi.fn(),
+vi.mock("../../stores/auth.store", () => ({
+  useAuthStore: vi.fn(() => ({
+    setUser: vi.fn(),
+    setToken: vi.fn(),
+  })),
 }));
 
 vi.mock("../../lib/api", () => ({
   apiFetch: vi.fn(),
-  getGoogleAuthUrl: vi.fn(),
 }));
 
-import { useAuth } from "../../hooks/useAuth";
-
-const mockCheckAuth = vi.fn();
-const mockLogin = vi.fn();
 const mockNavigate = vi.fn();
-const mockUseAuth = vi.mocked(useAuth);
 
 const SOURCE = readFileSync(
   resolve(__dirname, "../LoginCallbackPage.tsx"),
@@ -25,16 +22,6 @@ const SOURCE = readFileSync(
 
 beforeEach(() => {
   vi.clearAllMocks();
-  mockCheckAuth.mockResolvedValue(undefined);
-  mockUseAuth.mockReturnValue({
-    user: null,
-    isAuthenticated: false,
-    isLoading: false,
-    isNewUser: false,
-    logout: vi.fn(),
-    login: mockLogin,
-    checkAuth: mockCheckAuth,
-  });
 });
 
 describe("LoginCallbackPage", () => {
@@ -48,28 +35,17 @@ describe("LoginCallbackPage", () => {
     expect(SOURCE).toContain("useNavigate");
   });
 
-  it("reads status, is_new_user, return_to, and error from query params", () => {
+  it("reads status, is_new_user, session_token, and error from query params", () => {
     expect(SOURCE).toContain('"status"');
     expect(SOURCE).toContain('"is_new_user"');
-    expect(SOURCE).toContain('"return_to"');
+    expect(SOURCE).toContain('"session_token"');
     expect(SOURCE).toContain('"error"');
   });
 
-  it("calls checkAuth on successful callback and navigates", async () => {
-    const status = "success";
-    const isNewUser = false;
-    const returnTo = "/recipes";
-
-    if (status === "success") {
-      await mockCheckAuth();
-      if (isNewUser) {
-        // would set localStorage
-      }
-      mockNavigate(returnTo, { replace: true });
-    }
-
-    expect(mockCheckAuth).toHaveBeenCalledOnce();
-    expect(mockNavigate).toHaveBeenCalledWith("/recipes", { replace: true });
+  it("stores token and fetches user on successful callback", async () => {
+    // The component calls setToken then apiFetch('/auth/me') on success
+    expect(SOURCE).toContain("setToken(sessionToken)");
+    expect(SOURCE).toContain('apiFetch<{ user: User }>("/auth/me")');
   });
 
   it("sets show_dietary_onboarding localStorage flag for new users", async () => {
@@ -78,7 +54,6 @@ describe("LoginCallbackPage", () => {
     const store: Record<string, string> = {};
 
     if (status === "success") {
-      await mockCheckAuth();
       if (isNewUser) {
         store["show_dietary_onboarding"] = "true";
       }
@@ -94,7 +69,6 @@ describe("LoginCallbackPage", () => {
     const store: Record<string, string> = {};
 
     if (status === "success") {
-      await mockCheckAuth();
       if (isNewUser) {
         store["show_dietary_onboarding"] = "true";
       }
@@ -128,22 +102,13 @@ describe("LoginCallbackPage", () => {
     expect(displayedError).toBe("An unknown error occurred during sign in.");
   });
 
-  it("try-again calls login when in error state", () => {
-    const status = "error";
-    if (status === "error") {
-      mockLogin();
-    }
-    expect(mockLogin).toHaveBeenCalledOnce();
+  it("try-again navigates home when in error state", () => {
+    // The component navigates to "/" on try again click
+    expect(SOURCE).toContain('navigate("/", { replace: true })');
   });
 
-  it("defaults return_to to / when not provided", async () => {
-    const searchParamValue: string | null = null;
-    const returnTo = searchParamValue ?? "/";
-
-    await mockCheckAuth();
-    mockNavigate(returnTo, { replace: true });
-
-    expect(mockNavigate).toHaveBeenCalledWith("/", { replace: true });
+  it("navigates to / after successful auth", () => {
+    expect(SOURCE).toContain('navigate("/", { replace: true })');
   });
 
   it("contains loading spinner with 'Signing you in...' text", () => {

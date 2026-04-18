@@ -6,6 +6,22 @@ import React from "react";
 import RecipePage from "../RecipePage";
 import type { RecipeDocument } from "@rr/shared/types";
 
+vi.mock("../../hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    isNewUser: false,
+    logout: vi.fn(),
+    login: vi.fn(),
+    checkAuth: vi.fn(),
+  }),
+}));
+
+vi.mock("../../components/BookmarkButton", () => ({
+  BookmarkButton: () => null,
+}));
+
 vi.mock("../../lib/api", () => ({
   fetchRecipe: vi.fn(),
 }));

@@ -46,8 +46,21 @@ function errResponse(status: number, body?: unknown) {
   };
 }
 
+/** Helper: expected fetch init with empty headers (no token) merged with given overrides */
+function withHeaders(init?: RequestInit) {
+  const base: RequestInit = { credentials: "include", headers: {} };
+  if (!init) return base;
+  const { headers: extraHeaders, ...rest } = init;
+  return {
+    ...base,
+    ...rest,
+    headers: { ...(extraHeaders as Record<string, string>) },
+  };
+}
+
 beforeEach(() => {
   mockFetch.mockReset();
+  localStorage.removeItem("session_token");
 });
 
 describe("apiFetch", () => {
@@ -77,17 +90,13 @@ describe("fetchRecipe", () => {
     mockFetch.mockResolvedValue(okResponse(doc));
     const result = await fetchRecipe("abc");
     expect(result).toEqual(doc);
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/recipes/abc", {
-      credentials: "include",
-    });
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/recipes/abc", withHeaders());
   });
 
   it("encodes special characters in id", async () => {
     mockFetch.mockResolvedValue(okResponse({ id: "a/b" }));
     await fetchRecipe("a/b");
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/recipes/a%2Fb", {
-      credentials: "include",
-    });
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/recipes/a%2Fb", withHeaders());
   });
 });
 
@@ -108,9 +117,7 @@ describe("fetchRecipes", () => {
       okResponse({ items: [], next_cursor: null }),
     );
     await fetchRecipes();
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/recipes", {
-      credentials: "include",
-    });
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/recipes", withHeaders());
   });
 });
 
@@ -131,9 +138,7 @@ describe("fetchTags", () => {
     mockFetch.mockResolvedValue(okResponse(tags));
     const result = await fetchTags();
     expect(result).toEqual(tags);
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/tags", {
-      credentials: "include",
-    });
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/tags", withHeaders());
   });
 });
 
@@ -141,9 +146,7 @@ describe("fetchDomains", () => {
   it("calls GET /domains", async () => {
     mockFetch.mockResolvedValue(okResponse([]));
     await fetchDomains();
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/domains", {
-      credentials: "include",
-    });
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/domains", withHeaders());
   });
 });
 
@@ -165,12 +168,11 @@ describe("submitRemoval", () => {
     const data = { url: "http://x.com/r", email: "a@b.c", reason: "test" };
     const result = await submitRemoval(data);
     expect(result).toEqual({ ok: true });
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/remove", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/remove", withHeaders({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
-    });
+    }));
   });
 });
 
@@ -198,10 +200,9 @@ describe("logout", () => {
   it("calls POST /auth/logout with credentials", async () => {
     mockFetch.mockResolvedValue(okResponse(undefined));
     await logout();
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/auth/logout", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/auth/logout", withHeaders({
       method: "POST",
-    });
+    }));
   });
 });
 
@@ -211,21 +212,17 @@ describe("getMe", () => {
     mockFetch.mockResolvedValue(okResponse({ user }));
     const result = await getMe();
     expect(result).toEqual({ user });
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/auth/me", {
-      credentials: "include",
-    });
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/auth/me", withHeaders());
   });
 });
 
 describe("getUser", () => {
   it("calls GET /users/:id", async () => {
     const user = { id: "u1", name: "Test" };
-    mockFetch.mockResolvedValue(okResponse(user));
+    mockFetch.mockResolvedValue(okResponse({ user }));
     const result = await getUser("u1");
     expect(result).toEqual(user);
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/u1", {
-      credentials: "include",
-    });
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/u1", withHeaders());
   });
 });
 
@@ -235,12 +232,11 @@ describe("updateProfile", () => {
     mockFetch.mockResolvedValue(okResponse(updated));
     const result = await updateProfile({ display_name: "New Name" });
     expect(result).toEqual(updated);
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/me", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/me", withHeaders({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ display_name: "New Name" }),
-    });
+    }));
   });
 });
 
@@ -248,10 +244,9 @@ describe("deleteAccount", () => {
   it("calls DELETE /users/me", async () => {
     mockFetch.mockResolvedValue(okResponse(undefined));
     await deleteAccount();
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/me", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/me", withHeaders({
       method: "DELETE",
-    });
+    }));
   });
 });
 
@@ -277,12 +272,11 @@ describe("setDietaryPreferences", () => {
     mockFetch.mockResolvedValue(okResponse({ restrictions: ["vegan"], matching_recipe_count: 42, updated_at: "2026-01-01T00:00:00.000Z" }));
     const result = await setDietaryPreferences(["vegan"]);
     expect(result).toEqual({ restrictions: ["vegan"], matching_recipe_count: 42, updated_at: "2026-01-01T00:00:00.000Z" });
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/me/dietary-preferences", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/me/dietary-preferences", withHeaders({
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ restrictions: ["vegan"] }),
-    });
+    }));
   });
 });
 
@@ -303,12 +297,11 @@ describe("createBookmark", () => {
     mockFetch.mockResolvedValue(okResponse(bookmark));
     const result = await createBookmark("r1");
     expect(result).toEqual(bookmark);
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/bookmarks", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/bookmarks", withHeaders({
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ recipe_id: "r1" }),
-    });
+      body: JSON.stringify({ recipe_id: "r1", collection_id: null }),
+    }));
   });
 });
 
@@ -316,10 +309,9 @@ describe("deleteBookmark", () => {
   it("calls DELETE /bookmarks/:id", async () => {
     mockFetch.mockResolvedValue(okResponse(undefined));
     await deleteBookmark("b1");
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/bookmarks/b1", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/bookmarks/b1", withHeaders({
       method: "DELETE",
-    });
+    }));
   });
 });
 
@@ -337,9 +329,7 @@ describe("getNotifications", () => {
   it("calls GET /notifications", async () => {
     mockFetch.mockResolvedValue(okResponse({ items: [], next_cursor: null }));
     await getNotifications();
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/notifications", {
-      credentials: "include",
-    });
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/notifications", withHeaders());
   });
 });
 
@@ -347,10 +337,9 @@ describe("markNotificationRead", () => {
   it("calls POST /notifications/:id/read", async () => {
     mockFetch.mockResolvedValue(okResponse(undefined));
     await markNotificationRead("n1");
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/notifications/n1/read", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/notifications/n1/read", withHeaders({
       method: "POST",
-    });
+    }));
   });
 });
 
@@ -358,10 +347,9 @@ describe("markAllNotificationsRead", () => {
   it("calls POST /notifications/read-all", async () => {
     mockFetch.mockResolvedValue(okResponse(undefined));
     await markAllNotificationsRead();
-    expect(mockFetch).toHaveBeenCalledWith("/api/v1/notifications/read-all", {
-      credentials: "include",
+    expect(mockFetch).toHaveBeenCalledWith("/api/v1/notifications/read-all", withHeaders({
       method: "POST",
-    });
+    }));
   });
 });
 

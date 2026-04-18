@@ -1,20 +1,41 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import React from "react";
 import Layout from "../Layout";
+
+vi.mock("../../hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    isNewUser: false,
+    logout: vi.fn(),
+    login: vi.fn(),
+    checkAuth: vi.fn(),
+  }),
+}));
+
+vi.mock("../NotificationBell", () => ({ default: () => null }));
+vi.mock("../LoginButton", () => ({ LoginButton: () => null }));
+vi.mock("../DietaryOnboarding", () => ({ DietaryOnboarding: () => null }));
 
 afterEach(cleanup);
 
 function renderLayout(initialRoute = "/") {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
-    <MemoryRouter initialEntries={[initialRoute]}>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<div>home-outlet</div>} />
-          <Route path="/remove" element={<div>remove-outlet</div>} />
-        </Route>
-      </Routes>
-    </MemoryRouter>
+    <QueryClientProvider client={qc}>
+      <MemoryRouter initialEntries={[initialRoute]}>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<div>home-outlet</div>} />
+            <Route path="/remove" element={<div>remove-outlet</div>} />
+          </Route>
+        </Routes>
+      </MemoryRouter>
+    </QueryClientProvider>
   );
 }
 

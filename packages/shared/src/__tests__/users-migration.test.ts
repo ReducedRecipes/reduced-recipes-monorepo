@@ -52,7 +52,7 @@ describe('migrations-users/0001_initial.sql', () => {
   });
 
   it('recipe_views has UNIQUE constraint for deduplication', () => {
-    expect(sql).toContain('UNIQUE(user_id, recipe_id, date(viewed_at))');
+    expect(sql).toContain('UNIQUE(user_id, recipe_id, viewed_date)');
   });
 
   it('all foreign keys use ON DELETE CASCADE', () => {

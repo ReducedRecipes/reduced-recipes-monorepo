@@ -4,6 +4,23 @@ import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Layout from "../components/Layout";
 
+// Mock auth and layout sub-components
+vi.mock("../hooks/useAuth", () => ({
+  useAuth: () => ({
+    user: null,
+    isAuthenticated: false,
+    isLoading: false,
+    isNewUser: false,
+    logout: vi.fn(),
+    login: vi.fn(),
+    checkAuth: vi.fn(),
+  }),
+}));
+
+vi.mock("../components/NotificationBell", () => ({ default: () => null }));
+vi.mock("../components/LoginButton", () => ({ LoginButton: () => null }));
+vi.mock("../components/DietaryOnboarding", () => ({ DietaryOnboarding: () => null }));
+
 // Mock all hooks used by page components
 vi.mock("../hooks/useRecipes", () => ({
   useRecipes: vi.fn(() => ({
