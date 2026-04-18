@@ -443,8 +443,8 @@ describe('GET /api/v1/bookmarks/search', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { items: { id: string; recipe_id: string; title: string }[] };
     expect(body.items).toHaveLength(1);
-    expect(body.items[0].recipe_id).toBe('r1');
-    expect(body.items[0].title).toBe('Chicken Curry');
+    expect(body.items[0]!.recipe_id).toBe('r1');
+    expect(body.items[0]!.title).toBe('Chicken Curry');
   });
 
   it('returns empty array when no bookmarks match', async () => {

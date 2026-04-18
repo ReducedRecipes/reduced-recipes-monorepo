@@ -330,7 +330,8 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   let next_cursor: string | null = null;
   if (rows.length > limit) {
     rows.pop();
-    next_cursor = rows[rows.length - 1].followed_at;
+    const lastRow = rows[rows.length - 1];
+    next_cursor = lastRow ? lastRow.followed_at : null;
   }
 
   // If authenticated, check if requester follows each user
@@ -424,7 +425,8 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
   let next_cursor: string | null = null;
   if (rows.length > limit) {
     rows.pop();
-    next_cursor = rows[rows.length - 1].followed_at;
+    const lastRow = rows[rows.length - 1];
+    next_cursor = lastRow ? lastRow.followed_at : null;
   }
 
   let items: Array<{

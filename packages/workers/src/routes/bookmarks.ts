@@ -227,12 +227,12 @@ bookmarks.get('/api/v1/bookmarks/search', requireAuth, async (c) => {
   const items = bookmarkRows
     .filter((b) => recipeMap.has(b.recipe_id))
     .map((b) => ({
+      ...recipeMap.get(b.recipe_id)!,
       id: b.id,
       recipe_id: b.recipe_id,
       collection_id: b.collection_id,
       created_at: b.created_at,
       updated_at: b.updated_at,
-      ...recipeMap.get(b.recipe_id)!,
     }));
 
   return c.json({ items });

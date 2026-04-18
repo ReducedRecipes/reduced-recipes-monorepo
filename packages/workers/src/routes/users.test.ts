@@ -553,8 +553,8 @@ describe('GET /api/v1/users/:id/followers', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { items: Array<{ id: string; name: string }>; next_cursor: string | null };
     expect(body.items).toHaveLength(1);
-    expect(body.items[0].id).toBe('user-3');
-    expect(body.items[0].name).toBe('Follower User');
+    expect(body.items[0]!.id).toBe('user-3');
+    expect(body.items[0]!.name).toBe('Follower User');
     expect(body.next_cursor).toBeNull();
   });
 
@@ -574,7 +574,7 @@ describe('GET /api/v1/users/:id/followers', () => {
     const res = await authedReq('/api/v1/users/user-2/followers', env);
     expect(res.status).toBe(200);
     const body = await res.json() as { items: Array<{ id: string; is_following: boolean }> };
-    expect(body.items[0].is_following).toBe(true);
+    expect(body.items[0]!.is_following).toBe(true);
   });
 
   it('returns 404 for non-existent user', async () => {
@@ -632,7 +632,7 @@ describe('GET /api/v1/users/:id/following', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { items: Array<{ id: string; name: string }>; next_cursor: string | null };
     expect(body.items).toHaveLength(1);
-    expect(body.items[0].id).toBe('user-4');
+    expect(body.items[0]!.id).toBe('user-4');
     expect(body.next_cursor).toBeNull();
   });
 
@@ -658,7 +658,7 @@ describe('GET /api/v1/users/:id/following', () => {
     const res = await authedReq('/api/v1/users/user-2/following', env);
     expect(res.status).toBe(200);
     const body = await res.json() as { items: Array<{ id: string; is_following: boolean }> };
-    expect(body.items[0].is_following).toBe(false);
+    expect(body.items[0]!.is_following).toBe(false);
   });
 
   it('returns 404 for non-existent user', async () => {
@@ -700,7 +700,7 @@ describe('GET /api/v1/users/:id/collections', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { items: Array<{ id: string; name: string; is_public: number }> };
     expect(body.items).toHaveLength(1);
-    expect(body.items[0].name).toBe('Favorites');
+    expect(body.items[0]!.name).toBe('Favorites');
   });
 
   it('returns all collections when viewing own profile', async () => {
