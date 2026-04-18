@@ -136,6 +136,81 @@ export interface BookmarkSyncResult {
   server_state?: { exists: boolean; updated_at: string };
 }
 
+/** A user's shopping list. */
+export interface ShoppingList {
+  id: string;
+  user_id: string;
+  name: string;
+  is_default: number;
+  share_token: string | null;
+  share_token_expires_at: string | null;
+  collection_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** An item within a shopping list. */
+export interface ShoppingListItem {
+  id: string;
+  shopping_list_id: string;
+  recipe_id: string | null;
+  name: string;
+  canonical_name: string;
+  quantity: number | null;
+  unit: string | null;
+  checked: number;
+  is_manual: number;
+  parsing: number;
+  original_text: string | null;
+  created_at: string;
+}
+
+/** Association between a shopping list and a recipe. */
+export interface ShoppingListRecipe {
+  shopping_list_id: string;
+  recipe_id: string;
+  added_at: string;
+}
+
+/** Job enqueued for ingredient parsing. */
+export interface IngredientParseJob {
+  shopping_list_id: string;
+  recipe_id: string;
+  item_ids: string[];
+  ingredients: string[];
+}
+
+/** A sync action for shopping list items. */
+export interface ShoppingListSyncAction {
+  action: 'check' | 'uncheck' | 'add' | 'remove';
+  item_id: string;
+  timestamp: string;
+  item_data?: { name: string; quantity?: number; unit?: string };
+}
+
+/** Source item contributing to a smart rollup entry. */
+export interface SmartRollupSource {
+  item_id: string;
+  recipe_id: string | null;
+  quantity: number | null;
+  original_text: string | null;
+}
+
+/** A single rolled-up ingredient in the smart rollup view. */
+export interface SmartRollupItem {
+  canonical_item: string;
+  display_text: string;
+  total_quantity: number | null;
+  unit: string | null;
+  sources: SmartRollupSource[];
+  parsing?: boolean;
+}
+
+/** Response shape for the smart rollup endpoint. */
+export interface SmartRollupResponse {
+  items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
+}
+
 /** Job enqueued to the crawl queue. */
 export interface CrawlJob {
   url: string;

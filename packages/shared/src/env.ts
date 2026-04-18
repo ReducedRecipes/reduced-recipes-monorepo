@@ -30,4 +30,8 @@ export interface Env {
   GOOGLE_REDIRECT_URI?: string;
   SESSION_SECRET?: string;
   AI?: Ai;
+
+  /** Phase 2 bindings — shopping lists. */
+  SHOPPING_LIST_DO?: DurableObjectNamespace;
+  INGREDIENT_PARSE_QUEUE?: Queue;
 }
