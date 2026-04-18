@@ -1,4 +1,11 @@
-import type { RecipeDocument, RecipeSummary } from "@rr/shared";
+import type {
+  RecipeDocument,
+  RecipeSummary,
+  Collection,
+  Bookmark,
+  BookmarkSyncAction,
+  BookmarkSyncResult,
+} from "@rr/shared";
 
 const BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE || "https://reducedrecipes.com"}/api/v1`;
 
@@ -284,5 +291,148 @@ const realApi = {
     },
   },
 };
+
+// ── Phase 1b: Collections ─────────────────────────────────────────
+
+export interface CollectionListResponse {
+  items: Collection[];
+}
+
+export function fetchCollections(): Promise<CollectionListResponse> {
+  return request<CollectionListResponse>("/collections");
+}
+
+export function createCollection(body: { name: string; is_public?: boolean }): Promise<Collection> {
+  return request<Collection>("/collections", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function updateCollection(
+  id: string,
+  body: { name?: string; is_public?: boolean; position?: number },
+): Promise<Collection> {
+  return request<Collection>(`/collections/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
+  });
+}
+
+export function deleteCollection(id: string): Promise<void> {
+  return request<void>(`/collections/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+export interface CollectionBookmarksResponse {
+  items: Bookmark[];
+  next_cursor: string | null;
+}
+
+export function fetchCollectionBookmarks(
+  id: string,
+  cursor?: string,
+  limit?: number,
+): Promise<CollectionBookmarksResponse> {
+  return request<CollectionBookmarksResponse>(
+    `/collections/${encodeURIComponent(id)}/bookmarks${buildQuery({ cursor, limit })}`,
+  );
+}
+
+// ── Phase 1b: Follow System ──────────────────────────────────────
+
+export function followUser(userId: string): Promise<{ success: true }> {
+  return request<{ success: true }>(`/users/${encodeURIComponent(userId)}/follow`, {
+    method: "POST",
+  });
+}
+
+export function unfollowUser(userId: string): Promise<void> {
+  return request<void>(`/users/${encodeURIComponent(userId)}/follow`, {
+    method: "DELETE",
+  });
+}
+
+export interface FollowListItem {
+  id: string;
+  name: string;
+  profile_image_url: string | null;
+  is_following?: boolean;
+}
+
+export interface FollowListResponse {
+  items: FollowListItem[];
+  next_cursor: string | null;
+}
+
+export function fetchFollowers(
+  userId: string,
+  cursor?: string,
+  limit?: number,
+): Promise<FollowListResponse> {
+  return request<FollowListResponse>(
+    `/users/${encodeURIComponent(userId)}/followers${buildQuery({ cursor, limit })}`,
+  );
+}
+
+export function fetchFollowing(
+  userId: string,
+  cursor?: string,
+  limit?: number,
+): Promise<FollowListResponse> {
+  return request<FollowListResponse>(
+    `/users/${encodeURIComponent(userId)}/following${buildQuery({ cursor, limit })}`,
+  );
+}
+
+export function fetchUserCollections(userId: string): Promise<CollectionListResponse> {
+  return request<CollectionListResponse>(
+    `/users/${encodeURIComponent(userId)}/collections`,
+  );
+}
+
+// ── Phase 1b: Bookmark Extensions ────────────────────────────────
+
+export function moveBookmark(
+  bookmarkId: string,
+  targetCollectionId: string,
+): Promise<{ success: true }> {
+  return request<{ success: true }>("/bookmarks/move", {
+    method: "POST",
+    body: JSON.stringify({
+      bookmark_id: bookmarkId,
+      target_collection_id: targetCollectionId,
+    }),
+  });
+}
+
+export interface BookmarkSearchResponse {
+  items: (Bookmark & RecipeSummary)[];
+}
+
+export function searchBookmarks(
+  query: string,
+  collectionId?: string,
+): Promise<BookmarkSearchResponse> {
+  return request<BookmarkSearchResponse>(
+    `/bookmarks/search${buildQuery({ q: query, collection_id: collectionId })}`,
+  );
+}
+
+// ── Phase 1b: Offline Sync ───────────────────────────────────────
+
+export interface SyncBookmarksResponse {
+  results: BookmarkSyncResult[];
+}
+
+export function syncBookmarks(
+  actions: BookmarkSyncAction[],
+): Promise<SyncBookmarksResponse> {
+  return request<SyncBookmarksResponse>("/sync/bookmarks", {
+    method: "POST",
+    body: JSON.stringify({ actions }),
+  });
+}
 
 export const api = USE_MOCK ? mockApi : realApi;
