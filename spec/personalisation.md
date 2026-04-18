@@ -91,14 +91,18 @@ A shared API client is extracted to `@rr/shared/api-client.ts` to ensure consist
 
 **PRs merged to feature branch:** #119–#162 (44 PRs total across backend, frontend, mobile)
 
-### Phase 1b — Collections, Follows & Offline Sync (Weeks 5-7)
+### Phase 1b — Collections, Follows & Offline Sync ✅ Completed 2026-04-18
 
-| Deliverable | Description |
-|---|---|
-| Collections/folders | Organise bookmarks into named collections beyond the default "Saved" |
-| Follow system | Follow users to discover their public collections |
-| Offline bookmarks (mobile) | MMKV-backed offline storage with last-write-wins sync |
-| Search within bookmarks | Full-text search across bookmarks and collections |
+| Deliverable | Status | Notes |
+|---|---|---|
+| Collections/folders | ✅ Done | `GET/POST /collections`, `PATCH/DELETE /collections/:id`, `GET /collections/:id/bookmarks`. CollectionList, CollectionPicker components on web. CollectionSheet on mobile. Saved page with collection sidebar. |
+| Follow system | ✅ Done | `POST/DELETE /users/:id/follow`, `GET /users/:id/followers`, `GET /users/:id/following`, `GET /users/:id/collections`. FollowButton component. UserProfilePage with follower/following counts and public collections. |
+| Offline bookmarks (mobile) | ✅ Done | SQLite-backed offline storage with sync store. `POST /sync/bookmarks` endpoint. offline_bookmarks table + migration. |
+| Search within bookmarks | ✅ Done | `GET /bookmarks/search?q=...` endpoint. `POST /bookmarks/move` for moving between collections. |
+| Bookmark enhancements | ✅ Done | `POST /bookmarks` now accepts optional `collection_id`. Right-click BookmarkButton opens CollectionPicker. Collection detail page at `/collection/:id`. |
+
+**PRs merged:** #163–#182 (20 PRs) + bug fixes (TS errors, migration, mobile tests)
+**Migration added:** `0002_follows.sql` — follows table for the follow system
 
 ### Phase 2 — Shopping Lists (Weeks 8-13)
 
