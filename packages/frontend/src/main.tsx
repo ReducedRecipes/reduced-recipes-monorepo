@@ -15,6 +15,7 @@ import LoginCallbackPage from "./pages/LoginCallbackPage";
 import ProfilePage from "./pages/ProfilePage";
 import UserProfilePage from "./pages/UserProfilePage";
 import SettingsPage from "./pages/SettingsPage";
+import SavedPage from "./pages/SavedPage";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -42,6 +43,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/auth/callback" element={<LoginCallbackPage />} />
             <Route path="/user/:id" element={<UserProfilePage />} />
             <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/saved" element={<SavedPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

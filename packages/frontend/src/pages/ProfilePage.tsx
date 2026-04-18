@@ -1,6 +1,7 @@
 import { useAuth } from "../hooks/useAuth";
 import { useFollow } from "../hooks/useFollow";
 import { useNavigate } from "react-router-dom";
+import { CollectionList } from "../components/CollectionList";
 
 export default function ProfilePage() {
   const { user, isAuthenticated, isLoading } = useAuth();
@@ -80,6 +81,14 @@ export default function ProfilePage() {
             <dd className="text-gray-900">{user.profile_public ? "Public" : "Private"}</dd>
           </div>
         </dl>
+      </div>
+
+      {/* Collections */}
+      <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          My Collections
+        </h2>
+        <CollectionList />
       </div>
     </div>
   );
