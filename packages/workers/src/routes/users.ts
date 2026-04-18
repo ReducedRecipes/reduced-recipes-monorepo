@@ -17,6 +17,7 @@ import type { User, Collection } from '@rr/shared';
 import { isValidRestriction, restrictionsToMask } from '@rr/shared/dietary';
 import { requireAuth, optionalAuth } from '../middleware/auth';
 import { deleteAllSessions } from '../lib/session';
+import { parseLimit, paginateRows } from '../helpers/pagination';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string; user: User } };
 
@@ -301,8 +302,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   }
 
   const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
+  const limit = parseLimit(c.req.query('limit'));
 
   let sql = `SELECT u.id, u.name, u.picture_url, f.created_at as followed_at
     FROM follows f
@@ -326,12 +326,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
     followed_at: string;
   }[];
 
-  let next_cursor: string | null = null;
-  if (rows.length > limit) {
-    rows.pop();
-    const lastRow = rows[rows.length - 1];
-    next_cursor = lastRow ? lastRow.followed_at : null;
-  }
+  const { next_cursor } = paginateRows(rows, limit, 'followed_at');
 
   // If authenticated, check if requester follows each user
   let items: Array<{
@@ -396,8 +391,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
   }
 
   const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
+  const limit = parseLimit(c.req.query('limit'));
 
   let sql = `SELECT u.id, u.name, u.picture_url, f.created_at as followed_at
     FROM follows f
@@ -421,12 +415,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
     followed_at: string;
   }[];
 
-  let next_cursor: string | null = null;
-  if (rows.length > limit) {
-    rows.pop();
-    const lastRow = rows[rows.length - 1];
-    next_cursor = lastRow ? lastRow.followed_at : null;
-  }
+  const { next_cursor } = paginateRows(rows, limit, 'followed_at');
 
   let items: Array<{
     id: string;

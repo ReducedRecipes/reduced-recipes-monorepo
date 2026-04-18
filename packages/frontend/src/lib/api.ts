@@ -1,4 +1,5 @@
 import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification, Collection, BookmarkSyncAction, BookmarkSyncResult } from "@rr/shared";
+import { buildQuery } from "@rr/shared/build-query";
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE || ""}/api/v1`;
 
@@ -41,15 +42,6 @@ export interface RecipeListParams {
   min_time?: number;
   cursor?: string;
   limit?: number;
-}
-
-function buildQuery(params: { [key: string]: string | number | string[] | undefined }): string {
-  const sp = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null) sp.set(k, String(v));
-  }
-  const qs = sp.toString();
-  return qs ? `?${qs}` : "";
 }
 
 export function fetchRecipes(

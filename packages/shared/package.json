@@ -10,7 +10,8 @@
     "./rate-limit": "./src/rate-limit.ts",
     "./utils": "./src/utils.ts",
     "./dietary": "./src/dietary.ts",
-    "./env": "./src/env.ts"
+    "./env": "./src/env.ts",
+    "./build-query": "./src/build-query.ts"
   },
   "files": ["src"],
   "scripts": {

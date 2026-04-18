@@ -6,6 +6,7 @@ import type {
   BookmarkSyncAction,
   BookmarkSyncResult,
 } from "@rr/shared";
+import { buildQuery } from "@rr/shared/build-query";
 
 const BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE || "https://reducedrecipes.com"}/api/v1`;
 
@@ -20,15 +21,6 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
-}
-
-function buildQuery(params: Record<string, string | number | undefined>): string {
-  const sp = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null) sp.set(k, String(v));
-  }
-  const qs = sp.toString();
-  return qs ? `?${qs}` : "";
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
