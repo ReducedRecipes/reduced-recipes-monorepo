@@ -49,7 +49,6 @@ users.get('/api/v1/users/:id', optionalAuth, async (c) => {
 // ── PATCH /api/v1/users/me — update profile ─────────────────────────
 users.patch('/api/v1/users/me', requireAuth, async (c) => {
   const usersDB = c.env.USERS_DB;
-  const sessionKV = c.env.SESSION_KV;
   if (!usersDB) {
     return c.json({ error: { code: 'SERVER_ERROR', message: 'Users DB not configured' } }, 500);
   }

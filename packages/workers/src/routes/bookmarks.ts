@@ -206,9 +206,9 @@ bookmarks.get('/api/v1/bookmarks/search', requireAuth, async (c) => {
     `SELECT id, title, domain, image_url, total_time, cook_time, yields, cuisine
      FROM recipes
      WHERE id IN (${placeholders})
-       AND (title LIKE ? OR description LIKE ?)`,
+       AND (title LIKE ?)`,
   )
-    .bind(...recipeIds, searchPattern, searchPattern)
+    .bind(...recipeIds, searchPattern)
     .all();
 
   const recipes = (recipeResult.results ?? []) as unknown as {
