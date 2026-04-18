@@ -332,7 +332,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
   let items: Array<{
     id: string;
     name: string;
-    picture_url: string;
+    profile_image_url: string | null;
     is_following?: boolean;
   }>;
 
@@ -354,7 +354,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
       items = rows.map((r) => ({
         id: r.id,
         name: r.name,
-        picture_url: r.picture_url,
+        profile_image_url: r.picture_url,
         is_following: followingSet.has(r.id),
       }));
     } else {
@@ -364,7 +364,7 @@ users.get('/api/v1/users/:id/followers', optionalAuth, async (c) => {
     items = rows.map((r) => ({
       id: r.id,
       name: r.name,
-      picture_url: r.picture_url,
+      profile_image_url: r.picture_url,
     }));
   }
 
@@ -420,7 +420,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
   let items: Array<{
     id: string;
     name: string;
-    picture_url: string;
+    profile_image_url: string | null;
     is_following?: boolean;
   }>;
 
@@ -442,7 +442,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
       items = rows.map((r) => ({
         id: r.id,
         name: r.name,
-        picture_url: r.picture_url,
+        profile_image_url: r.picture_url,
         is_following: followingSet.has(r.id),
       }));
     } else {
@@ -452,7 +452,7 @@ users.get('/api/v1/users/:id/following', optionalAuth, async (c) => {
     items = rows.map((r) => ({
       id: r.id,
       name: r.name,
-      picture_url: r.picture_url,
+      profile_image_url: r.picture_url,
     }));
   }
 

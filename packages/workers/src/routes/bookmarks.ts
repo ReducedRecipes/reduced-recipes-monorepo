@@ -87,7 +87,7 @@ bookmarks.post('/api/v1/bookmarks', requireAuth, async (c) => {
   }
 
   return c.json(
-    { id, recipe_id: body.recipe_id, collection_id: collectionId, created_at: now },
+    { id, user_id: userId, recipe_id: body.recipe_id, collection_id: collectionId, created_at: now, updated_at: now, recipe_deleted_at: null },
     201,
   );
 });
