@@ -1,7 +1,8 @@
 import { Hono } from 'hono';
 import type { Env } from '@rr/shared/env';
-import type { ShoppingList } from '@rr/shared';
+import type { ShoppingList, ShoppingListItem, IngredientParseJob } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
+import { parseIngredient } from '../helpers/ingredient-parser';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
