@@ -52,7 +52,7 @@ vi.mock('@/stores/shopping.store', () => ({
   useShoppingStore: vi.fn((selector: any) => selector({ items: [] })),
 }));
 
-describe('ShoppingListScreen (S-31)', () => {
+describe('ShoppingListScreen (S-11)', () => {
   const filePath = resolve(__dirname, '../../app/(tabs)/list.tsx');
   const content = readFileSync(filePath, 'utf-8');
 
@@ -71,21 +71,51 @@ describe('ShoppingListScreen (S-31)', () => {
     expect(content).toContain('Add ingredients from recipe pages');
   });
 
-  it('renders grouped items by category', () => {
+  it('renders grouped items by backend category', () => {
     expect(content).toContain('groupedByCategory');
     expect(content).toContain('SectionList');
-    expect(content).toContain('PRODUCE');
-    expect(content).toContain('DAIRY');
-    expect(content).toContain('MEAT');
-    expect(content).toContain('PANTRY');
-    expect(content).toContain('SPICES');
-    expect(content).toContain('OTHER');
+    expect(content).toContain("'Produce'");
+    expect(content).toContain("'Dairy'");
+    expect(content).toContain("'Meat & Seafood'");
+    expect(content).toContain("'Pantry'");
+    expect(content).toContain("'Frozen'");
+    expect(content).toContain("'Bakery'");
+    expect(content).toContain("'Beverages'");
+    expect(content).toContain("'Spices & Seasonings'");
+    expect(content).toContain("'Other'");
+  });
+
+  it('has category icons for each category', () => {
+    expect(content).toContain('CATEGORY_ICONS');
+    expect(content).toContain('🥬');
+    expect(content).toContain('🧀');
+    expect(content).toContain('🥩');
+    expect(content).toContain('🫙');
+    expect(content).toContain('🧊');
+    expect(content).toContain('🍞');
+    expect(content).toContain('🥤');
+    expect(content).toContain('🌿');
+    expect(content).toContain('📦');
+  });
+
+  it('has distinct colours per category section', () => {
+    expect(content).toContain('CATEGORY_COLORS');
+    expect(content).toContain('bg-green-50');
+    expect(content).toContain('bg-yellow-50');
+    expect(content).toContain('bg-red-50');
+    expect(content).toContain('bg-amber-50');
+    expect(content).toContain('bg-blue-50');
   });
 
   it('toggles checked state on item press', () => {
     expect(content).toContain('toggle(item.id)');
     expect(content).toContain('item.checked');
     expect(content).toContain('line-through');
+  });
+
+  it('checked items are dimmed with opacity', () => {
+    expect(content).toContain('opacity-50');
+    expect(content).toContain('text-ink-muted');
   });
 
   it('adds manual items via bottom sheet', () => {
@@ -131,5 +161,15 @@ describe('ShoppingListScreen (S-31)', () => {
   it('renders checkbox with checked styling', () => {
     expect(content).toContain('bg-orange border-orange');
     expect(content).toContain('border-ink-faint');
+  });
+
+  it('shows item count badge in section headers', () => {
+    expect(content).toContain('.data.length');
+  });
+
+  it('shows progress bar when items are checked', () => {
+    expect(content).toContain('checkedCount');
+    expect(content).toContain('totalCount');
+    expect(content).toContain('items checked');
   });
 });
