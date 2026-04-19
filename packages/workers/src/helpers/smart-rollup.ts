@@ -10,11 +10,11 @@ export function rollupItems(items: ShoppingListItem[]): SmartRollupResponse {
   const checkedGroups = new Map<string, BucketGroup>();
 
   for (const item of items) {
-    const canonical = canonicalise(item.item ?? item.original_text);
+    const canonical = canonicalise(item);
     const groups = item.checked ? checkedGroups : uncheckedGroups;
 
     if (!groups.has(canonical)) {
-      groups.set(canonical, { canonical, buckets: [] });
+      groups.set(canonical, { canonical, category: item.category ?? 'Other', buckets: [] });
     }
 
     const group = groups.get(canonical)!;
@@ -40,14 +40,19 @@ interface Bucket {
 
 interface BucketGroup {
   canonical: string;
+  category: string;
   buckets: Bucket[];
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
 
-function canonicalise(raw: string): string {
-  let s = raw.toLowerCase().trim();
-  // basic singularisation: strip trailing 's' (but not 'ss')
+function canonicalise(item: ShoppingListItem): string {
+  // Prefer backend-resolved canonical_name when available
+  if (item.canonical_name) {
+    return item.canonical_name.toLowerCase().trim();
+  }
+  // Fallback: basic lowercase + singularise
+  let s = (item.item ?? item.original_text).toLowerCase().trim();
   if (s.length > 2 && s.endsWith('s') && !s.endsWith('ss')) {
     s = s.slice(0, -1);
   }
@@ -109,7 +114,7 @@ function flattenGroups(groups: Map<string, BucketGroup>): SmartRollupItem[] {
         display_text: buildDisplayText(group.canonical, bucket.totalQty, bucket.unit),
         total_quantity: bucket.totalQty,
         unit: bucket.unit,
-        category: 'Other',
+        category: group.category,
         sources: bucket.sources,
         ...(bucket.parsing ? { parsing: true } : {}),
       });

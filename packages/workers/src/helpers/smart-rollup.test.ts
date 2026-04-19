@@ -175,4 +175,57 @@ describe('rollupItems', () => {
     const result = rollupItems(items);
     expect(result.items.unchecked[0]!.canonical_item).toBe('salt and pepper');
   });
+
+  it('merges items with same canonical_name even if raw names differ', () => {
+    const items = [
+      makeItem({ id: '1', item: 'coriander leaf', canonical_name: 'cilantro', quantity: 1, unit: 'cup', original_text: '1 cup coriander leaf' }),
+      makeItem({ id: '2', item: 'cilantro', canonical_name: 'cilantro', quantity: 0.5, unit: 'cup', original_text: '1/2 cup cilantro' }),
+    ];
+    const result = rollupItems(items);
+    expect(result.items.unchecked).toHaveLength(1);
+    expect(result.items.unchecked[0]!.canonical_item).toBe('cilantro');
+    expect(result.items.unchecked[0]!.total_quantity).toBe(1.5);
+    expect(result.items.unchecked[0]!.sources).toHaveLength(2);
+  });
+
+  it('propagates category from items to rollup output', () => {
+    const items = [
+      makeItem({ id: '1', item: 'milk', category: 'Dairy', quantity: 2, unit: 'cup', original_text: '2 cups milk' }),
+      makeItem({ id: '2', item: 'chicken', category: 'Meat & Seafood', quantity: 1, unit: 'lb', original_text: '1 lb chicken' }),
+    ];
+    const result = rollupItems(items);
+    expect(result.items.unchecked).toHaveLength(2);
+    const categories = result.items.unchecked.map((i) => i.category).sort();
+    expect(categories).toEqual(['Dairy', 'Meat & Seafood']);
+  });
+
+  it('defaults category to Other when item has no category', () => {
+    const items = [
+      makeItem({ id: '1', item: 'mystery ingredient', category: null, quantity: 1, unit: null, original_text: 'mystery ingredient' }),
+    ];
+    const result = rollupItems(items);
+    expect(result.items.unchecked[0]!.category).toBe('Other');
+  });
+
+  it('uses category from first item in a rollup group', () => {
+    const items = [
+      makeItem({ id: '1', item: 'onion', canonical_name: 'onion', category: 'Produce', quantity: 2, unit: null, original_text: '2 onions' }),
+      makeItem({ id: '2', item: 'onion', canonical_name: 'onion', category: 'Produce', quantity: 1, unit: null, original_text: '1 onion' }),
+    ];
+    const result = rollupItems(items);
+    expect(result.items.unchecked).toHaveLength(1);
+    expect(result.items.unchecked[0]!.category).toBe('Produce');
+    expect(result.items.unchecked[0]!.total_quantity).toBe(3);
+  });
+
+  it('falls back to singularise when canonical_name is null', () => {
+    const items = [
+      makeItem({ id: '1', item: 'Onions', canonical_name: null, quantity: 3, unit: null, original_text: '3 onions' }),
+      makeItem({ id: '2', item: 'onion', canonical_name: null, quantity: 1, unit: null, original_text: '1 onion' }),
+    ];
+    const result = rollupItems(items);
+    expect(result.items.unchecked).toHaveLength(1);
+    expect(result.items.unchecked[0]!.canonical_item).toBe('onion');
+    expect(result.items.unchecked[0]!.total_quantity).toBe(4);
+  });
 });
