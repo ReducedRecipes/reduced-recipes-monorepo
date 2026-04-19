@@ -130,11 +130,20 @@ A shared API client is extracted to `@rr/shared/api-client.ts` to ensure consist
 **New Durable Object:** `ShoppingListDO` for real-time collaboration
 **New Queue:** `ingredient-parse-jobs` for async ingredient parsing
 
-**Known limitations (follow-up):**
-- Smart rollup (ingredient deduplication) is built but not exposed in UI yet — needs a "shopping mode" view that merges items while preserving individual check/delete
-- Deep linking for shared list URLs on mobile not yet implemented
+### Phase 2.5 — Shopping List UX & Ingredient Classification (follow-up)
 
-### Phase 3 — Ratings & Reviews (Weeks 14-18)
+| Deliverable | Description |
+|---|---|
+| Shopping mode view | "Shopping mode" that applies smart rollup — merges duplicate ingredients with aggregated quantities, expandable to show individual sources for check/delete |
+| Ingredient classification | Categorise parsed items into aisles/sections (Produce, Dairy, Meat, Pantry, Frozen, etc.) using Workers AI. Group items by category in the shopping list UI |
+| Rollup UX | When two recipes both need "flour", show "3 cups flour" with a badge "(from 2 recipes)" — tap to expand and see individual sources |
+| Better parsing | Improve ingredient parser to handle ranges ("1.8-2kg"), fractions ("1 ½"), descriptors ("large", "chopped"), and parenthetical notes ("(divided)") |
+| Mobile shopping list UI | Style and wire up the mobile shopping list screens (currently unstyled) — list view, detail view, add from recipe, share link |
+| Deep linking | Universal links / App Links for shared shopping list URLs on mobile |
+| Offline shopping mode | Offline check/uncheck with visual indicator for unsynced items, auto-sync on reconnect |
+| Recipe source badges | Show which recipe each ingredient came from in the list, with link back to the recipe |
+
+### Phase 3 — Ratings & Reviews
 
 | Deliverable | Description |
 |---|---|
