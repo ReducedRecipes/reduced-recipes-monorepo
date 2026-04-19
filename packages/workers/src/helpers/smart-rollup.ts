@@ -109,6 +109,7 @@ function flattenGroups(groups: Map<string, BucketGroup>): SmartRollupItem[] {
         display_text: buildDisplayText(group.canonical, bucket.totalQty, bucket.unit),
         total_quantity: bucket.totalQty,
         unit: bucket.unit,
+        category: 'Other',
         sources: bucket.sources,
         ...(bucket.parsing ? { parsing: true } : {}),
       });

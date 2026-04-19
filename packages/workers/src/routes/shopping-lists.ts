@@ -295,6 +295,8 @@ shoppingLists.post('/api/v1/shopping-lists/:id/items', requireAuth, async (c) =>
     quantity: body.quantity ?? parsed.quantity,
     unit: body.unit ?? (parsed.unit || null),
     item: parsed.canonical_name || body.name.trim().toLowerCase(),
+    canonical_name: null,
+    category: null,
     checked: 0,
     parse_failed: 0,
     parsing: 0,

@@ -176,6 +176,8 @@ export class ShoppingListDO extends DurableObject<Env> {
       quantity: null,
       unit: null,
       item: msg.item.text.toLowerCase(),
+      canonical_name: null,
+      category: null,
       checked: 0,
       parse_failed: 0,
       parsing: 0,
