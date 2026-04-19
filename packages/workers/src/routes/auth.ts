@@ -29,12 +29,43 @@ const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
 const AUTH_STATE_TTL = 600; // 10 minutes
 const SESSION_TTL = 30 * 24 * 60 * 60; // 30 days
 
+/**
+ * Validate return_to parameter to prevent open redirect attacks.
+ * Only allows relative paths (starting with /) and reducedrecipes:// deep links.
+ * Rejects absolute URLs to external domains that could exfiltrate session tokens.
+ */
+export function validateReturnTo(returnTo: string, fallback: string): string {
+  if (!returnTo) return fallback;
+
+  // Allow reducedrecipes:// deep links (mobile)
+  if (returnTo.startsWith('reducedrecipes://')) return returnTo;
+
+  // Reject protocol-relative URLs (//evil.com)
+  if (returnTo.startsWith('//')) return fallback;
+
+  // Allow relative paths only (must start with /)
+  if (returnTo.startsWith('/')) {
+    // Block path traversal tricks like /\evil.com or /@evil.com
+    // and encoded variants
+    try {
+      const decoded = decodeURIComponent(returnTo);
+      if (decoded.includes('\\') || decoded.startsWith('//')) return fallback;
+    } catch {
+      return fallback;
+    }
+    return returnTo;
+  }
+
+  // Reject everything else (http://, https://, javascript:, data:, etc.)
+  return fallback;
+}
+
 const auth = new Hono<AuthEnv>();
 
 // ── GET /api/v1/auth/google/url ──────────────────────────────────────────
 auth.get('/api/v1/auth/google/url', async (c) => {
   const platform = c.req.query('platform') || 'web';
-  const return_to = c.req.query('return_to') || '/';
+  const return_to = validateReturnTo(c.req.query('return_to') || '', '/');
   const intent = c.req.query('intent') || '';
 
   const sessionSecret = c.env.SESSION_SECRET;
@@ -188,7 +219,7 @@ auth.get('/api/v1/auth/google/callback', async (c) => {
   // Platform-aware response
   if (authState.platform === 'mobile') {
     // Redirect to app deep link with token so expo-web-browser can capture it
-    const returnTo = authState.return_to || 'reducedrecipes://auth/callback';
+    const returnTo = validateReturnTo(authState.return_to, 'reducedrecipes://auth/callback');
     const sep = returnTo.includes('?') ? '&' : '?';
     const mobileRedirect = `${returnTo}${sep}token=${sessionToken}&is_new_user=${isNewUser}`;
     return c.redirect(mobileRedirect, 302);
@@ -203,7 +234,7 @@ auth.get('/api/v1/auth/google/callback', async (c) => {
     path: '/',
   });
 
-  const returnTo = authState.return_to || '/';
+  const returnTo = validateReturnTo(authState.return_to, '/');
   const separator = returnTo.includes('?') ? '&' : '?';
   const redirectUrl = `${returnTo}${separator}status=success&is_new_user=${isNewUser}&session_token=${sessionToken}`;
   return c.redirect(redirectUrl, 302);
