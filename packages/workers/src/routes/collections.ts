@@ -4,6 +4,7 @@ import type { Collection, Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 import { parseLimit, paginateRows } from '../helpers/pagination';
 import { validateCollectionOwnership } from '../helpers/collection-ownership';
+import { validateName } from '../helpers/validation';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -29,14 +30,13 @@ collections.post('/api/v1/collections', requireAuth, async (c) => {
   const userId = c.get('userId');
   const body = await c.req.json<{ name: string; is_public?: boolean }>();
 
-  if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+  const name = validateName(body);
+  if (!name) {
     return c.json(
       { error: { code: 'INVALID_INPUT', message: 'name is required' } },
       400,
     );
   }
-
-  const name = body.name.trim();
 
   // Check for duplicate name
   const existing = await c.env.USERS_DB!.prepare(

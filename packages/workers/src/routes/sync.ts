@@ -7,6 +7,23 @@ type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
 const sync = new Hono<AuthEnv>();
 
+/** Build a conflict result by fetching the current server state for the given item. */
+async function buildConflictResult(
+  db: D1Database,
+  itemId: string,
+): Promise<ShoppingListItemSyncResult> {
+  const serverState = await db
+    .prepare('SELECT * FROM shopping_list_items WHERE id = ?')
+    .bind(itemId)
+    .first<ShoppingListItem>();
+  const conflict: ShoppingListItemSyncResult = {
+    item_id: itemId,
+    status: 'conflict',
+  };
+  if (serverState) conflict.server_state = serverState;
+  return conflict;
+}
+
 // POST /api/v1/sync/bookmarks — batch sync with last-write-wins
 sync.post('/api/v1/sync/bookmarks', requireAuth, async (c) => {
   const userId = c.get('userId');
@@ -149,17 +166,7 @@ sync.post('/api/v1/sync/shopping-list-items', requireAuth, async (c) => {
           .run();
         results.push({ item_id: action.item_id, status: 'applied' });
       } else {
-        const serverState = await c.env.USERS_DB!.prepare(
-          'SELECT * FROM shopping_list_items WHERE id = ?',
-        )
-          .bind(action.item_id)
-          .first<ShoppingListItem>();
-        const conflict: ShoppingListItemSyncResult = {
-          item_id: action.item_id,
-          status: 'conflict',
-        };
-        if (serverState) conflict.server_state = serverState;
-        results.push(conflict);
+        results.push(await buildConflictResult(c.env.USERS_DB!, action.item_id));
       }
     } else if (action.type === 'add_item' && action.text) {
       // Idempotent: check if an item with same text already exists (by item_id + action + timestamp)
@@ -218,17 +225,7 @@ sync.post('/api/v1/sync/shopping-list-items', requireAuth, async (c) => {
           .run();
         results.push({ item_id: action.item_id, status: 'applied' });
       } else {
-        const serverState = await c.env.USERS_DB!.prepare(
-          'SELECT * FROM shopping_list_items WHERE id = ?',
-        )
-          .bind(action.item_id)
-          .first<ShoppingListItem>();
-        const conflict: ShoppingListItemSyncResult = {
-          item_id: action.item_id,
-          status: 'conflict',
-        };
-        if (serverState) conflict.server_state = serverState;
-        results.push(conflict);
+        results.push(await buildConflictResult(c.env.USERS_DB!, action.item_id));
       }
     } else if (action.type === 'update_quantity' && action.item_id && action.quantity != null) {
       const existing = await c.env.USERS_DB!.prepare(
@@ -249,17 +246,7 @@ sync.post('/api/v1/sync/shopping-list-items', requireAuth, async (c) => {
           .run();
         results.push({ item_id: action.item_id, status: 'applied' });
       } else {
-        const serverState = await c.env.USERS_DB!.prepare(
-          'SELECT * FROM shopping_list_items WHERE id = ?',
-        )
-          .bind(action.item_id)
-          .first<ShoppingListItem>();
-        const conflict: ShoppingListItemSyncResult = {
-          item_id: action.item_id,
-          status: 'conflict',
-        };
-        if (serverState) conflict.server_state = serverState;
-        results.push(conflict);
+        results.push(await buildConflictResult(c.env.USERS_DB!, action.item_id));
       }
     }
   }
