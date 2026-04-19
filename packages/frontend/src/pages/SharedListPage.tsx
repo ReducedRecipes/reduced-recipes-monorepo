@@ -1,22 +1,46 @@
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
-import type { ShoppingListItem } from "@rr/shared";
+import type { SmartRollupItem } from "@rr/shared";
 
 interface SharedListResponse {
   id: string;
   name: string;
   items: {
-    unchecked: ShoppingListItem[];
-    checked: ShoppingListItem[];
+    unchecked: SmartRollupItem[];
+    checked: SmartRollupItem[];
   };
 }
 
-function formatItem(item: ShoppingListItem): string {
-  if (item.item) {
-    return `${item.quantity ?? ""} ${item.unit ?? ""} ${item.item}`.trim();
+const CATEGORY_ORDER = [
+  "Produce",
+  "Dairy",
+  "Meat & Seafood",
+  "Pantry",
+  "Frozen",
+  "Bakery",
+  "Beverages",
+  "Spices & Seasonings",
+  "Other",
+] as const;
+
+function groupByCategory(
+  items: SmartRollupItem[],
+): { category: string; items: SmartRollupItem[] }[] {
+  const groups = new Map<string, SmartRollupItem[]>();
+  for (const item of items) {
+    const cat = item.category || "Other";
+    const list = groups.get(cat);
+    if (list) {
+      list.push(item);
+    } else {
+      groups.set(cat, [item]);
+    }
   }
-  return item.original_text;
+  return CATEGORY_ORDER.filter((c) => groups.has(c)).map((c) => ({
+    category: c,
+    items: groups.get(c)!,
+  }));
 }
 
 export default function SharedListPage() {
@@ -36,33 +60,22 @@ export default function SharedListPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ checked }),
       }),
-    onMutate: async ({ itemId, checked }) => {
-      await queryClient.cancelQueries({ queryKey: ["shared-list", token] });
-      const previous = queryClient.getQueryData<SharedListResponse>(["shared-list", token]);
-      if (previous) {
-        const allItems = [...previous.items.unchecked, ...previous.items.checked];
-        const updated = allItems.map((item) =>
-          item.id === itemId ? { ...item, checked } : item,
-        );
-        queryClient.setQueryData<SharedListResponse>(["shared-list", token], {
-          ...previous,
-          items: {
-            unchecked: updated.filter((i) => !i.checked),
-            checked: updated.filter((i) => i.checked),
-          },
-        });
-      }
-      return { previous };
-    },
-    onError: (_err, _vars, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["shared-list", token], context.previous);
-      }
-    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
     },
   });
+
+  const handleCheckItem = (item: SmartRollupItem) => {
+    for (const source of item.sources) {
+      toggleItem.mutate({ itemId: source.item_id, checked: 1 });
+    }
+  };
+
+  const handleUncheckItem = (item: SmartRollupItem) => {
+    for (const source of item.sources) {
+      toggleItem.mutate({ itemId: source.item_id, checked: 0 });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -85,6 +98,7 @@ export default function SharedListPage() {
 
   const unchecked = list.items?.unchecked ?? [];
   const checked = list.items?.checked ?? [];
+  const categoryGroups = groupByCategory(unchecked);
 
   return (
     <div className="mx-auto max-w-2xl py-8">
@@ -95,21 +109,31 @@ export default function SharedListPage() {
         <p className="text-gray-500 text-center py-8">This list is empty.</p>
       ) : (
         <>
-          {unchecked.length > 0 && (
-            <div className="space-y-1 mb-6">
-              {unchecked.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  onClick={() => toggleItem.mutate({ itemId: item.id, checked: 1 })}
-                  className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                >
-                  <div className="h-5 w-5 shrink-0 rounded border-2 border-gray-300" />
-                  <span className="text-sm text-gray-900">{formatItem(item)}</span>
-                </button>
-              ))}
+          {categoryGroups.map(({ category, items }) => (
+            <div key={category} className="mb-6">
+              <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 mb-2">
+                {category}
+              </h3>
+              <div className="space-y-1">
+                {items.map((item) => (
+                  <button
+                    key={item.canonical_item}
+                    type="button"
+                    onClick={() => handleCheckItem(item)}
+                    className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left hover:bg-gray-50 transition-colors"
+                  >
+                    <div className="h-5 w-5 shrink-0 rounded border-2 border-gray-300" />
+                    <span className="text-sm text-gray-900">{item.display_text}</span>
+                    {item.sources.length > 1 && (
+                      <span className="ml-auto text-xs text-gray-400">
+                        from {item.sources.length} recipes
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
             </div>
-          )}
+          ))}
 
           {checked.length > 0 && (
             <div>
@@ -119,9 +143,9 @@ export default function SharedListPage() {
               <div className="space-y-1">
                 {checked.map((item) => (
                   <button
-                    key={item.id}
+                    key={item.canonical_item}
                     type="button"
-                    onClick={() => toggleItem.mutate({ itemId: item.id, checked: 0 })}
+                    onClick={() => handleUncheckItem(item)}
                     className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-left hover:bg-gray-100 transition-colors"
                   >
                     <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-orange-500 bg-orange-500">
@@ -129,7 +153,7 @@ export default function SharedListPage() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                       </svg>
                     </div>
-                    <span className="text-sm text-gray-400 line-through">{formatItem(item)}</span>
+                    <span className="text-sm text-gray-400 line-through">{item.display_text}</span>
                   </button>
                 ))}
               </div>
