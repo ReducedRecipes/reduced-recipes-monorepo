@@ -340,9 +340,9 @@ describe('POST /api/v1/sync/shopping-list-items', () => {
       }],
     });
     expect(res.status).toBe(200);
-    const json = await res.json() as { applied: number; conflicts: unknown[] };
-    expect(json.applied).toBe(1);
-    expect(json.conflicts).toHaveLength(0);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
   });
 
   it('returns conflict on check_item when server is newer', async () => {
@@ -359,10 +359,9 @@ describe('POST /api/v1/sync/shopping-list-items', () => {
       }],
     });
     expect(res.status).toBe(200);
-    const json = await res.json() as { applied: number; conflicts: Array<{ status: string }> };
-    expect(json.applied).toBe(0);
-    expect(json.conflicts).toHaveLength(1);
-    expect(json.conflicts[0]!.status).toBe('conflict');
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('conflict');
   });
 
   it('applies add_item action', async () => {
@@ -376,9 +375,9 @@ describe('POST /api/v1/sync/shopping-list-items', () => {
       }],
     });
     expect(res.status).toBe(200);
-    const json = await res.json() as { applied: number; conflicts: unknown[] };
-    expect(json.applied).toBe(1);
-    expect(json.conflicts).toHaveLength(0);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
   });
 
   it('applies add_item idempotently when item_id already exists', async () => {
@@ -395,8 +394,9 @@ describe('POST /api/v1/sync/shopping-list-items', () => {
       }],
     });
     expect(res.status).toBe(200);
-    const json = await res.json() as { applied: number; conflicts: unknown[] };
-    expect(json.applied).toBe(1);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
   });
 
   it('applies remove_item when client is newer', async () => {
@@ -412,8 +412,9 @@ describe('POST /api/v1/sync/shopping-list-items', () => {
       }],
     });
     expect(res.status).toBe(200);
-    const json = await res.json() as { applied: number; conflicts: unknown[] };
-    expect(json.applied).toBe(1);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
   });
 
   it('applies remove_item idempotently when already deleted', async () => {
@@ -427,8 +428,9 @@ describe('POST /api/v1/sync/shopping-list-items', () => {
       }],
     });
     expect(res.status).toBe(200);
-    const json = await res.json() as { applied: number; conflicts: unknown[] };
-    expect(json.applied).toBe(1);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
   });
 
   it('skips actions for lists the user does not own', async () => {
@@ -443,8 +445,26 @@ describe('POST /api/v1/sync/shopping-list-items', () => {
       }],
     });
     expect(res.status).toBe(200);
-    const json = await res.json() as { applied: number; conflicts: unknown[] };
-    expect(json.applied).toBe(0);
-    expect(json.conflicts).toHaveLength(0);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(0);
+  });
+
+  it('accepts mutations field name (mobile compat)', async () => {
+    const env = createSyncEnv({
+      existingItem: { id: 'item-1', checked: 0, updated_at: '2024-01-01T00:00:00.000Z', shopping_list_id: 'list-1' },
+    });
+    const res = await postShoppingListSync(env, {
+      mutations: [{
+        shopping_list_id: 'list-1',
+        type: 'check_item',
+        item_id: 'item-1',
+        checked: true,
+        client_timestamp: '2024-06-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
   });
 });
