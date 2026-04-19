@@ -531,12 +531,12 @@ export interface SyncShoppingListItemsResponse {
 }
 
 export function syncShoppingListItems(
-  shopping_list_id: string,
-  mutations: ShoppingListItemSyncAction[],
+  _shopping_list_id: string,
+  actions: ShoppingListItemSyncAction[],
 ): Promise<SyncShoppingListItemsResponse> {
   return request<SyncShoppingListItemsResponse>("/sync/shopping-list-items", {
     method: "POST",
-    body: JSON.stringify({ shopping_list_id, mutations }),
+    body: JSON.stringify({ actions }),
   });
 }
 
