@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
   useShoppingList,
@@ -110,53 +110,110 @@ function RollupItemRow({
   onDelete: () => void;
   isChecked?: boolean;
 }) {
+  const [expanded, setExpanded] = useState(false);
+  const uniqueRecipeIds = new Set(
+    item.sources.filter((s) => s.recipe_id).map((s) => s.recipe_id),
+  );
+  const recipeCount = uniqueRecipeIds.size;
+  const hasMultipleSources = recipeCount >= 2;
+  const singleSource =
+    recipeCount === 1
+      ? item.sources.find((s) => s.recipe_id)
+      : null;
+
   return (
-    <div className="flex items-center gap-3 py-2 group">
-      <button
-        onClick={onToggle}
-        className={`flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
-          isChecked
-            ? "border-orange-500 bg-orange-500 text-white"
-            : "border-gray-300 hover:border-orange-400"
-        }`}
-      >
-        {isChecked && (
-          <svg
-            className="h-3 w-3"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M2 6l3 3 5-5" />
-          </svg>
-        )}
-      </button>
-      <span
-        className={`flex-1 text-sm ${
-          isChecked ? "text-gray-400 line-through" : "text-gray-900"
-        }`}
-      >
-        {item.display_text}
-      </span>
-      <button
-        onClick={onDelete}
-        className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
-        title="Remove item"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4"
-          viewBox="0 0 20 20"
-          fill="currentColor"
+    <div className="py-2 group">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onToggle}
+          className={`flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
+            isChecked
+              ? "border-orange-500 bg-orange-500 text-white"
+              : "border-gray-300 hover:border-orange-400"
+          }`}
         >
-          <path
-            fillRule="evenodd"
-            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </button>
+          {isChecked && (
+            <svg
+              className="h-3 w-3"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M2 6l3 3 5-5" />
+            </svg>
+          )}
+        </button>
+        <div
+          className={`flex-1 min-w-0 ${hasMultipleSources ? "cursor-pointer" : ""}`}
+          onClick={hasMultipleSources ? () => setExpanded(!expanded) : undefined}
+        >
+          <div className="flex items-center gap-2 flex-wrap">
+            <span
+              className={`text-sm ${
+                isChecked ? "text-gray-400 line-through" : "text-gray-900"
+              }`}
+            >
+              {item.display_text}
+            </span>
+            {hasMultipleSources && (
+              <span className="inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                from {recipeCount} recipes
+              </span>
+            )}
+            {singleSource && singleSource.recipe_id && (
+              <Link
+                to={`/recipe/${singleSource.recipe_id}`}
+                className="text-xs text-orange-600 hover:text-orange-800 hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                View recipe
+              </Link>
+            )}
+          </div>
+        </div>
+        <button
+          onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
+          title="Remove item"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
+      {hasMultipleSources && expanded && (
+        <div className="ml-8 mt-1 space-y-1 border-l-2 border-orange-200 pl-3">
+          {item.sources
+            .filter((s) => s.recipe_id)
+            .map((source) => (
+              <div
+                key={source.item_id}
+                className="flex items-center gap-2 text-xs text-gray-600"
+              >
+                <span className="truncate">
+                  {source.original_text || item.canonical_item}
+                  {source.quantity != null && ` (${source.quantity}${item.unit ? ` ${item.unit}` : ""})`}
+                </span>
+                <Link
+                  to={`/recipe/${source.recipe_id}`}
+                  className="flex-shrink-0 text-orange-600 hover:text-orange-800 hover:underline"
+                >
+                  View recipe
+                </Link>
+              </div>
+            ))}
+        </div>
+      )}
     </div>
   );
 }
