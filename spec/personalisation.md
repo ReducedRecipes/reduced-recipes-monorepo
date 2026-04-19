@@ -104,19 +104,23 @@ A shared API client is extracted to `@rr/shared/api-client.ts` to ensure consist
 **PRs merged:** #163–#182 (20 PRs) + bug fixes (TS errors, migration, mobile tests)
 **Migration added:** `0002_follows.sql` — follows table for the follow system
 
-### Phase 2 — Shopping Lists (Weeks 8-13)
+### Phase 2 — Shopping Lists ✅ Completed 2026-04-19
 
-| Deliverable | Description |
-|---|---|
-| Shopping list CRUD | Multiple lists with a default list |
-| Ingredient parsing | Reuses dietary inference infrastructure: rule-based pre-pass + Workers AI for ambiguous items |
-| Smart rollup | Cross-recipe ingredient deduplication and quantity aggregation |
-| Manual items | Users can add free-text items to any list |
-| Check-off | Mark items as purchased while shopping |
-| Shareable links | Share tokens with full edit access, 7-day default expiry (renewable by owner) |
-| Real-time collaboration | Durable Objects for live multi-user editing with sequence-based reconnection |
-| Offline shopping lists | Local cache with offline check/uncheck, queued mutations, batch sync endpoint |
-| Deep linking | Universal links / App Links for shared shopping list URLs |
+| Deliverable | Status | Notes |
+|---|---|---|
+| Shopping list CRUD | ✅ Done | `GET/POST /shopping-lists`, `PATCH/DELETE /shopping-lists/:id`. Multiple lists with default list. Items with quantities/units/categories. |
+| Ingredient parsing | ✅ Done | Rule-based pre-pass + Workers AI fallback via `ingredient-parser.ts`. Queue consumer for async parsing. |
+| Smart rollup | ✅ Done | `smart-rollup.ts` — cross-recipe deduplication with quantity aggregation and unit normalisation. |
+| Manual items | ✅ Done | `POST /shopping-lists/:id/items` with `source: "manual"`. |
+| Check-off | ✅ Done | `PATCH /shopping-lists/:id/items/:itemId` to toggle checked status. |
+| Shareable links | ✅ Done | `POST /shopping-lists/:id/share`, `DELETE /shopping-lists/:id/share`, `GET /shopping-lists/shared/:token`. 7-day expiry, renewable. |
+| Real-time collaboration | ✅ Done | `ShoppingListDO` Durable Object for live multi-user editing. WebSocket upgrade route. `useShoppingListSocket` frontend hook. |
+| Offline shopping lists | ✅ Done | Mobile `shopping-sync.store.ts` with offline mutation queue and batch sync endpoint. |
+| Unit normalisation | ✅ Done | `unit-normalisation.ts` shared helper for converting between units (cups, tbsp, ml, etc.). |
+
+**PRs merged:** #184–#228 (34 PRs across two orchestrator runs + bug fixes)
+**Migrations added:** `0003_shopping_lists.sql`, `0004_fix_shopping_list_schema.sql`, `0005_fix_schema_constraints.sql`
+**New Durable Object:** `ShoppingListDO` for real-time collaboration
 
 ### Phase 3 — Ratings & Reviews (Weeks 14-18)
 
