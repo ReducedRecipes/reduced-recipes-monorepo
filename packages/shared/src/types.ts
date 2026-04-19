@@ -140,29 +140,13 @@ export interface BookmarkSyncResult {
 export interface ShoppingList {
   id: string;
   user_id: string;
+  collection_id: string | null;
   name: string;
   is_default: number;
   share_token: string | null;
-  share_token_expires_at: string | null;
-  collection_id: string | null;
+  share_expires_at: string | null;
   created_at: string;
   updated_at: string;
-}
-
-/** An item within a shopping list. */
-export interface ShoppingListItem {
-  id: string;
-  shopping_list_id: string;
-  recipe_id: string | null;
-  name: string;
-  canonical_name: string;
-  quantity: number | null;
-  unit: string | null;
-  checked: number;
-  is_manual: number;
-  parsing: number;
-  original_text: string | null;
-  created_at: string;
 }
 
 /** Association between a shopping list and a recipe. */
@@ -172,21 +156,68 @@ export interface ShoppingListRecipe {
   added_at: string;
 }
 
+/** An item within a shopping list. */
+export interface ShoppingListItem {
+  id: string;
+  shopping_list_id: string;
+  recipe_id: string | null;
+  original_text: string;
+  quantity: number | null;
+  unit: string | null;
+  item: string | null;
+  checked: number;
+  parse_failed: number;
+  parsing: number;
+  source: 'recipe' | 'manual';
+  position: number;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Job enqueued for ingredient parsing. */
 export interface IngredientParseJob {
   shopping_list_id: string;
   recipe_id: string;
-  item_ids: string[];
-  ingredients: string[];
+  items: { id: string; original_text: string }[];
 }
 
 /** A sync action for shopping list items. */
-export interface ShoppingListSyncAction {
-  action: 'check' | 'uncheck' | 'add' | 'remove';
-  item_id: string;
-  timestamp: string;
-  item_data?: { name: string; quantity?: number; unit?: string };
+export interface ShoppingListItemSyncAction {
+  shopping_list_id: string;
+  type: 'check_item' | 'add_item' | 'remove_item' | 'update_quantity';
+  item_id?: string;
+  text?: string;
+  checked?: boolean;
+  quantity?: number;
+  client_timestamp: string;
 }
+
+/** Result of a single shopping list item sync action. */
+export interface ShoppingListItemSyncResult {
+  item_id?: string;
+  status: 'applied' | 'conflict';
+  server_state?: ShoppingListItem;
+}
+
+/** WebSocket message from client to server. */
+export type ClientMessage =
+  | { type: 'add_item'; item: { text: string } }
+  | { type: 'check_item'; item_id: string; checked: boolean }
+  | { type: 'remove_item'; item_id: string }
+  | { type: 'update_quantity'; item_id: string; quantity: number }
+  | { type: 'uncheck_all' }
+  | { type: 'reconnect'; last_seq: number };
+
+/** WebSocket message from server to client. */
+export type ServerMessage =
+  | { type: 'state'; items: ShoppingListItem[]; seq: number }
+  | { type: 'item_added'; item: ShoppingListItem; seq: number }
+  | { type: 'item_checked'; item_id: string; checked: boolean; seq: number }
+  | { type: 'item_removed'; item_id: string; seq: number }
+  | { type: 'item_updated'; item: ShoppingListItem; seq: number }
+  | { type: 'all_unchecked'; seq: number }
+  | { type: 'parsing_complete'; items: ShoppingListItem[]; seq: number }
+  | { type: 'error'; message: string };
 
 /** Source item contributing to a smart rollup entry. */
 export interface SmartRollupSource {
