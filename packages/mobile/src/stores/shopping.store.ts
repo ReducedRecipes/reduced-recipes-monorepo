@@ -12,6 +12,7 @@ import {
   deleteShoppingListItem,
   uncheckAllShoppingListItems,
 } from "../lib/api";
+import { useShoppingSyncStore } from "./shopping-sync.store";
 
 export interface ShoppingItem {
   id: string;
@@ -44,7 +45,7 @@ interface ShoppingState {
   selectList: (listId: string) => Promise<void>;
   createList: (name: string) => Promise<ShoppingList | null>;
 
-  // CRUD operations (server when online, local when offline)
+  // CRUD operations (server when online, queued when offline)
   addFromRecipe: (
     recipeId: string,
     recipeTitle: string,
@@ -136,14 +137,23 @@ export const useShoppingStore = create<ShoppingState>()(
         }));
         set((state) => ({ items: [...state.items, ...newItems] }));
 
-        // Fire-and-forget server calls when online
         const { isOnline, activeListId } = get();
-        if (isOnline && activeListId) {
-          for (const ingredient of ingredients) {
-            addShoppingListItem(activeListId, {
-              text: ingredient,
-              recipe_id: recipeId,
-            }).catch(() => {});
+        if (activeListId) {
+          if (isOnline) {
+            for (const ingredient of ingredients) {
+              addShoppingListItem(activeListId, {
+                text: ingredient,
+                recipe_id: recipeId,
+              }).catch(() => {});
+            }
+          } else {
+            for (const ingredient of ingredients) {
+              useShoppingSyncStore.getState().enqueue({
+                shopping_list_id: activeListId,
+                type: "add_item",
+                text: ingredient,
+              });
+            }
           }
         }
       },
@@ -160,8 +170,16 @@ export const useShoppingStore = create<ShoppingState>()(
         set((state) => ({ items: [...state.items, item] }));
 
         const { isOnline, activeListId } = get();
-        if (isOnline && activeListId) {
-          addShoppingListItem(activeListId, { text }).catch(() => {});
+        if (activeListId) {
+          if (isOnline) {
+            addShoppingListItem(activeListId, { text }).catch(() => {});
+          } else {
+            useShoppingSyncStore.getState().enqueue({
+              shopping_list_id: activeListId,
+              type: "add_item",
+              text,
+            });
+          }
         }
       },
 
@@ -174,10 +192,19 @@ export const useShoppingStore = create<ShoppingState>()(
 
         const { isOnline, activeListId, items } = get();
         const item = items.find((i) => i.id === id);
-        if (isOnline && activeListId && item) {
-          updateShoppingListItem(activeListId, id, {
-            checked: item.checked,
-          }).catch(() => {});
+        if (activeListId && item) {
+          if (isOnline) {
+            updateShoppingListItem(activeListId, id, {
+              checked: item.checked,
+            }).catch(() => {});
+          } else {
+            useShoppingSyncStore.getState().enqueue({
+              shopping_list_id: activeListId,
+              type: "check_item",
+              item_id: id,
+              checked: item.checked,
+            });
+          }
         }
       },
 
@@ -187,8 +214,16 @@ export const useShoppingStore = create<ShoppingState>()(
         }));
 
         const { isOnline, activeListId } = get();
-        if (isOnline && activeListId) {
-          deleteShoppingListItem(activeListId, id).catch(() => {});
+        if (activeListId) {
+          if (isOnline) {
+            deleteShoppingListItem(activeListId, id).catch(() => {});
+          } else {
+            useShoppingSyncStore.getState().enqueue({
+              shopping_list_id: activeListId,
+              type: "remove_item",
+              item_id: id,
+            });
+          }
         }
       },
 
@@ -199,9 +234,19 @@ export const useShoppingStore = create<ShoppingState>()(
         }));
 
         const { isOnline, activeListId } = get();
-        if (isOnline && activeListId) {
-          for (const id of checkedIds) {
-            deleteShoppingListItem(activeListId, id).catch(() => {});
+        if (activeListId) {
+          if (isOnline) {
+            for (const id of checkedIds) {
+              deleteShoppingListItem(activeListId, id).catch(() => {});
+            }
+          } else {
+            for (const id of checkedIds) {
+              useShoppingSyncStore.getState().enqueue({
+                shopping_list_id: activeListId,
+                type: "remove_item",
+                item_id: id,
+              });
+            }
           }
         }
       },
@@ -211,9 +256,19 @@ export const useShoppingStore = create<ShoppingState>()(
         set({ items: [] });
 
         const { isOnline, activeListId } = get();
-        if (isOnline && activeListId) {
-          for (const id of allIds) {
-            deleteShoppingListItem(activeListId, id).catch(() => {});
+        if (activeListId) {
+          if (isOnline) {
+            for (const id of allIds) {
+              deleteShoppingListItem(activeListId, id).catch(() => {});
+            }
+          } else {
+            for (const id of allIds) {
+              useShoppingSyncStore.getState().enqueue({
+                shopping_list_id: activeListId,
+                type: "remove_item",
+                item_id: id,
+              });
+            }
           }
         }
       },
@@ -224,8 +279,22 @@ export const useShoppingStore = create<ShoppingState>()(
         }));
 
         const { isOnline, activeListId } = get();
-        if (isOnline && activeListId) {
-          uncheckAllShoppingListItems(activeListId).catch(() => {});
+        if (activeListId) {
+          if (isOnline) {
+            uncheckAllShoppingListItems(activeListId).catch(() => {});
+          } else {
+            // Queue individual check_item mutations for each checked item
+            // since the sync endpoint doesn't have an uncheck_all type
+            const checkedItems = get().items.filter((i) => i.checked);
+            for (const item of checkedItems) {
+              useShoppingSyncStore.getState().enqueue({
+                shopping_list_id: activeListId,
+                type: "check_item",
+                item_id: item.id,
+                checked: false,
+              });
+            }
+          }
         }
       },
     }),
