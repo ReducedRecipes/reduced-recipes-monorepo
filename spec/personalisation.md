@@ -134,14 +134,43 @@ A shared API client is extracted to `@rr/shared/api-client.ts` to ensure consist
 
 | Deliverable | Description |
 |---|---|
-| Shopping mode view | "Shopping mode" that applies smart rollup — merges duplicate ingredients with aggregated quantities, expandable to show individual sources for check/delete |
-| Ingredient classification | Categorise parsed items into aisles/sections (Produce, Dairy, Meat, Pantry, Frozen, etc.) using Workers AI. Group items by category in the shopping list UI |
+| Ingredient canon system | Self-building ingredient knowledge base. New `ingredient_canon` D1 table stores canonical name, aliases, and category per unique ingredient. First encounter → Workers AI classifies once → stored permanently. Subsequent lookups are D1/KV cache hits (zero AI cost). Handles synonyms like cilantro = coriander leaf, aubergine = eggplant across cuisines. |
+| Aisle/category classification | Each canonical ingredient maps to a store category (Produce, Dairy, Meat & Seafood, Pantry, Frozen, Bakery, Beverages, Spices & Seasonings, etc.). Shopping list UI groups items by category for efficient shopping. |
+| Canonical deduplication | Smart rollup uses canonical names — "coriander leaf" from one recipe and "cilantro" from another merge into a single "cilantro" line with aggregated quantities. |
+| KV cache layer | Hot ingredients cached in KV (`ingredient:{normalised_name}`) with 30-day TTL. Estimated ~2,000-5,000 unique ingredients total — after warm-up, virtually all lookups are free KV hits. |
+| Quantity normalisation | Convert between unit systems (cups ↔ ml, lbs ↔ kg, tbsp ↔ ml). Handle ranges ("1.8-2kg" → use midpoint or upper bound), mixed fractions ("1 ½"), and descriptors stripped before comparison ("large onion" → "onion"). |
+| Shopping mode view | "Shopping mode" that applies smart rollup — merges duplicate ingredients with aggregated quantities, expandable to show individual sources for check/delete. Items grouped by store category. |
 | Rollup UX | When two recipes both need "flour", show "3 cups flour" with a badge "(from 2 recipes)" — tap to expand and see individual sources |
 | Better parsing | Improve ingredient parser to handle ranges ("1.8-2kg"), fractions ("1 ½"), descriptors ("large", "chopped"), and parenthetical notes ("(divided)") |
 | Mobile shopping list UI | Style and wire up the mobile shopping list screens (currently unstyled) — list view, detail view, add from recipe, share link |
 | Deep linking | Universal links / App Links for shared shopping list URLs on mobile |
 | Offline shopping mode | Offline check/uncheck with visual indicator for unsynced items, auto-sync on reconnect |
 | Recipe source badges | Show which recipe each ingredient came from in the list, with link back to the recipe |
+
+#### Ingredient Canon Architecture
+
+```
+User adds "coriander leaf" to shopping list
+  ↓
+Parser extracts: item = "coriander leaf"
+  ↓
+Lookup ingredient_canon table (D1) or KV cache
+  ↓ miss
+Workers AI: "What is the canonical English name and store category for 'coriander leaf'?"
+  → { canonical: "cilantro", category: "Produce", aliases: ["coriander leaf", "fresh coriander"] }
+  ↓
+Store in ingredient_canon table + KV cache
+  ↓
+Shopping list item stored with canonical_name = "cilantro", category = "Produce"
+  ↓
+Next user adds "cilantro" → KV hit → same canonical → smart rollup merges them
+```
+
+**Cost model:**
+- Workers AI: ~2,000-5,000 calls total (once per unique ingredient, ever). Free tier covers 10,000 neurons/day.
+- KV reads: free tier covers 100,000/day. Ingredient lookups are negligible.
+- D1: one read per cache miss. Pennies at scale.
+- After warm-up period: effectively zero ongoing cost.
 
 ### Phase 3 — Ratings & Reviews
 
