@@ -574,7 +574,7 @@ shoppingLists.get('/api/v1/shopping-lists/:id/ws', async (c) => {
     getCookie(c, 'session');
 
   if (sessionToken) {
-    const sessionData = await c.env.SESSION_KV?.get(sessionToken);
+    const sessionData = await c.env.SESSION_KV?.get(`session:${sessionToken}`);
     if (sessionData) {
       const session = JSON.parse(sessionData) as { userId?: string; user_id?: string };
       userId = session.userId ?? session.user_id ?? null;

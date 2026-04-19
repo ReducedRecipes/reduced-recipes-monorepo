@@ -825,3 +825,56 @@ describe('POST /api/v1/shopping-lists/:id/uncheck-all', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// ── S-11: WebSocket upgrade route tests ───────────────────────────────
+
+describe('GET /api/v1/shopping-lists/:id/ws', () => {
+  it('returns 426 when no Upgrade header present', async () => {
+    const list = { id: 'list-1', user_id: 'user-1', name: 'Test', is_default: 1, share_token: null, share_expires_at: null, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' };
+    const env = makeEnv(createMockUsersDB({ listById: list }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/ws', env, {
+      headers: { Authorization: 'Bearer valid-token' },
+    });
+    expect(res.status).toBe(426);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('UPGRADE_REQUIRED');
+  });
+
+  it('returns 401 when no auth provided', async () => {
+    const env = makeEnv(createMockUsersDB());
+
+    const res = await req('/api/v1/shopping-lists/list-1/ws', env, {
+      headers: { Upgrade: 'websocket' },
+    });
+    expect(res.status).toBe(401);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('UNAUTHORIZED');
+  });
+
+  it('returns 404 when authenticated user does not own the list', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/ws', env, {
+      headers: { Authorization: 'Bearer valid-token', Upgrade: 'websocket' },
+    });
+    expect(res.status).toBe(404);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 403 when share token is invalid', async () => {
+    // No session auth, invalid share token — validateShareToken returns false (listById null)
+    const kvStore = new Map<string, string>();
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+    // Override SESSION_KV to have no valid session
+    env.SESSION_KV = createMockKV(kvStore);
+
+    const res = await req('/api/v1/shopping-lists/list-1/ws?share_token=bad-token', env, {
+      headers: { Upgrade: 'websocket' },
+    });
+    expect(res.status).toBe(403);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('FORBIDDEN');
+  });
+});
