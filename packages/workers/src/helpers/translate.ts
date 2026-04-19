@@ -17,6 +17,23 @@ const LANG_NAMES: Record<string, string> = {
 };
 
 /**
+ * Cheap translation via m2m100 — good for short items like ingredients.
+ */
+async function translateCheap(
+  text: string,
+  sourceLang: string,
+  ai: Ai,
+): Promise<string> {
+  if (!text.trim()) return text;
+  const result = (await ai.run('@cf/meta/m2m100-1.2b', {
+    text,
+    source_lang: sourceLang,
+    target_lang: 'en',
+  })) as { translated_text?: string };
+  return result?.translated_text ?? text;
+}
+
+/**
  * Translate text using Llama 3.1 with recipe-aware prompting.
  */
 async function translateWithLlama(
@@ -74,32 +91,37 @@ export async function translateRecipe(
     // Keep original on failure
   }
 
-  // Translate ingredients as a batch
+  // Translate ingredients with cheap m2m100 (good enough for short items)
   try {
-    const ingredientBlock = doc.ingredients.join('\n');
-    const result = await translateWithLlama(
-      ingredientBlock,
-      lang,
-      'ingredients (one per line, keep the same number of lines)',
-      ai,
-    );
-    const lines = result.split('\n').map((l) => l.trim()).filter(Boolean);
-    // Only use if we got a reasonable number of lines back
-    if (lines.length >= doc.ingredients.length * 0.5) {
-      translated.ingredients = lines;
+    const results: string[] = [];
+    for (const item of doc.ingredients) {
+      results.push(await translateCheap(item, lang, ai));
     }
+    translated.ingredients = results;
   } catch {
     // Keep original on failure
   }
 
-  // Translate instructions one at a time (they can be long)
+  // Translate all instructions in one call
   try {
-    const translatedSteps: string[] = [];
-    for (const step of doc.instructions) {
-      const result = await translateWithLlama(step, lang, 'cooking instruction', ai);
-      translatedSteps.push(result);
+    const numberedSteps = doc.instructions.map((s, i) => `[${i + 1}] ${s}`).join('\n\n');
+    const result = await translateWithLlama(
+      numberedSteps,
+      lang,
+      'cooking instructions (keep the [1], [2], etc. markers, translate everything else)',
+      ai,
+    );
+    const steps = result.split(/\[(\d+)\]\s*/).filter(Boolean);
+    const parsed: string[] = [];
+    for (let i = 0; i < steps.length; i++) {
+      const trimmed = steps[i]!.trim();
+      if (trimmed && !/^\d+$/.test(trimmed)) {
+        parsed.push(trimmed);
+      }
     }
-    translated.instructions = translatedSteps;
+    if (parsed.length >= doc.instructions.length * 0.5) {
+      translated.instructions = parsed;
+    }
   } catch {
     // Keep original on failure
   }
