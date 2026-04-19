@@ -83,11 +83,7 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await c.env.USERS_DB!.prepare(
-    'SELECT * FROM shopping_lists WHERE id = ? AND user_id = ?',
-  )
-    .bind(listId, userId)
-    .first();
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
@@ -132,11 +128,7 @@ shoppingLists.patch('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
     );
   }
 
-  const list = await c.env.USERS_DB!.prepare(
-    'SELECT * FROM shopping_lists WHERE id = ? AND user_id = ?',
-  )
-    .bind(listId, userId)
-    .first();
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
@@ -160,11 +152,7 @@ shoppingLists.delete('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await c.env.USERS_DB!.prepare(
-    'SELECT * FROM shopping_lists WHERE id = ? AND user_id = ?',
-  )
-    .bind(listId, userId)
-    .first<ShoppingList>();
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
