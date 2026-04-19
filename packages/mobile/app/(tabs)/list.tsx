@@ -266,7 +266,7 @@ export default function ShoppingListScreen() {
                       <Text className="font-body text-xs text-ink-muted">
                         {isMultiSource
                           ? `from ${sources.length} recipes`
-                          : sources[0].recipeTitle}
+                          : sources[0]?.recipeTitle}
                       </Text>
                     </View>
                     <Text className="text-ink-muted text-xs ml-1">
