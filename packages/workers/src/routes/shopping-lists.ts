@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import { getCookie } from 'hono/cookie';
 import type { Env } from '@rr/shared/env';
 import type { ShoppingList, ShoppingListItem, IngredientParseJob } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
@@ -22,7 +23,7 @@ shoppingLists.get('/api/v1/shopping-lists', requireAuth, async (c) => {
 
   const result = await c.env.USERS_DB!.prepare(
     `SELECT sl.id, sl.user_id, sl.name, sl.is_default, sl.collection_id,
-            sl.share_token, sl.share_token_expires_at, sl.created_at, sl.updated_at,
+            sl.share_token, sl.share_expires_at, sl.created_at, sl.updated_at,
             (SELECT COUNT(*) FROM shopping_list_items WHERE shopping_list_id = sl.id) AS item_count,
             (SELECT COUNT(DISTINCT recipe_id) FROM shopping_list_recipes WHERE shopping_list_id = sl.id) AS recipe_count
      FROM shopping_lists sl
@@ -535,6 +536,93 @@ shoppingLists.post('/api/v1/shopping-lists/:id/uncheck-all', requireAuth, async 
     .run();
 
   return c.json({ count: result.meta?.changes ?? 0 });
+});
+
+// ── S-11: WebSocket upgrade route for real-time collaboration ─────────
+
+// GET /api/v1/shopping-lists/:id/ws — WebSocket upgrade to ShoppingListDO
+shoppingLists.get('/api/v1/shopping-lists/:id/ws', async (c) => {
+  const listId = c.req.param('id');
+  const upgradeHeader = c.req.header('Upgrade');
+
+  if (!upgradeHeader || upgradeHeader.toLowerCase() !== 'websocket') {
+    return c.json(
+      { error: { code: 'UPGRADE_REQUIRED', message: 'WebSocket upgrade required' } },
+      426,
+    );
+  }
+
+  // Auth: check session cookie/bearer token OR share_token query param
+  const shareToken = c.req.query('share_token');
+  let userId: string | null = null;
+
+  // Try session auth first (cookie then Bearer header)
+  const sessionToken =
+    c.req.header('Authorization')?.replace('Bearer ', '') ??
+    getCookie(c, 'session');
+
+  if (sessionToken) {
+    const sessionData = await c.env.SESSION_KV?.get(sessionToken);
+    if (sessionData) {
+      const session = JSON.parse(sessionData) as { userId?: string; user_id?: string };
+      userId = session.userId ?? session.user_id ?? null;
+
+      if (userId) {
+        // Verify list ownership
+        const list = await c.env.USERS_DB!.prepare(
+          'SELECT id FROM shopping_lists WHERE id = ? AND user_id = ?',
+        )
+          .bind(listId, userId)
+          .first();
+
+        if (!list) {
+          return c.json(
+            { error: { code: 'NOT_FOUND', message: 'Shopping list not found' } },
+            404,
+          );
+        }
+      }
+    }
+  }
+
+  // If no valid session, try share token
+  if (!userId && shareToken) {
+    const valid = await validateShareToken(c.env.USERS_DB!, listId, shareToken);
+    if (!valid) {
+      return c.json(
+        { error: { code: 'FORBIDDEN', message: 'Invalid or expired share token' } },
+        403,
+      );
+    }
+  } else if (!userId) {
+    return c.json(
+      { error: { code: 'UNAUTHORIZED', message: 'Authentication required' } },
+      401,
+    );
+  }
+
+  // Get DO stub and forward the upgrade request
+  const doId = c.env.SHOPPING_LIST_DO!.idFromName(listId);
+  const stub = c.env.SHOPPING_LIST_DO!.get(doId);
+
+  // Build the forwarded URL with list_id param for the DO
+  const url = new URL(c.req.url);
+  url.searchParams.set('list_id', listId);
+  if (shareToken) {
+    url.searchParams.set('share_token', shareToken);
+  }
+
+  // Forward with auth info in headers
+  const headers = new Headers(c.req.raw.headers);
+  if (userId) {
+    headers.set('X-User-Id', userId);
+  }
+
+  const doRequest = new Request(url.toString(), {
+    headers,
+  });
+
+  return stub.fetch(doRequest);
 });
 
 export default shoppingLists;
