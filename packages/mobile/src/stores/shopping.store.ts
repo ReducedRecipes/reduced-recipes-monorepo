@@ -142,7 +142,7 @@ export const useShoppingStore = create<ShoppingState>()(
           if (isOnline) {
             for (const ingredient of ingredients) {
               addShoppingListItem(activeListId, {
-                text: ingredient,
+                name: ingredient,
                 recipe_id: recipeId,
               }).catch(() => {});
             }
@@ -172,7 +172,7 @@ export const useShoppingStore = create<ShoppingState>()(
         const { isOnline, activeListId } = get();
         if (activeListId) {
           if (isOnline) {
-            addShoppingListItem(activeListId, { text }).catch(() => {});
+            addShoppingListItem(activeListId, { name: text }).catch(() => {});
           } else {
             useShoppingSyncStore.getState().enqueue({
               shopping_list_id: activeListId,
