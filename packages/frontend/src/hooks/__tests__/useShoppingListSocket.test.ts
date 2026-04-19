@@ -65,7 +65,8 @@ const mockItem: ShoppingListItem = {
   checked: 0,
   parse_failed: 0,
   parsing: 0,
-  display_order: 0,
+  source: "manual" as const,
+  position: 0,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
 };
@@ -77,7 +78,7 @@ const mockItem2: ShoppingListItem = {
   quantity: 1,
   unit: null,
   item: "egg",
-  display_order: 1,
+  position: 1,
 };
 
 beforeEach(() => {
