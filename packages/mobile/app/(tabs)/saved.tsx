@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as SQLite from 'expo-sqlite';
+import { runMigrations } from '@/db/migrations';
 import { useSavedStore } from '@/stores/saved.store';
 import { getAllSaved, type SavedRecipe } from '@/db/queries';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
@@ -71,7 +72,12 @@ type TabItem = typeof ALL_SAVED_TAB | Collection;
 export default function SavedScreen() {
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
   useEffect(() => {
-    SQLite.openDatabaseAsync('recipes.db').then(setDb).catch(() => {});
+    SQLite.openDatabaseAsync('recipes.db')
+      .then(async (database) => {
+        await runMigrations(database);
+        setDb(database);
+      })
+      .catch(() => {});
   }, []);
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(true);

@@ -12,6 +12,7 @@ import {
 import * as WebBrowser from 'expo-web-browser';
 import Constants from 'expo-constants';
 import * as SQLite from 'expo-sqlite';
+import { runMigrations } from '@/db/migrations';
 import { usePreferences } from '@/hooks/usePreferences';
 import { useShoppingList } from '@/hooks/useShoppingList';
 import { colors, fonts } from '@/constants/theme';
@@ -47,7 +48,12 @@ export default function SettingsScreen() {
   const { clearAll } = useShoppingList();
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
   useEffect(() => {
-    SQLite.openDatabaseAsync('recipes.db').then(setDb).catch(() => {});
+    SQLite.openDatabaseAsync('recipes.db')
+      .then(async (database) => {
+        await runMigrations(database);
+        setDb(database);
+      })
+      .catch(() => {});
   }, []);
   const [downloadedCount, setDownloadedCount] = useState<number | null>(null);
 
