@@ -1,4 +1,4 @@
-import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification, Collection, BookmarkSyncAction, BookmarkSyncResult } from "@rr/shared";
+import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification, Collection, BookmarkSyncAction, BookmarkSyncResult, ShoppingList, ShoppingListItem } from "@rr/shared";
 import { buildQuery } from "@rr/shared/build-query";
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE || ""}/api/v1`;
@@ -294,4 +294,105 @@ export function syncBookmarks(actions: BookmarkSyncAction[]): Promise<BookmarkSy
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ actions }),
   });
+}
+
+// ── Shopping Lists ──
+
+export interface ShoppingListSummary extends ShoppingList {
+  item_count: number;
+  recipe_count: number;
+}
+
+export interface ShoppingListListResponse {
+  items: ShoppingListSummary[];
+}
+
+export interface ShoppingListDetailResponse extends ShoppingList {
+  items: { unchecked: ShoppingListItem[]; checked: ShoppingListItem[] };
+}
+
+export interface ShareLinkResponse {
+  share_token: string;
+  expires_at: string;
+  share_url?: string;
+}
+
+export function fetchShoppingLists(): Promise<ShoppingListListResponse> {
+  return apiFetch<ShoppingListListResponse>("/shopping-lists");
+}
+
+export function createShoppingList(data: { name?: string }): Promise<ShoppingList> {
+  return apiFetch<ShoppingList>("/shopping-lists", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function getShoppingList(id: string): Promise<ShoppingListDetailResponse> {
+  return apiFetch<ShoppingListDetailResponse>(`/shopping-lists/${encodeURIComponent(id)}`);
+}
+
+export function updateShoppingList(id: string, data: { name: string }): Promise<ShoppingList> {
+  return apiFetch<ShoppingList>(`/shopping-lists/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteShoppingList(id: string): Promise<void> {
+  return apiFetch<void>(`/shopping-lists/${encodeURIComponent(id)}`, { method: "DELETE" });
+}
+
+export function addRecipeToList(listId: string, data: { recipe_id: string; ingredients: string[] }): Promise<{ items: { id: string; original_text: string }[] }> {
+  return apiFetch<{ items: { id: string; original_text: string }[] }>(`/shopping-lists/${encodeURIComponent(listId)}/recipes`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function removeRecipeFromList(listId: string, recipeId: string): Promise<void> {
+  return apiFetch<void>(`/shopping-lists/${encodeURIComponent(listId)}/recipes/${encodeURIComponent(recipeId)}`, { method: "DELETE" });
+}
+
+export function addManualItem(listId: string, data: { name: string; quantity?: number; unit?: string }): Promise<ShoppingListItem> {
+  return apiFetch<ShoppingListItem>(`/shopping-lists/${encodeURIComponent(listId)}/items`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateItem(listId: string, itemId: string, data: { checked?: number; quantity?: number; unit?: string; name?: string }): Promise<ShoppingListItem> {
+  return apiFetch<ShoppingListItem>(`/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteItem(listId: string, itemId: string): Promise<void> {
+  return apiFetch<void>(`/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`, { method: "DELETE" });
+}
+
+export function uncheckAll(listId: string): Promise<{ count: number }> {
+  return apiFetch<{ count: number }>(`/shopping-lists/${encodeURIComponent(listId)}/uncheck-all`, { method: "POST" });
+}
+
+export function createShareLink(listId: string): Promise<ShareLinkResponse> {
+  return apiFetch<ShareLinkResponse>(`/shopping-lists/${encodeURIComponent(listId)}/share`, { method: "POST" });
+}
+
+export function revokeShareLink(listId: string): Promise<void> {
+  return apiFetch<void>(`/shopping-lists/${encodeURIComponent(listId)}/share`, { method: "DELETE" });
+}
+
+export function renewShareLink(listId: string): Promise<ShareLinkResponse> {
+  return apiFetch<ShareLinkResponse>(`/shopping-lists/${encodeURIComponent(listId)}/share/renew`, { method: "POST" });
+}
+
+export function getSharedList(token: string): Promise<ShoppingListDetailResponse> {
+  return apiFetch<ShoppingListDetailResponse>(`/shared/lists/${encodeURIComponent(token)}`);
 }
