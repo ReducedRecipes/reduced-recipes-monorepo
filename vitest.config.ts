@@ -12,6 +12,7 @@ export default defineConfig({
       { find: '@rr/shared/dietary', replacement: path.resolve(__dirname, 'packages/shared/src/dietary') },
       { find: '@rr/shared/env', replacement: path.resolve(__dirname, 'packages/shared/src/env') },
       { find: '@rr/shared/build-query', replacement: path.resolve(__dirname, 'packages/shared/src/build-query') },
+      { find: '@rr/shared/unit-normalisation', replacement: path.resolve(__dirname, 'packages/shared/src/unit-normalisation') },
       { find: '@rr/shared', replacement: path.resolve(__dirname, 'packages/shared/src/types') },
       { find: 'react-native-mmkv', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/react-native-mmkv') },
       { find: 'expo-image', replacement: path.resolve(__dirname, 'packages/mobile/src/lib/__mocks__/expo-image') },
