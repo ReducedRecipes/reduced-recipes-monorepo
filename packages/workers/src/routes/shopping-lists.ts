@@ -156,11 +156,21 @@ shoppingLists.delete('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
     );
   }
 
+  // If deleting the default list, promote the next oldest list
   if (list.is_default) {
-    return c.json(
-      { error: { code: 'CANNOT_DELETE_DEFAULT', message: 'Cannot delete the default shopping list' } },
-      400,
-    );
+    const nextList = await c.env.USERS_DB!.prepare(
+      'SELECT id FROM shopping_lists WHERE user_id = ? AND id != ? ORDER BY created_at ASC LIMIT 1',
+    )
+      .bind(userId, listId)
+      .first<{ id: string }>();
+
+    if (nextList) {
+      await c.env.USERS_DB!.prepare(
+        'UPDATE shopping_lists SET is_default = 1 WHERE id = ?',
+      )
+        .bind(nextList.id)
+        .run();
+    }
   }
 
   await c.env.USERS_DB!.prepare('DELETE FROM shopping_lists WHERE id = ?')
