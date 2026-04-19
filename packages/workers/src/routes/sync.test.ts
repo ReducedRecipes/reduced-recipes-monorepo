@@ -249,3 +249,222 @@ describe('POST /api/v1/sync/bookmarks', () => {
     expect(selectBookmarkCall).toBeTruthy();
   });
 });
+
+/* ── Shopping list item sync tests ── */
+
+function createSyncEnv(overrides: {
+  listOwned?: boolean;
+  existingItem?: { id: string; checked: number; updated_at: string; shopping_list_id: string } | null;
+  maxPos?: number;
+} = {}) {
+  const { listOwned = true, existingItem = null, maxPos = 0 } = overrides;
+
+  const USERS_DB = {
+    prepare: vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('shopping_lists') && sql.includes('user_id')) {
+        return makeStmt(listOwned ? { id: 'list-1' } : null);
+      }
+      if (sql.includes('SELECT') && sql.includes('shopping_list_items') && sql.includes('shopping_list_id')) {
+        return makeStmt(existingItem);
+      }
+      if (sql.includes('SELECT *') && sql.includes('shopping_list_items') && sql.includes('WHERE id')) {
+        return makeStmt(existingItem);
+      }
+      if (sql.includes('MAX(position)')) {
+        return makeStmt({ max_pos: maxPos });
+      }
+      return makeStmt(null);
+    }),
+  };
+
+  return {
+    DB: { prepare: vi.fn().mockReturnValue(makeStmt(null)) },
+    RECIPES_KV: {} as unknown,
+    CACHE_KV: {} as unknown,
+    IMAGES_R2: {} as unknown,
+    CRAWL_QUEUE: {} as unknown,
+    PARSE_QUEUE: {} as unknown,
+    PROJECTION_QUEUE: {} as unknown,
+    ADMIN_TOKEN: 'test',
+    BOT_USER_AGENT: 'test',
+    DEFAULT_CRAWL_DELAY_MS: '500',
+    MAX_QUEUE_BATCH: '10',
+    ENVIRONMENT: 'test',
+    USERS_DB,
+    SESSION_KV: {} as unknown,
+  } as unknown as Env;
+}
+
+async function postShoppingListSync(env: Env, body: unknown) {
+  return syncApp.request(
+    '/api/v1/sync/shopping-list-items',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    },
+    env,
+  );
+}
+
+describe('POST /api/v1/sync/shopping-list-items', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('returns 400 if actions array is missing', async () => {
+    const env = createSyncEnv();
+    const res = await postShoppingListSync(env, {});
+    expect(res.status).toBe(400);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('returns 400 if actions array is empty', async () => {
+    const env = createSyncEnv();
+    const res = await postShoppingListSync(env, { actions: [] });
+    expect(res.status).toBe(400);
+  });
+
+  it('applies check_item when client is newer', async () => {
+    const env = createSyncEnv({
+      existingItem: { id: 'item-1', checked: 0, updated_at: '2024-01-01T00:00:00.000Z', shopping_list_id: 'list-1' },
+    });
+    const res = await postShoppingListSync(env, {
+      actions: [{
+        shopping_list_id: 'list-1',
+        type: 'check_item',
+        item_id: 'item-1',
+        checked: true,
+        client_timestamp: '2024-06-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
+  });
+
+  it('returns conflict on check_item when server is newer', async () => {
+    const env = createSyncEnv({
+      existingItem: { id: 'item-1', checked: 0, updated_at: '2024-12-01T00:00:00.000Z', shopping_list_id: 'list-1' },
+    });
+    const res = await postShoppingListSync(env, {
+      actions: [{
+        shopping_list_id: 'list-1',
+        type: 'check_item',
+        item_id: 'item-1',
+        checked: true,
+        client_timestamp: '2024-01-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('conflict');
+  });
+
+  it('applies add_item action', async () => {
+    const env = createSyncEnv({ maxPos: 3 });
+    const res = await postShoppingListSync(env, {
+      actions: [{
+        shopping_list_id: 'list-1',
+        type: 'add_item',
+        text: '2 cups flour',
+        client_timestamp: '2024-06-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
+  });
+
+  it('applies add_item idempotently when item_id already exists', async () => {
+    const env = createSyncEnv({
+      existingItem: { id: 'item-1', checked: 0, updated_at: '2024-01-01T00:00:00.000Z', shopping_list_id: 'list-1' },
+    });
+    const res = await postShoppingListSync(env, {
+      actions: [{
+        shopping_list_id: 'list-1',
+        type: 'add_item',
+        item_id: 'item-1',
+        text: '2 cups flour',
+        client_timestamp: '2024-06-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
+  });
+
+  it('applies remove_item when client is newer', async () => {
+    const env = createSyncEnv({
+      existingItem: { id: 'item-1', checked: 0, updated_at: '2024-01-01T00:00:00.000Z', shopping_list_id: 'list-1' },
+    });
+    const res = await postShoppingListSync(env, {
+      actions: [{
+        shopping_list_id: 'list-1',
+        type: 'remove_item',
+        item_id: 'item-1',
+        client_timestamp: '2024-06-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
+  });
+
+  it('applies remove_item idempotently when already deleted', async () => {
+    const env = createSyncEnv({ existingItem: null });
+    const res = await postShoppingListSync(env, {
+      actions: [{
+        shopping_list_id: 'list-1',
+        type: 'remove_item',
+        item_id: 'item-1',
+        client_timestamp: '2024-06-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
+  });
+
+  it('skips actions for lists the user does not own', async () => {
+    const env = createSyncEnv({ listOwned: false });
+    const res = await postShoppingListSync(env, {
+      actions: [{
+        shopping_list_id: 'list-999',
+        type: 'check_item',
+        item_id: 'item-1',
+        checked: true,
+        client_timestamp: '2024-06-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(0);
+  });
+
+  it('accepts mutations field name (mobile compat)', async () => {
+    const env = createSyncEnv({
+      existingItem: { id: 'item-1', checked: 0, updated_at: '2024-01-01T00:00:00.000Z', shopping_list_id: 'list-1' },
+    });
+    const res = await postShoppingListSync(env, {
+      mutations: [{
+        shopping_list_id: 'list-1',
+        type: 'check_item',
+        item_id: 'item-1',
+        checked: true,
+        client_timestamp: '2024-06-01T00:00:00.000Z',
+      }],
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { results: Array<{ item_id: string; status: string }> };
+    expect(json.results).toHaveLength(1);
+    expect(json.results[0]!.status).toBe('applied');
+  });
+});

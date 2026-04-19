@@ -1,6 +1,6 @@
 import { Hono } from 'hono';
 import type { Env } from '@rr/shared/env';
-import type { BookmarkSyncAction, BookmarkSyncResult } from '@rr/shared';
+import type { BookmarkSyncAction, BookmarkSyncResult, ShoppingListItemSyncAction, ShoppingListItemSyncResult, ShoppingListItem } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
@@ -96,6 +96,170 @@ sync.post('/api/v1/sync/bookmarks', requireAuth, async (c) => {
       } else {
         // Already doesn't exist — treat as applied
         results.push({ recipe_id: action.recipe_id, status: 'applied' });
+      }
+    }
+  }
+
+  return c.json({ results });
+});
+
+// POST /api/v1/sync/shopping-list-items — idempotent batch sync
+sync.post('/api/v1/sync/shopping-list-items', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const body = await c.req.json<{ actions?: ShoppingListItemSyncAction[]; mutations?: ShoppingListItemSyncAction[] }>();
+  const actions = body.mutations ?? body.actions;
+
+  if (!actions || !Array.isArray(actions) || actions.length === 0) {
+    return c.json(
+      { error: { code: 'INVALID_INPUT', message: 'actions array is required and must not be empty' } },
+      400,
+    );
+  }
+
+  const results: ShoppingListItemSyncResult[] = [];
+
+  for (const action of actions) {
+    // Verify user owns the shopping list
+    const list = await c.env.USERS_DB!.prepare(
+      'SELECT id FROM shopping_lists WHERE id = ? AND user_id = ?',
+    )
+      .bind(action.shopping_list_id, userId)
+      .first<{ id: string }>();
+
+    if (!list) {
+      continue; // Skip actions for lists the user doesn't own
+    }
+
+    if (action.type === 'check_item' && action.item_id) {
+      const existing = await c.env.USERS_DB!.prepare(
+        'SELECT id, checked, updated_at FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+      )
+        .bind(action.item_id, action.shopping_list_id)
+        .first<{ id: string; checked: number; updated_at: string }>();
+
+      if (!existing) {
+        continue;
+      }
+
+      if (action.client_timestamp > existing.updated_at) {
+        await c.env.USERS_DB!.prepare(
+          'UPDATE shopping_list_items SET checked = ?, updated_at = ? WHERE id = ?',
+        )
+          .bind(action.checked ? 1 : 0, action.client_timestamp, action.item_id)
+          .run();
+        results.push({ item_id: action.item_id, status: 'applied' });
+      } else {
+        const serverState = await c.env.USERS_DB!.prepare(
+          'SELECT * FROM shopping_list_items WHERE id = ?',
+        )
+          .bind(action.item_id)
+          .first<ShoppingListItem>();
+        const conflict: ShoppingListItemSyncResult = {
+          item_id: action.item_id,
+          status: 'conflict',
+        };
+        if (serverState) conflict.server_state = serverState;
+        results.push(conflict);
+      }
+    } else if (action.type === 'add_item' && action.text) {
+      // Idempotent: check if an item with same text already exists (by item_id + action + timestamp)
+      if (action.item_id) {
+        const existing = await c.env.USERS_DB!.prepare(
+          'SELECT id FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+        )
+          .bind(action.item_id, action.shopping_list_id)
+          .first<{ id: string }>();
+
+        if (existing) {
+          results.push({ item_id: action.item_id, status: 'applied' }); // Already exists, idempotent
+          continue;
+        }
+      }
+
+      const id = action.item_id || crypto.randomUUID();
+      const maxPos = await c.env.USERS_DB!.prepare(
+        'SELECT COALESCE(MAX(position), 0) as max_pos FROM shopping_list_items WHERE shopping_list_id = ?',
+      )
+        .bind(action.shopping_list_id)
+        .first<{ max_pos: number }>();
+
+      await c.env.USERS_DB!.prepare(
+        `INSERT INTO shopping_list_items (id, shopping_list_id, recipe_id, original_text, quantity, unit, item, checked, parse_failed, parsing, source, position, created_at, updated_at)
+         VALUES (?, ?, NULL, ?, ?, NULL, NULL, 0, 0, 0, 'manual', ?, ?, ?)`,
+      )
+        .bind(
+          id,
+          action.shopping_list_id,
+          action.text,
+          action.quantity ?? null,
+          (maxPos?.max_pos ?? 0) + 1,
+          action.client_timestamp,
+          action.client_timestamp,
+        )
+        .run();
+      results.push({ item_id: id, status: 'applied' });
+    } else if (action.type === 'remove_item' && action.item_id) {
+      const existing = await c.env.USERS_DB!.prepare(
+        'SELECT id, updated_at FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+      )
+        .bind(action.item_id, action.shopping_list_id)
+        .first<{ id: string; updated_at: string }>();
+
+      if (!existing) {
+        results.push({ item_id: action.item_id, status: 'applied' }); // Already removed, idempotent
+        continue;
+      }
+
+      if (action.client_timestamp > existing.updated_at) {
+        await c.env.USERS_DB!.prepare(
+          'DELETE FROM shopping_list_items WHERE id = ?',
+        )
+          .bind(action.item_id)
+          .run();
+        results.push({ item_id: action.item_id, status: 'applied' });
+      } else {
+        const serverState = await c.env.USERS_DB!.prepare(
+          'SELECT * FROM shopping_list_items WHERE id = ?',
+        )
+          .bind(action.item_id)
+          .first<ShoppingListItem>();
+        const conflict: ShoppingListItemSyncResult = {
+          item_id: action.item_id,
+          status: 'conflict',
+        };
+        if (serverState) conflict.server_state = serverState;
+        results.push(conflict);
+      }
+    } else if (action.type === 'update_quantity' && action.item_id && action.quantity != null) {
+      const existing = await c.env.USERS_DB!.prepare(
+        'SELECT id, updated_at FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+      )
+        .bind(action.item_id, action.shopping_list_id)
+        .first<{ id: string; updated_at: string }>();
+
+      if (!existing) {
+        continue;
+      }
+
+      if (action.client_timestamp > existing.updated_at) {
+        await c.env.USERS_DB!.prepare(
+          'UPDATE shopping_list_items SET quantity = ?, updated_at = ? WHERE id = ?',
+        )
+          .bind(action.quantity, action.client_timestamp, action.item_id)
+          .run();
+        results.push({ item_id: action.item_id, status: 'applied' });
+      } else {
+        const serverState = await c.env.USERS_DB!.prepare(
+          'SELECT * FROM shopping_list_items WHERE id = ?',
+        )
+          .bind(action.item_id)
+          .first<ShoppingListItem>();
+        const conflict: ShoppingListItemSyncResult = {
+          item_id: action.item_id,
+          status: 'conflict',
+        };
+        if (serverState) conflict.server_state = serverState;
+        results.push(conflict);
       }
     }
   }

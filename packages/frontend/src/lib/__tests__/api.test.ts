@@ -230,12 +230,12 @@ describe("updateProfile", () => {
   it("calls PATCH /users/me with JSON body", async () => {
     const updated = { id: "u1", name: "New Name" };
     mockFetch.mockResolvedValue(okResponse(updated));
-    const result = await updateProfile({ display_name: "New Name" });
+    const result = await updateProfile({ name: "New Name" });
     expect(result).toEqual(updated);
     expect(mockFetch).toHaveBeenCalledWith("/api/v1/users/me", withHeaders({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ display_name: "New Name" }),
+      body: JSON.stringify({ name: "New Name" }),
     }));
   });
 });

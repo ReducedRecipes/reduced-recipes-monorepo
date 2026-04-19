@@ -29,12 +29,39 @@ const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
 const AUTH_STATE_TTL = 600; // 10 minutes
 const SESSION_TTL = 30 * 24 * 60 * 60; // 30 days
 
+const SAFE_MOBILE_SCHEME = 'reducedrecipes://';
+const DEFAULT_RETURN_TO = '/';
+const DEFAULT_MOBILE_RETURN_TO = 'reducedrecipes://auth/callback';
+
+/**
+ * Validate return_to to prevent open redirect attacks.
+ * Allows relative paths and the app deep link scheme only.
+ */
+export function validateReturnTo(returnTo: string, platform: string): string {
+  if (!returnTo) {
+    return platform === 'mobile' ? DEFAULT_MOBILE_RETURN_TO : DEFAULT_RETURN_TO;
+  }
+
+  // Allow relative paths (must start with /)
+  if (returnTo.startsWith('/') && !returnTo.startsWith('//')) {
+    return returnTo;
+  }
+
+  // Allow mobile deep link scheme
+  if (platform === 'mobile' && returnTo.startsWith(SAFE_MOBILE_SCHEME)) {
+    return returnTo;
+  }
+
+  // Reject everything else (external URLs, protocol-relative, javascript:, etc.)
+  return platform === 'mobile' ? DEFAULT_MOBILE_RETURN_TO : DEFAULT_RETURN_TO;
+}
+
 const auth = new Hono<AuthEnv>();
 
 // ── GET /api/v1/auth/google/url ──────────────────────────────────────────
 auth.get('/api/v1/auth/google/url', async (c) => {
   const platform = c.req.query('platform') || 'web';
-  const return_to = c.req.query('return_to') || '/';
+  const return_to = validateReturnTo(c.req.query('return_to') || '', platform);
   const intent = c.req.query('intent') || '';
 
   const sessionSecret = c.env.SESSION_SECRET;
@@ -185,10 +212,9 @@ auth.get('/api/v1/auth/google/callback', async (c) => {
   // Create session
   const { token: sessionToken } = await createSession(sessionKV, user.id);
 
-  // Platform-aware response
+  // Platform-aware response — re-validate return_to (defense in depth)
   if (authState.platform === 'mobile') {
-    // Redirect to app deep link with token so expo-web-browser can capture it
-    const returnTo = authState.return_to || 'reducedrecipes://auth/callback';
+    const returnTo = validateReturnTo(authState.return_to, 'mobile');
     const sep = returnTo.includes('?') ? '&' : '?';
     const mobileRedirect = `${returnTo}${sep}token=${sessionToken}&is_new_user=${isNewUser}`;
     return c.redirect(mobileRedirect, 302);
@@ -203,7 +229,7 @@ auth.get('/api/v1/auth/google/callback', async (c) => {
     path: '/',
   });
 
-  const returnTo = authState.return_to || '/';
+  const returnTo = validateReturnTo(authState.return_to, 'web');
   const separator = returnTo.includes('?') ? '&' : '?';
   const redirectUrl = `${returnTo}${separator}status=success&is_new_user=${isNewUser}&session_token=${sessionToken}`;
   return c.redirect(redirectUrl, 302);

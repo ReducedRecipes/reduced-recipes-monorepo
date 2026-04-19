@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import type { Env } from '@rr/shared/env';
 import type { Collection, Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
+import { parseLimit, paginateRows } from '../helpers/pagination';
+import { validateCollectionOwnership } from '../helpers/collection-ownership';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -220,15 +222,10 @@ collections.get('/api/v1/collections/:id/bookmarks', requireAuth, async (c) => {
   const userId = c.get('userId');
   const collectionId = c.req.param('id');
   const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
+  const limit = parseLimit(c.req.query('limit'));
 
   // Verify collection ownership
-  const col = await c.env.USERS_DB!.prepare(
-    'SELECT id FROM collections WHERE id = ? AND user_id = ?',
-  )
-    .bind(collectionId, userId)
-    .first();
+  const col = await validateCollectionOwnership(c.env.USERS_DB!, collectionId, userId);
 
   if (!col) {
     return c.json(
@@ -258,14 +255,7 @@ collections.get('/api/v1/collections/:id/bookmarks', requireAuth, async (c) => {
 
   const rows = (result.results ?? []) as unknown as Bookmark[];
 
-  let next_cursor: string | null = null;
-  if (rows.length > limit) {
-    rows.pop();
-    const last = rows[rows.length - 1];
-    if (last) next_cursor = last.created_at;
-  }
-
-  return c.json({ items: rows, next_cursor });
+  return c.json(paginateRows(rows, limit, 'created_at'));
 });
 
 export default collections;

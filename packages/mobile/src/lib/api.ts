@@ -5,7 +5,12 @@ import type {
   Bookmark,
   BookmarkSyncAction,
   BookmarkSyncResult,
+  ShoppingList,
+  ShoppingListItem,
+  ShoppingListItemSyncAction,
+  ShoppingListItemSyncResult,
 } from "@rr/shared";
+import { buildQuery } from "@rr/shared/build-query";
 
 const BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE || "https://reducedrecipes.com"}/api/v1`;
 
@@ -20,15 +25,6 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
-}
-
-function buildQuery(params: Record<string, string | number | undefined>): string {
-  const sp = new URLSearchParams();
-  for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null) sp.set(k, String(v));
-  }
-  const qs = sp.toString();
-  return qs ? `?${qs}` : "";
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -433,6 +429,133 @@ export function syncBookmarks(
     method: "POST",
     body: JSON.stringify({ actions }),
   });
+}
+
+// ── Phase 2: Shopping Lists ──────────────────────────────────────
+
+export interface ShoppingListsResponse {
+  items: ShoppingList[];
+}
+
+export interface ShoppingListDetailResponse {
+  list: ShoppingList;
+  items: ShoppingListItem[];
+}
+
+/** Raw response shape from the worker (smart rollup format). */
+interface ShoppingListDetailRawResponse extends ShoppingList {
+  items: { unchecked: ShoppingListItem[]; checked: ShoppingListItem[] };
+}
+
+export function fetchShoppingLists(): Promise<ShoppingListsResponse> {
+  return request<ShoppingListsResponse>("/shopping-lists");
+}
+
+export function createShoppingList(body: {
+  name: string;
+  collection_id?: string;
+}): Promise<ShoppingList> {
+  return request<ShoppingList>("/shopping-lists", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function getShoppingList(
+  id: string,
+): Promise<ShoppingListDetailResponse> {
+  const raw = await request<ShoppingListDetailRawResponse>(
+    `/shopping-lists/${encodeURIComponent(id)}`,
+  );
+  const { items: rolledUp, ...listFields } = raw;
+  return {
+    list: listFields,
+    items: [...rolledUp.unchecked, ...rolledUp.checked],
+  };
+}
+
+export function addShoppingListItem(
+  listId: string,
+  body: { name: string; recipe_id?: string },
+): Promise<ShoppingListItem> {
+  return request<ShoppingListItem>(
+    `/shopping-lists/${encodeURIComponent(listId)}/items`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function updateShoppingListItem(
+  listId: string,
+  itemId: string,
+  body: { checked?: boolean; quantity?: number },
+): Promise<ShoppingListItem> {
+  // Convert checked boolean to 0/1 integer for the worker API
+  const payload: { checked?: number; quantity?: number } = {};
+  if (body.checked !== undefined) payload.checked = body.checked ? 1 : 0;
+  if (body.quantity !== undefined) payload.quantity = body.quantity;
+
+  return request<ShoppingListItem>(
+    `/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+  );
+}
+
+export function deleteShoppingListItem(
+  listId: string,
+  itemId: string,
+): Promise<void> {
+  return request<void>(
+    `/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function uncheckAllShoppingListItems(
+  listId: string,
+): Promise<void> {
+  return request<void>(
+    `/shopping-lists/${encodeURIComponent(listId)}/uncheck-all`,
+    {
+      method: "POST",
+    },
+  );
+}
+
+// ── Phase 2: Shopping List Offline Sync ─────────────────────────
+
+/** Raw response from the worker sync endpoint. */
+interface SyncShoppingListItemsRawResponse {
+  applied: number;
+  conflicts: ShoppingListItemSyncResult[];
+}
+
+export interface SyncShoppingListItemsResponse {
+  results: ShoppingListItemSyncResult[];
+}
+
+export async function syncShoppingListItems(
+  _shopping_list_id: string,
+  actions: ShoppingListItemSyncAction[],
+): Promise<SyncShoppingListItemsResponse> {
+  const raw = await request<SyncShoppingListItemsRawResponse>("/sync/shopping-list-items", {
+    method: "POST",
+    body: JSON.stringify({ actions }),
+  });
+  // Normalize: worker returns { applied, conflicts } — convert to { results }
+  // Build applied results from the actions that weren't in conflicts
+  const conflictIds = new Set(raw.conflicts.map((c) => c.item_id));
+  const applied: ShoppingListItemSyncResult[] = actions
+    .filter((a) => !conflictIds.has(a.item_id))
+    .map((a) => ({ item_id: a.item_id, status: 'applied' as const }));
+  return { results: [...applied, ...raw.conflicts] };
 }
 
 export const api = USE_MOCK ? mockApi : realApi;

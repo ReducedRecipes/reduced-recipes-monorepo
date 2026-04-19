@@ -10,6 +10,7 @@ import notificationRoutes from './routes/notifications';
 import userRoutes from './routes/users';
 import collectionsRoutes from './routes/collections';
 import syncRoutes from './routes/sync';
+import shoppingListRoutes from './routes/shopping-lists';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -435,6 +436,7 @@ app.route('/', notificationRoutes);
 app.route('/', userRoutes);
 app.route('/', collectionsRoutes);
 app.route('/', syncRoutes);
+app.route('/', shoppingListRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
@@ -445,4 +447,5 @@ app.onError((err, c) => {
   );
 });
 
+export { ShoppingListDO } from './durable-objects/ShoppingListDO';
 export default app;

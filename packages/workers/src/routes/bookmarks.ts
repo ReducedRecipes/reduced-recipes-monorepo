@@ -2,6 +2,8 @@ import { Hono } from 'hono';
 import type { Env } from '@rr/shared/env';
 import type { Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
+import { parseLimit, paginateRows } from '../helpers/pagination';
+import { validateCollectionOwnership } from '../helpers/collection-ownership';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -35,11 +37,7 @@ bookmarks.post('/api/v1/bookmarks', requireAuth, async (c) => {
 
   if (body.collection_id) {
     // Validate the specified collection exists and belongs to user
-    const col = await c.env.USERS_DB!.prepare(
-      'SELECT id FROM collections WHERE id = ? AND user_id = ?',
-    )
-      .bind(body.collection_id, userId)
-      .first<{ id: string }>();
+    const col = await validateCollectionOwnership(c.env.USERS_DB!, body.collection_id, userId);
 
     if (!col) {
       return c.json(
@@ -86,7 +84,7 @@ bookmarks.post('/api/v1/bookmarks', requireAuth, async (c) => {
   }
 
   return c.json(
-    { id, recipe_id: body.recipe_id, collection_id: collectionId, created_at: now },
+    { id, user_id: userId, recipe_id: body.recipe_id, collection_id: collectionId, created_at: now, updated_at: now, recipe_deleted_at: null },
     201,
   );
 });
@@ -125,11 +123,7 @@ bookmarks.post('/api/v1/bookmarks/move', requireAuth, async (c) => {
   }
 
   // Validate target collection exists and belongs to user
-  const targetCollection = await c.env.USERS_DB!.prepare(
-    'SELECT id FROM collections WHERE id = ? AND user_id = ?',
-  )
-    .bind(body.target_collection_id, userId)
-    .first<{ id: string }>();
+  const targetCollection = await validateCollectionOwnership(c.env.USERS_DB!, body.target_collection_id, userId);
 
   if (!targetCollection) {
     return c.json(
@@ -206,9 +200,9 @@ bookmarks.get('/api/v1/bookmarks/search', requireAuth, async (c) => {
     `SELECT id, title, domain, image_url, total_time, cook_time, yields, cuisine
      FROM recipes
      WHERE id IN (${placeholders})
-       AND (title LIKE ? OR description LIKE ?)`,
+       AND (title LIKE ?)`,
   )
-    .bind(...recipeIds, searchPattern, searchPattern)
+    .bind(...recipeIds, searchPattern)
     .all();
 
   const recipes = (recipeResult.results ?? []) as unknown as {
@@ -267,8 +261,7 @@ bookmarks.delete('/api/v1/bookmarks/:id', requireAuth, async (c) => {
 bookmarks.get('/api/v1/bookmarks', requireAuth, async (c) => {
   const userId = c.get('userId');
   const cursor = c.req.query('cursor');
-  const limitParam = c.req.query('limit');
-  const limit = Math.min(Math.max(parseInt(limitParam || '25', 10) || 25, 1), 100);
+  const limit = parseLimit(c.req.query('limit'));
 
   const conditions = ['user_id = ?'];
   const params: (string | number)[] = [userId];
@@ -291,14 +284,7 @@ bookmarks.get('/api/v1/bookmarks', requireAuth, async (c) => {
 
   const rows = (result.results ?? []) as unknown as Bookmark[];
 
-  let next_cursor: string | null = null;
-  if (rows.length > limit) {
-    rows.pop();
-    const last = rows[rows.length - 1];
-    if (last) next_cursor = last.created_at;
-  }
-
-  return c.json({ items: rows, next_cursor });
+  return c.json(paginateRows(rows, limit, 'created_at'));
 });
 
 export default bookmarks;
