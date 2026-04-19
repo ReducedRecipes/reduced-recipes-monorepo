@@ -10,7 +10,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import shoppingLists from './shopping-lists';
 import type { Env } from '@rr/shared/env';
-import type { ShoppingList, ShoppingListItem, User } from '@rr/shared';
+import type { ShoppingList, ShoppingListItem, SmartRollupItem, User } from '@rr/shared';
 
 // ── Test fixtures ──────────────────────────────────────────────────────
 
@@ -324,7 +324,7 @@ describe('Shopping list happy-path e2e', () => {
     const recipeItems = (await addRecipeRes.json()) as { items: { id: string }[] };
     expect(recipeItems.items).toHaveLength(2);
 
-    // 4. View list — should show 3 unchecked items
+    // 4. View list — should show 3 unchecked rolled-up items
     const viewRes1 = await shoppingLists.request(
       `/api/v1/shopping-lists/${listId}`,
       { headers: AUTH_HEADERS },
@@ -333,11 +333,20 @@ describe('Shopping list happy-path e2e', () => {
     expect(viewRes1.status).toBe(200);
     const view1 = (await viewRes1.json()) as {
       name: string;
-      items: { unchecked: Record<string, unknown>[]; checked: Record<string, unknown>[] };
+      items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
     };
     expect(view1.name).toBe('Weekly Groceries');
     expect(view1.items.unchecked).toHaveLength(3);
     expect(view1.items.checked).toHaveLength(0);
+
+    // Verify rollup shape: each item has canonical_item, display_text, category, sources
+    const firstItem = view1.items.unchecked[0]!;
+    expect(firstItem).toHaveProperty('canonical_item');
+    expect(firstItem).toHaveProperty('display_text');
+    expect(firstItem).toHaveProperty('category');
+    expect(firstItem).toHaveProperty('sources');
+    expect(Array.isArray(firstItem.sources)).toBe(true);
+    expect(firstItem.sources.length).toBeGreaterThanOrEqual(1);
 
     // 5. Check off the manual item
     const checkRes = await shoppingLists.request(
@@ -361,7 +370,7 @@ describe('Shopping list happy-path e2e', () => {
     );
     expect(viewRes2.status).toBe(200);
     const view2 = (await viewRes2.json()) as {
-      items: { unchecked: Record<string, unknown>[]; checked: Record<string, unknown>[] };
+      items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
     };
     expect(view2.items.unchecked).toHaveLength(2);
     expect(view2.items.checked).toHaveLength(1);
@@ -384,7 +393,7 @@ describe('Shopping list happy-path e2e', () => {
     );
     expect(viewRes3.status).toBe(200);
     const view3 = (await viewRes3.json()) as {
-      items: { unchecked: Record<string, unknown>[]; checked: Record<string, unknown>[] };
+      items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
     };
     expect(view3.items.unchecked).toHaveLength(3);
     expect(view3.items.checked).toHaveLength(0);
@@ -405,7 +414,7 @@ describe('Shopping list happy-path e2e', () => {
     );
     expect(viewRes4.status).toBe(200);
     const view4 = (await viewRes4.json()) as {
-      items: { unchecked: Record<string, unknown>[]; checked: Record<string, unknown>[] };
+      items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
     };
     expect(view4.items.unchecked).toHaveLength(2);
 
@@ -464,10 +473,16 @@ describe('Shopping list happy-path e2e', () => {
     expect(sharedViewRes.status).toBe(200);
     const sharedView = (await sharedViewRes.json()) as {
       name: string;
-      items: { unchecked: Record<string, unknown>[] };
+      items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
     };
     expect(sharedView.name).toBe('Shared List');
     expect(sharedView.items.unchecked).toHaveLength(1);
+
+    // Verify shared list also returns rollup shape
+    const sharedItem = sharedView.items.unchecked[0]!;
+    expect(sharedItem).toHaveProperty('canonical_item');
+    expect(sharedItem).toHaveProperty('display_text');
+    expect(sharedItem).toHaveProperty('category');
 
     // Revoke share token
     const revokeRes = await shoppingLists.request(

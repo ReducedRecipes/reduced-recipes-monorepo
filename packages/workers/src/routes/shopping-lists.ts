@@ -4,6 +4,7 @@ import type { Env } from '@rr/shared/env';
 import type { ShoppingList, ShoppingListItem, IngredientParseJob } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 import { parseIngredient } from '../helpers/ingredient-parser';
+import { rollupItems } from '../helpers/smart-rollup';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -106,16 +107,8 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
 
   const items = itemsResult.results ?? [];
 
-  // Apply smart rollup (stub — returns items as-is when rollup helper not available)
-  const rolledUpItems = { unchecked: [] as Record<string, unknown>[], checked: [] as Record<string, unknown>[] };
-  for (const item of items) {
-    const row = item as Record<string, unknown>;
-    if (row.checked) {
-      rolledUpItems.checked.push(row);
-    } else {
-      rolledUpItems.unchecked.push(row);
-    }
-  }
+  // Apply smart rollup — groups by canonical name, sums quantities, adds categories
+  const { items: rolledUpItems } = rollupItems(items as unknown as ShoppingListItem[]);
 
   return c.json({ ...list, items: rolledUpItems });
 });
@@ -519,15 +512,9 @@ shoppingLists.get('/api/v1/shared/lists/:token', async (c) => {
     .all();
 
   const items = itemsResult.results ?? [];
-  const rolledUpItems = { unchecked: [] as Record<string, unknown>[], checked: [] as Record<string, unknown>[] };
-  for (const item of items) {
-    const row = item as Record<string, unknown>;
-    if (row.checked) {
-      rolledUpItems.checked.push(row);
-    } else {
-      rolledUpItems.unchecked.push(row);
-    }
-  }
+
+  // Apply smart rollup — groups by canonical name, sums quantities, adds categories
+  const { items: rolledUpItems } = rollupItems(items as unknown as ShoppingListItem[]);
 
   return c.json({ ...list, items: rolledUpItems });
 });
