@@ -5,6 +5,8 @@ import type {
   Bookmark,
   BookmarkSyncAction,
   BookmarkSyncResult,
+  ShoppingList,
+  ShoppingListItem,
 } from "@rr/shared";
 import { buildQuery } from "@rr/shared/build-query";
 
@@ -425,6 +427,89 @@ export function syncBookmarks(
     method: "POST",
     body: JSON.stringify({ actions }),
   });
+}
+
+// ── Phase 2: Shopping Lists ──────────────────────────────────────
+
+export interface ShoppingListsResponse {
+  items: ShoppingList[];
+}
+
+export interface ShoppingListDetailResponse {
+  list: ShoppingList;
+  items: ShoppingListItem[];
+}
+
+export function fetchShoppingLists(): Promise<ShoppingListsResponse> {
+  return request<ShoppingListsResponse>("/shopping-lists");
+}
+
+export function createShoppingList(body: {
+  name: string;
+  collection_id?: string;
+}): Promise<ShoppingList> {
+  return request<ShoppingList>("/shopping-lists", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export function getShoppingList(
+  id: string,
+): Promise<ShoppingListDetailResponse> {
+  return request<ShoppingListDetailResponse>(
+    `/shopping-lists/${encodeURIComponent(id)}`,
+  );
+}
+
+export function addShoppingListItem(
+  listId: string,
+  body: { text: string; recipe_id?: string },
+): Promise<ShoppingListItem> {
+  return request<ShoppingListItem>(
+    `/shopping-lists/${encodeURIComponent(listId)}/items`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function updateShoppingListItem(
+  listId: string,
+  itemId: string,
+  body: { checked?: boolean; quantity?: number },
+): Promise<ShoppingListItem> {
+  return request<ShoppingListItem>(
+    `/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    },
+  );
+}
+
+export function deleteShoppingListItem(
+  listId: string,
+  itemId: string,
+): Promise<void> {
+  return request<void>(
+    `/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
+    {
+      method: "DELETE",
+    },
+  );
+}
+
+export function uncheckAllShoppingListItems(
+  listId: string,
+): Promise<void> {
+  return request<void>(
+    `/shopping-lists/${encodeURIComponent(listId)}/items/uncheck-all`,
+    {
+      method: "POST",
+    },
+  );
 }
 
 export const api = USE_MOCK ? mockApi : realApi;

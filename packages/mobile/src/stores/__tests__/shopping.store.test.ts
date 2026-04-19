@@ -1,8 +1,25 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useShoppingStore } from "../shopping.store";
 
+vi.mock("../../lib/api", () => ({
+  fetchShoppingLists: vi.fn().mockResolvedValue({ items: [] }),
+  createShoppingList: vi.fn().mockResolvedValue({ id: "list-1", name: "Test" }),
+  getShoppingList: vi.fn().mockResolvedValue({ list: { id: "list-1" }, items: [] }),
+  addShoppingListItem: vi.fn().mockResolvedValue({}),
+  updateShoppingListItem: vi.fn().mockResolvedValue({}),
+  deleteShoppingListItem: vi.fn().mockResolvedValue(undefined),
+  uncheckAllShoppingListItems: vi.fn().mockResolvedValue(undefined),
+}));
+
 function resetStore() {
-  useShoppingStore.setState({ items: [] });
+  useShoppingStore.setState({
+    items: [],
+    lists: [],
+    serverItems: [],
+    activeListId: null,
+    isLoading: false,
+    isOnline: false, // offline by default so server calls don't fire
+  });
 }
 
 describe("shopping.store", () => {
@@ -128,6 +145,110 @@ describe("shopping.store", () => {
       const { items } = useShoppingStore.getState();
       expect(items).toHaveLength(1);
       expect(items[0]!.text).toBe("flour");
+    });
+  });
+
+  describe("uncheckAll", () => {
+    it("unchecks all items", () => {
+      useShoppingStore.getState().addManual("butter");
+      useShoppingStore.getState().addManual("flour");
+      const items = useShoppingStore.getState().items;
+      useShoppingStore.getState().toggle(items[0]!.id);
+      useShoppingStore.getState().toggle(items[1]!.id);
+
+      useShoppingStore.getState().uncheckAll();
+
+      const updated = useShoppingStore.getState().items;
+      expect(updated.every((i) => !i.checked)).toBe(true);
+    });
+  });
+
+  describe("online/offline", () => {
+    it("setOnline updates isOnline state", () => {
+      expect(useShoppingStore.getState().isOnline).toBe(false);
+      useShoppingStore.getState().setOnline(true);
+      expect(useShoppingStore.getState().isOnline).toBe(true);
+    });
+
+    it("fetchLists does nothing when offline", async () => {
+      await useShoppingStore.getState().fetchLists();
+      expect(useShoppingStore.getState().lists).toEqual([]);
+      expect(useShoppingStore.getState().isLoading).toBe(false);
+    });
+
+    it("fetchLists populates lists when online", async () => {
+      const { fetchShoppingLists } = await import("../../lib/api");
+      (fetchShoppingLists as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        items: [{ id: "l1", name: "Groceries" }],
+      });
+      useShoppingStore.setState({ isOnline: true });
+
+      await useShoppingStore.getState().fetchLists();
+
+      expect(useShoppingStore.getState().lists).toEqual([
+        { id: "l1", name: "Groceries" },
+      ]);
+    });
+
+    it("selectList fetches items from server when online", async () => {
+      const { getShoppingList } = await import("../../lib/api");
+      (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        list: { id: "l1" },
+        items: [
+          {
+            id: "item-1",
+            shopping_list_id: "l1",
+            recipe_id: null,
+            original_text: "milk",
+            quantity: null,
+            unit: null,
+            item: "milk",
+            checked: 0,
+            parse_failed: 0,
+            parsing: 0,
+            source: "manual",
+            position: 0,
+            created_at: "",
+            updated_at: "",
+          },
+        ],
+      });
+      useShoppingStore.setState({ isOnline: true });
+
+      await useShoppingStore.getState().selectList("l1");
+
+      expect(useShoppingStore.getState().activeListId).toBe("l1");
+      expect(useShoppingStore.getState().items).toHaveLength(1);
+      expect(useShoppingStore.getState().items[0]!.text).toBe("milk");
+      expect(useShoppingStore.getState().items[0]!.checked).toBe(false);
+    });
+
+    it("createList returns list when online", async () => {
+      const { createShoppingList } = await import("../../lib/api");
+      (createShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        id: "new-list",
+        name: "Dinner",
+      });
+      useShoppingStore.setState({ isOnline: true });
+
+      const result = await useShoppingStore.getState().createList("Dinner");
+
+      expect(result).toEqual({ id: "new-list", name: "Dinner" });
+      expect(useShoppingStore.getState().lists).toHaveLength(1);
+    });
+
+    it("createList returns null when offline", async () => {
+      const result = await useShoppingStore.getState().createList("Dinner");
+      expect(result).toBeNull();
+    });
+
+    it("addManual calls server when online with active list", async () => {
+      const { addShoppingListItem } = await import("../../lib/api");
+      useShoppingStore.setState({ isOnline: true, activeListId: "l1" });
+
+      useShoppingStore.getState().addManual("eggs");
+
+      expect(addShoppingListItem).toHaveBeenCalledWith("l1", { text: "eggs" });
     });
   });
 });

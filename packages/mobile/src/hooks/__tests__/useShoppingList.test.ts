@@ -30,7 +30,14 @@ function getRecipeIds(items: ShoppingItem[]): string[] {
 }
 
 function resetStore() {
-  useShoppingStore.setState({ items: [] });
+  useShoppingStore.setState({
+    items: [],
+    lists: [],
+    serverItems: [],
+    activeListId: null,
+    isLoading: false,
+    isOnline: false,
+  });
 }
 
 describe("useShoppingList computed properties", () => {
