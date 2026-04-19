@@ -447,4 +447,5 @@ app.onError((err, c) => {
   );
 });
 
+export { ShoppingListDO } from './durable-objects/ShoppingListDO';
 export default app;
