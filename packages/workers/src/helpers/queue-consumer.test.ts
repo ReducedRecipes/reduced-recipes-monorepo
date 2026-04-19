@@ -3,6 +3,12 @@ import type { Env } from '@rr/shared/env';
 import type { IngredientParseJob } from '@rr/shared';
 import { handleIngredientParseQueue } from './queue-consumer';
 
+vi.mock('./ingredient-canon', () => ({
+  resolveCanon: vi.fn().mockResolvedValue({ canonical_name: 'flour', category: 'Pantry' }),
+}));
+
+import { resolveCanon } from './ingredient-canon';
+
 function makeStmt() {
   return {
     bind: vi.fn().mockReturnThis(),
@@ -181,5 +187,110 @@ describe('handleIngredientParseQueue', () => {
     const msg1 = batch.messages[1] as unknown as MockMessage<IngredientParseJob>;
     expect(msg0.ack).toHaveBeenCalled();
     expect(msg1.ack).toHaveBeenCalled();
+  });
+
+  it('calls resolveCanon after parsing and includes canonical_name and category in D1 update', async () => {
+    const mockResolveCanon = vi.mocked(resolveCanon);
+    mockResolveCanon.mockResolvedValueOnce({ canonical_name: 'flour', category: 'Pantry' });
+
+    const env = createEnv();
+    const batch = createBatch([
+      {
+        shopping_list_id: 'list-1',
+        recipe_id: 'recipe-1',
+        items: [{ id: 'item-1', original_text: '2 cups flour' }],
+      },
+    ]);
+
+    await handleIngredientParseQueue(batch, env);
+
+    expect(mockResolveCanon).toHaveBeenCalledWith('flour', env);
+
+    const usersDb = env.USERS_DB as unknown as { prepare: ReturnType<typeof vi.fn> };
+    expect(usersDb.prepare).toHaveBeenCalledWith(
+      expect.stringContaining('canonical_name = ?, category = ?'),
+    );
+
+    // Verify bind was called with canonical_name and category
+    const stmt = usersDb.prepare.mock.results[0]!.value;
+    expect(stmt.bind).toHaveBeenCalledWith(
+      'flour', // item
+      2, // quantity
+      'cup', // unit
+      0, // parse_failed
+      'flour', // canonical_name
+      'Pantry', // category
+      expect.any(String), // updated_at
+      'item-1', // id
+    );
+  });
+
+  it('gracefully handles resolveCanon failure — sets canonical_name and category to null', async () => {
+    const mockResolveCanon = vi.mocked(resolveCanon);
+    mockResolveCanon.mockRejectedValueOnce(new Error('KV/D1/AI all failed'));
+
+    const env = createEnv();
+    const batch = createBatch([
+      {
+        shopping_list_id: 'list-1',
+        recipe_id: 'recipe-1',
+        items: [{ id: 'item-1', original_text: '1 lb chicken' }],
+      },
+    ]);
+
+    await handleIngredientParseQueue(batch, env);
+
+    // Item should still be updated (parsing completes) with null canon fields
+    const usersDb = env.USERS_DB as unknown as { batch: ReturnType<typeof vi.fn> };
+    expect(usersDb.batch).toHaveBeenCalledTimes(1);
+
+    const msg = batch.messages[0] as unknown as MockMessage<IngredientParseJob>;
+    expect(msg.ack).toHaveBeenCalled();
+
+    // Verify bind was called with null canonical_name and category
+    const preparedDb = env.USERS_DB as unknown as { prepare: ReturnType<typeof vi.fn> };
+    const stmt = preparedDb.prepare.mock.results[0]!.value;
+    expect(stmt.bind).toHaveBeenCalledWith(
+      'chicken', // item
+      1, // quantity
+      'lb', // unit
+      0, // parse_failed
+      null, // canonical_name (failed)
+      null, // category (failed)
+      expect.any(String), // updated_at
+      'item-1', // id
+    );
+  });
+
+  it('resolves canon for each item in a batch job', async () => {
+    const mockResolveCanon = vi.mocked(resolveCanon);
+    mockResolveCanon
+      .mockResolvedValueOnce({ canonical_name: 'flour', category: 'Pantry' })
+      .mockResolvedValueOnce({ canonical_name: 'salt', category: 'Spices & Seasonings' });
+
+    const env = createEnv();
+    const batch = createBatch([
+      {
+        shopping_list_id: 'list-1',
+        recipe_id: 'recipe-1',
+        items: [
+          { id: 'item-1', original_text: '2 cups flour' },
+          { id: 'item-2', original_text: '1 tsp salt' },
+        ],
+      },
+    ]);
+
+    await handleIngredientParseQueue(batch, env);
+
+    expect(mockResolveCanon).toHaveBeenCalledTimes(2);
+    expect(mockResolveCanon).toHaveBeenCalledWith('flour', env);
+    expect(mockResolveCanon).toHaveBeenCalledWith('salt', env);
+
+    const usersDb = env.USERS_DB as unknown as { batch: ReturnType<typeof vi.fn> };
+    expect(usersDb.batch).toHaveBeenCalledTimes(1);
+    expect(usersDb.batch.mock.calls[0]![0]).toHaveLength(2);
+
+    const msg = batch.messages[0] as unknown as MockMessage<IngredientParseJob>;
+    expect(msg.ack).toHaveBeenCalled();
   });
 });
