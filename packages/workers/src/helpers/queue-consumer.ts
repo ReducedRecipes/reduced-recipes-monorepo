@@ -10,6 +10,7 @@
 import type { Env } from '@rr/shared/env';
 import type { IngredientParseJob } from '@rr/shared';
 import { parseIngredient, parseIngredientWithAI } from './ingredient-parser';
+import { resolveCanon } from './ingredient-canon';
 
 export async function handleIngredientParseQueue(
   batch: MessageBatch<IngredientParseJob>,
@@ -25,6 +26,8 @@ export async function handleIngredientParseQueue(
         quantity: number | null;
         unit: string;
         parse_failed: number;
+        canonical_name: string | null;
+        category: string | null;
       }> = [];
 
       for (const entry of job.items) {
@@ -37,20 +40,35 @@ export async function handleIngredientParseQueue(
           finalResult = await parseIngredientWithAI(entry.original_text, env.AI);
         }
 
+        // Resolve canonical name and category (graceful failure)
+        let canonical_name: string | null = null;
+        let category: string | null = null;
+        if (finalResult.name) {
+          try {
+            const canon = await resolveCanon(finalResult.name, env);
+            canonical_name = canon.canonical_name;
+            category = canon.category;
+          } catch {
+            // Canon resolution failed — continue without canonical data
+          }
+        }
+
         updates.push({
           id: entry.id,
           item: finalResult.name,
           quantity: finalResult.quantity,
           unit: finalResult.unit,
           parse_failed: finalResult.name === '' ? 1 : 0,
+          canonical_name,
+          category,
         });
       }
 
       // Batch update items in D1
       const stmts = updates.map((u) =>
         env.USERS_DB!.prepare(
-          'UPDATE shopping_list_items SET item = ?, quantity = ?, unit = ?, parse_failed = ?, parsing = 0, updated_at = ? WHERE id = ?',
-        ).bind(u.item, u.quantity, u.unit, u.parse_failed, new Date().toISOString(), u.id),
+          'UPDATE shopping_list_items SET item = ?, quantity = ?, unit = ?, parse_failed = ?, parsing = 0, canonical_name = ?, category = ?, updated_at = ? WHERE id = ?',
+        ).bind(u.item, u.quantity, u.unit, u.parse_failed, u.canonical_name, u.category, new Date().toISOString(), u.id),
       );
 
       if (stmts.length > 0) {
