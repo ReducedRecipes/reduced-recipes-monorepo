@@ -4,6 +4,7 @@ import type { Env } from '@rr/shared/env';
 import type { RecipeDocument, RecipeSummary, User } from '@rr/shared';
 import { optionalAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
+import { handleIngredientParseQueue } from './helpers/queue-consumer';
 import authRoutes from './routes/auth';
 import bookmarkRoutes from './routes/bookmarks';
 import notificationRoutes from './routes/notifications';
@@ -429,6 +430,25 @@ app.use('*', async (c, next) => {
   );
 });
 
+// ── WebSocket upgrade route for Shopping List DO ─────────────────────────
+app.get('/api/v1/shopping-lists/:id/ws', async (c) => {
+  const id = c.req.param('id');
+  const doNamespace = c.env.SHOPPING_LIST_DO;
+  if (!doNamespace) {
+    return c.json({ error: { code: 'SERVICE_UNAVAILABLE', message: 'Shopping list DO not configured' } }, 503);
+  }
+
+  const doId = doNamespace.idFromName(id);
+  const stub = doNamespace.get(doId);
+
+  // Forward the request to the DO, passing list_id as a query param
+  const url = new URL(c.req.url);
+  url.searchParams.set('list_id', id);
+  const doRequest = new Request(url.toString(), c.req.raw);
+
+  return stub.fetch(doRequest);
+});
+
 // ── Mount route modules ─────────────────────────────────────────────────
 app.route('/', authRoutes);
 app.route('/', bookmarkRoutes);
@@ -448,4 +468,5 @@ app.onError((err, c) => {
 });
 
 export { ShoppingListDO } from './durable-objects/ShoppingListDO';
-export default app;
+export { app };
+export default { fetch: app.fetch, queue: handleIngredientParseQueue };
