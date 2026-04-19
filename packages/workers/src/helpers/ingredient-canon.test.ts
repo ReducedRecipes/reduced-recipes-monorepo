@@ -184,7 +184,7 @@ describe('resolveCanon', () => {
   it('works without AI binding (AI is undefined)', async () => {
     const kv = mockKV();
     const d1 = mockD1(null);
-    const env = buildEnv({ CACHE_KV: kv, USERS_DB: d1, AI: undefined });
+    const env = buildEnv({ CACHE_KV: kv, USERS_DB: d1 });
 
     const result = await resolveCanon('quinoa', env);
 
@@ -194,7 +194,7 @@ describe('resolveCanon', () => {
   it('works without USERS_DB binding (D1 is undefined)', async () => {
     const kv = mockKV();
     const ai = mockAI('{"canonical_name": "rice", "category": "Pantry"}');
-    const env = buildEnv({ CACHE_KV: kv, USERS_DB: undefined, AI: ai });
+    const env = buildEnv({ CACHE_KV: kv, AI: ai });
 
     const result = await resolveCanon('jasmine rice', env);
 

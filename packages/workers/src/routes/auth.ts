@@ -52,6 +52,20 @@ export function validateReturnTo(returnTo: string, platform: string): string {
     return returnTo;
   }
 
+  // Allow known frontend origins
+  try {
+    const url = new URL(returnTo);
+    if (
+      url.hostname === 'reducedrecipes.com' ||
+      url.hostname.endsWith('.reduced-recipes.pages.dev') ||
+      url.hostname === 'localhost'
+    ) {
+      return returnTo;
+    }
+  } catch {
+    // invalid URL — fall through to default
+  }
+
   // Reject everything else (external URLs, protocol-relative, javascript:, etc.)
   return platform === 'mobile' ? DEFAULT_MOBILE_RETURN_TO : DEFAULT_RETURN_TO;
 }

@@ -117,6 +117,7 @@ export function useShoppingLists() {
     lists,
     isLoading,
     createList: createMutation.mutate,
+    createListAsync: createMutation.mutateAsync,
     updateList: updateMutation.mutate,
     deleteList: deleteMutation.mutate,
     isCreating: createMutation.isPending,

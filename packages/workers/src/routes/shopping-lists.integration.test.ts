@@ -111,7 +111,7 @@ function createStatefulDB() {
           // INSERT shopping list
           if (sql.includes('INSERT INTO shopping_lists')) {
             const [id, userId, name, isDefault, createdAt, updatedAt] = params as string[];
-            lists.set(id, {
+            lists.set(id!, {
               id,
               user_id: userId,
               name,
@@ -127,9 +127,9 @@ function createStatefulDB() {
           // INSERT shopping_list_recipes
           if (sql.includes('INSERT INTO shopping_list_recipes')) {
             const [listId, recipeId] = params as string[];
-            recipeJunctions.set(`${listId}:${recipeId}`, {
-              shopping_list_id: listId,
-              recipe_id: recipeId,
+            recipeJunctions.set(`${listId!}:${recipeId!}`, {
+              shopping_list_id: listId!,
+              recipe_id: recipeId!,
             });
             return { success: true };
           }
@@ -151,7 +151,7 @@ function createStatefulDB() {
             } else {
               // Recipe: .bind(id, listId, recipeId, raw, now, now)
               const [id, listId, recipeId, originalText, createdAt, updatedAt] = params as string[];
-              items.set(id, {
+              items.set(id!, {
                 id, shopping_list_id: listId, recipe_id: recipeId,
                 original_text: originalText,
                 quantity: null, unit: null, item: null,

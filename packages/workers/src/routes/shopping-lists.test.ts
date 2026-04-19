@@ -261,11 +261,11 @@ describe('POST /api/v1/shopping-lists', () => {
 });
 
 describe('GET /api/v1/shopping-lists/:id', () => {
-  it('returns list with items split into checked/unchecked', async () => {
+  it('returns list with items split into checked/unchecked via rollup', async () => {
     const mockList = { id: 'list-1', user_id: 'user-1', name: 'Weekly', is_default: 1, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' };
     const mockItems = [
-      { id: 'item-1', shopping_list_id: 'list-1', name: 'Milk', checked: 0, created_at: '2024-01-01T00:00:00Z' },
-      { id: 'item-2', shopping_list_id: 'list-1', name: 'Bread', checked: 1, created_at: '2024-01-01T00:00:00Z' },
+      { id: 'item-1', shopping_list_id: 'list-1', recipe_id: null, original_text: '1 cup Milk', item: 'Milk', quantity: 1, unit: 'cup', checked: 0, parse_failed: 0, parsing: 0, source: 'manual', position: 0, canonical_name: 'milk', category: 'Dairy', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+      { id: 'item-2', shopping_list_id: 'list-1', recipe_id: null, original_text: '1 loaf Bread', item: 'Bread', quantity: 1, unit: 'loaf', checked: 1, parse_failed: 0, parsing: 0, source: 'manual', position: 1, canonical_name: 'bread', category: 'Bakery', created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
     ];
     const env = makeEnv(createMockUsersDB({ listById: mockList, items: mockItems }));
 
@@ -340,7 +340,7 @@ describe('DELETE /api/v1/shopping-lists/:id', () => {
     expect(res.status).toBe(204);
   });
 
-  it('returns 400 when trying to delete default list', async () => {
+  it('allows deleting default list and promotes next list', async () => {
     const mockList = { id: 'list-1', user_id: 'user-1', name: 'Default', is_default: 1 };
     const env = makeEnv(createMockUsersDB({ listById: mockList }));
 
@@ -348,9 +348,7 @@ describe('DELETE /api/v1/shopping-lists/:id', () => {
       method: 'DELETE',
       headers: AUTH_HEADERS,
     });
-    expect(res.status).toBe(400);
-    const json = await res.json() as { error: { code: string } };
-    expect(json.error.code).toBe('CANNOT_DELETE_DEFAULT');
+    expect(res.status).toBe(204);
   });
 
   it('returns 404 when list not found', async () => {

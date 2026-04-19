@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useRecipe } from "../hooks/useRecipe";
+import { useAuth } from "../hooks/useAuth";
+import { useShoppingLists } from "../hooks/useShoppingLists";
 import { BookmarkButton } from "../components/BookmarkButton";
+import { addRecipeToList } from "../lib/api";
 import type { RecipeDocument } from "@rr/shared/types";
 
 function formatTime(minutes: number): string {
@@ -38,6 +41,11 @@ export default function RecipePage() {
 
   const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
   const [highlightedStep, setHighlightedStep] = useState<number | null>(null);
+  const { isAuthenticated } = useAuth();
+  const { lists, createListAsync } = useShoppingLists();
+  const [showListPicker, setShowListPicker] = useState(false);
+  const [addingToList, setAddingToList] = useState<string | null>(null);
+  const [addedToList, setAddedToList] = useState<string | null>(null);
 
   useEffect(() => {
     if (!recipe) return;
@@ -173,6 +181,88 @@ export default function RecipePage() {
               </li>
             ))}
           </ul>
+
+          {/* Add to Shopping List */}
+          {isAuthenticated && (
+            <div className="relative mt-4">
+              {addedToList ? (
+                <p className="text-sm text-green-600 font-medium">
+                  Added to shopping list!{" "}
+                  <Link to={`/shopping-lists/${addedToList}`} className="underline">
+                    View list
+                  </Link>
+                </p>
+              ) : (
+                <button
+                  onClick={() => setShowListPicker((v) => !v)}
+                  className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
+                >
+                  Add to Shopping List
+                </button>
+              )}
+              {showListPicker && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setShowListPicker(false)} />
+                  <div className="absolute left-0 z-20 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg">
+                    <div className="border-b border-gray-100 px-4 py-2">
+                      <span className="text-sm font-semibold text-gray-800">Choose a list</span>
+                    </div>
+                    <ul className="max-h-48 overflow-y-auto">
+                      {lists.map((list) => (
+                        <li key={list.id}>
+                          <button
+                            type="button"
+                            disabled={addingToList === list.id}
+                            onClick={async () => {
+                              if (!recipe) return;
+                              setAddingToList(list.id);
+                              try {
+                                await addRecipeToList(list.id, {
+                                  recipe_id: recipe.id,
+                                  ingredients: recipe.ingredients,
+                                });
+                                setAddedToList(list.id);
+                                setShowListPicker(false);
+                              } catch { /* ignore */ }
+                              setAddingToList(null);
+                            }}
+                            className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                          >
+                            {addingToList === list.id ? "Adding..." : list.name}
+                          </button>
+                        </li>
+                      ))}
+                      {lists.length === 0 && (
+                        <li>
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              const result = await createListAsync({ name: "My Shopping List" });
+                              if (result?.id && recipe) {
+                                setAddingToList(result.id);
+                                try {
+                                  await addRecipeToList(result.id, {
+                                    recipe_id: recipe.id,
+                                    ingredients: recipe.ingredients,
+                                  });
+                                  setAddedToList(result.id);
+                                  setShowListPicker(false);
+                                } catch { /* ignore */ }
+                                setAddingToList(null);
+                              }
+                            }}
+                            className="block w-full px-4 py-2 text-left text-sm text-orange-600 hover:bg-gray-100"
+                          >
+                            + Create new list
+                          </button>
+                        </li>
+                      )}
+                    </ul>
+                  </div>
+                </>
+              )}
+            </div>
+          )}
         </section>
       )}
 
