@@ -35,11 +35,15 @@ function createMockUsersDB(overrides: {
   listById?: Record<string, unknown> | null;
   existingCount?: number;
   items?: Record<string, unknown>[];
+  itemById?: Record<string, unknown> | null;
+  uncheckChanges?: number;
 } = {}) {
   const lists = overrides.lists ?? [];
   const listById = overrides.listById === undefined ? null : overrides.listById;
   const existingCount = overrides.existingCount ?? 0;
   const items = overrides.items ?? [];
+  const itemById = overrides.itemById === undefined ? null : overrides.itemById;
+  const uncheckChanges = overrides.uncheckChanges ?? 0;
 
   return {
     prepare: vi.fn((sql: string) => {
@@ -71,11 +75,53 @@ function createMockUsersDB(overrides: {
           run: vi.fn().mockResolvedValue({ success: true }),
         };
       }
+      // INSERT shopping_list_recipes
+      if (sql.includes('INSERT INTO shopping_list_recipes')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          run: vi.fn().mockResolvedValue({ success: true }),
+        };
+      }
+      // INSERT shopping_list_items
+      if (sql.includes('INSERT INTO shopping_list_items')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          run: vi.fn().mockResolvedValue({ success: true }),
+        };
+      }
+      // DELETE shopping_list_items (must check before generic DELETE)
+      if (sql.includes('DELETE FROM shopping_list_items')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          run: vi.fn().mockResolvedValue({ success: true }),
+        };
+      }
+      // DELETE shopping_list_recipes
+      if (sql.includes('DELETE FROM shopping_list_recipes')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          run: vi.fn().mockResolvedValue({ success: true }),
+        };
+      }
       // DELETE shopping list (must be checked before generic SELECT)
       if (sql.includes('DELETE FROM shopping_lists')) {
         return {
           bind: vi.fn().mockReturnThis(),
           run: vi.fn().mockResolvedValue({ success: true }),
+        };
+      }
+      // UPDATE shopping_list_items (uncheck-all or item update)
+      if (sql.includes('UPDATE shopping_list_items')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          run: vi.fn().mockResolvedValue({ success: true, meta: { changes: uncheckChanges } }),
+        };
+      }
+      // SELECT single item by id and shopping_list_id
+      if (sql.includes('FROM shopping_list_items') && sql.includes('WHERE id = ?')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          first: vi.fn().mockResolvedValue(itemById),
         };
       }
       // SELECT single shopping list by id and user_id
@@ -104,7 +150,7 @@ function createMockUsersDB(overrides: {
         bind: vi.fn().mockReturnThis(),
         first: vi.fn().mockResolvedValue(null),
         all: vi.fn().mockResolvedValue(makeD1Result()),
-        run: vi.fn().mockResolvedValue({ success: true }),
+        run: vi.fn().mockResolvedValue({ success: true, meta: { changes: 0 } }),
       };
     }),
   } as unknown as D1Database;
@@ -129,6 +175,7 @@ function makeEnv(usersDB?: D1Database): Env {
     ENVIRONMENT: 'test',
     USERS_DB: usersDB ?? createMockUsersDB(),
     SESSION_KV: createMockKV(kvStore),
+    INGREDIENT_PARSE_QUEUE: { send: vi.fn().mockResolvedValue(undefined) } as unknown as Queue,
   } as Env;
 }
 
@@ -311,6 +358,243 @@ describe('DELETE /api/v1/shopping-lists/:id', () => {
 
     const res = await req('/api/v1/shopping-lists/nonexistent', env, {
       method: 'DELETE',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+// ── S-8: Recipe and item management tests ──────────────────────────────
+
+const MOCK_LIST = { id: 'list-1', user_id: 'user-1', name: 'Weekly', is_default: 0, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' };
+
+describe('POST /api/v1/shopping-lists/:id/recipes', () => {
+  it('adds recipe ingredients with parsing=1 and sends queue job', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/recipes', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ recipe_id: 'recipe-1', ingredients: ['2 cups flour', '1 tsp salt'] }),
+    });
+    expect(res.status).toBe(201);
+    const json = await res.json() as { items: { id: string; original_text: string }[] };
+    expect(json.items).toHaveLength(2);
+    expect(json.items[0].original_text).toBe('2 cups flour');
+    expect(json.items[1].original_text).toBe('1 tsp salt');
+    // Verify queue was called
+    expect((env as Record<string, unknown>).INGREDIENT_PARSE_QUEUE).toBeDefined();
+  });
+
+  it('returns 400 when ingredients array is empty', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/recipes', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ recipe_id: 'recipe-1', ingredients: [] }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/recipes', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ recipe_id: 'recipe-1', ingredients: ['flour'] }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/v1/shopping-lists/:id/recipes/:recipe_id', () => {
+  it('removes recipe and associated items and returns 204', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/recipes/recipe-1', env, {
+      method: 'DELETE',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(204);
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/recipes/recipe-1', env, {
+      method: 'DELETE',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/v1/shopping-lists/:id/items', () => {
+  it('adds a manual item with parsing=0 and source=manual', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/items', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ name: '2 cups flour' }),
+    });
+    expect(res.status).toBe(201);
+    const json = await res.json() as Record<string, unknown>;
+    expect(json.source).toBe('manual');
+    expect(json.parsing).toBe(0);
+    expect(json.original_text).toBe('2 cups flour');
+    expect(json.recipe_id).toBeNull();
+  });
+
+  it('returns 400 when name is empty', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/items', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ name: '' }),
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/items', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ name: 'Milk' }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('PATCH /api/v1/shopping-lists/:id/items/:item_id', () => {
+  const MOCK_ITEM = {
+    id: 'item-1', shopping_list_id: 'list-1', recipe_id: null,
+    original_text: 'Milk', quantity: 1, unit: 'l', item: 'milk',
+    checked: 0, parse_failed: 0, parsing: 0, source: 'manual' as const,
+    position: 0, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z',
+  };
+
+  it('updates item checked status', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST, itemById: MOCK_ITEM }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/items/item-1', env, {
+      method: 'PATCH',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ checked: 1 }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as Record<string, unknown>;
+    expect(json.checked).toBe(1);
+  });
+
+  it('updates item name', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST, itemById: MOCK_ITEM }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/items/item-1', env, {
+      method: 'PATCH',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ name: 'Oat Milk' }),
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as Record<string, unknown>;
+    expect(json.item).toBe('Oat Milk');
+    expect(json.original_text).toBe('Oat Milk');
+  });
+
+  it('returns 404 when item not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST, itemById: null }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/items/nonexistent', env, {
+      method: 'PATCH',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ checked: 1 }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/items/item-1', env, {
+      method: 'PATCH',
+      headers: AUTH_HEADERS,
+      body: JSON.stringify({ checked: 1 }),
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/v1/shopping-lists/:id/items/:item_id', () => {
+  it('removes item and returns 204', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST, itemById: { id: 'item-1' } }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/items/item-1', env, {
+      method: 'DELETE',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(204);
+  });
+
+  it('returns 404 when item not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST, itemById: null }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/items/nonexistent', env, {
+      method: 'DELETE',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/items/item-1', env, {
+      method: 'DELETE',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('POST /api/v1/shopping-lists/:id/uncheck-all', () => {
+  it('unchecks all items and returns count', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST, uncheckChanges: 3 }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/uncheck-all', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { count: number };
+    expect(json.count).toBe(3);
+  });
+
+  it('returns count=0 when no items were checked', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: MOCK_LIST, uncheckChanges: 0 }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/uncheck-all', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { count: number };
+    expect(json.count).toBe(0);
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/uncheck-all', env, {
+      method: 'POST',
       headers: AUTH_HEADERS,
     });
     expect(res.status).toBe(404);
