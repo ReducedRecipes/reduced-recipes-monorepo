@@ -4,6 +4,7 @@ import type { Env } from '@rr/shared/env';
 import type { ShoppingList, ShoppingListItem, IngredientParseJob } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 import { parseIngredient } from '../helpers/ingredient-parser';
+import { rollupItems } from '../helpers/smart-rollup';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -102,18 +103,11 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
 
   const items = itemsResult.results ?? [];
 
-  // Apply smart rollup (stub — returns items as-is when rollup helper not available)
-  const rolledUpItems = { unchecked: [] as Record<string, unknown>[], checked: [] as Record<string, unknown>[] };
-  for (const item of items) {
-    const row = item as Record<string, unknown>;
-    if (row.checked) {
-      rolledUpItems.checked.push(row);
-    } else {
-      rolledUpItems.unchecked.push(row);
-    }
-  }
+  // Apply smart rollup — deduplicates and aggregates quantities
+  const typedItems = items as unknown as ShoppingListItem[];
+  const rolledUp = rollupItems(typedItems);
 
-  return c.json({ ...list, items: rolledUpItems });
+  return c.json({ ...list, items: rolledUp.items });
 });
 
 // PATCH /api/v1/shopping-lists/:id — update list name
@@ -505,17 +499,10 @@ shoppingLists.get('/api/v1/shared/lists/:token', async (c) => {
     .all();
 
   const items = itemsResult.results ?? [];
-  const rolledUpItems = { unchecked: [] as Record<string, unknown>[], checked: [] as Record<string, unknown>[] };
-  for (const item of items) {
-    const row = item as Record<string, unknown>;
-    if (row.checked) {
-      rolledUpItems.checked.push(row);
-    } else {
-      rolledUpItems.unchecked.push(row);
-    }
-  }
+  const typedItems = items as unknown as ShoppingListItem[];
+  const rolledUp = rollupItems(typedItems);
 
-  return c.json({ ...list, items: rolledUpItems });
+  return c.json({ ...list, items: rolledUp.items });
 });
 
 // POST /api/v1/shopping-lists/:id/uncheck-all — uncheck all items in list
