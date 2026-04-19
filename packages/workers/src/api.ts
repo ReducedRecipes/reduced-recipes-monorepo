@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import type { Env } from '@rr/shared/env';
 import type { RecipeDocument, RecipeSummary, User } from '@rr/shared';
-import { optionalAuth } from './middleware/auth';
+import { optionalAuth, requireAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
 import authRoutes from './routes/auth';
 import bookmarkRoutes from './routes/bookmarks';
@@ -11,6 +11,7 @@ import userRoutes from './routes/users';
 import collectionsRoutes from './routes/collections';
 import syncRoutes from './routes/sync';
 import shoppingListRoutes from './routes/shopping-lists';
+import { handleIngredientParseQueue } from './helpers/queue-consumer';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -438,6 +439,24 @@ app.route('/', collectionsRoutes);
 app.route('/', syncRoutes);
 app.route('/', shoppingListRoutes);
 
+// ── WebSocket upgrade for shopping list real-time collaboration ──────────
+app.get('/api/v1/shopping-lists/:id/ws', requireAuth, async (c) => {
+  const listId = c.req.param('id');
+  const userId = c.get('userId')!;
+
+  const doId = c.env.SHOPPING_LIST_DO!.idFromName(listId);
+  const stub = c.env.SHOPPING_LIST_DO!.get(doId);
+
+  const url = new URL(c.req.url);
+  url.searchParams.set('user_id', userId);
+
+  const upgradeRequest = new Request(url.toString(), {
+    headers: c.req.raw.headers,
+  });
+
+  return stub.fetch(upgradeRequest);
+});
+
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
   console.error('Unhandled error:', err);
@@ -448,4 +467,5 @@ app.onError((err, c) => {
 });
 
 export { ShoppingListDO } from './durable-objects/ShoppingListDO';
-export default app;
+export { app };
+export default { fetch: app.fetch, queue: handleIngredientParseQueue };

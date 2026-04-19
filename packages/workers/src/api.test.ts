@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import app from './api';
+import { app } from './api';
+import workerExport from './api';
 
 // ── Mock helpers ─────────────────────────────────────────────────────────
 
@@ -383,6 +384,27 @@ describe('POST /api/v1/remove', () => {
     expect(logged.email).toBe('test@test.com');
     expect(logged.timestamp).toBeDefined();
     consoleSpy.mockRestore();
+  });
+});
+
+// ── S-12: Worker export and WebSocket upgrade tests ─────────────────────
+
+describe('Worker default export', () => {
+  it('exports fetch and queue handlers', () => {
+    expect(workerExport).toHaveProperty('fetch');
+    expect(workerExport).toHaveProperty('queue');
+    expect(typeof workerExport.fetch).toBe('function');
+    expect(typeof workerExport.queue).toBe('function');
+  });
+});
+
+describe('GET /api/v1/shopping-lists/:id/ws', () => {
+  it('rejects unauthenticated requests', async () => {
+    const env = createEnv();
+    const res = await reqWithInit('/api/v1/shopping-lists/list-1/ws', env);
+    // requireAuth returns 401 or 403 when no valid token provided
+    expect(res.status).toBeGreaterThanOrEqual(400);
+    expect(res.status).toBeLessThan(500);
   });
 });
 
