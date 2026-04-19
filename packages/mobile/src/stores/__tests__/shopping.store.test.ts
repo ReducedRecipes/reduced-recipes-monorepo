@@ -256,7 +256,7 @@ describe("shopping.store", () => {
 
       useShoppingStore.getState().addManual("eggs");
 
-      expect(addShoppingListItem).toHaveBeenCalledWith("l1", { text: "eggs" });
+      expect(addShoppingListItem).toHaveBeenCalledWith("l1", { name: "eggs" });
     });
 
     it("addManual queues mutation when offline with active list", () => {

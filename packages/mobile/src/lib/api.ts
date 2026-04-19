@@ -442,6 +442,11 @@ export interface ShoppingListDetailResponse {
   items: ShoppingListItem[];
 }
 
+/** Raw response shape from the worker (smart rollup format). */
+interface ShoppingListDetailRawResponse extends ShoppingList {
+  items: { unchecked: ShoppingListItem[]; checked: ShoppingListItem[] };
+}
+
 export function fetchShoppingLists(): Promise<ShoppingListsResponse> {
   return request<ShoppingListsResponse>("/shopping-lists");
 }
@@ -456,17 +461,22 @@ export function createShoppingList(body: {
   });
 }
 
-export function getShoppingList(
+export async function getShoppingList(
   id: string,
 ): Promise<ShoppingListDetailResponse> {
-  return request<ShoppingListDetailResponse>(
+  const raw = await request<ShoppingListDetailRawResponse>(
     `/shopping-lists/${encodeURIComponent(id)}`,
   );
+  const { items: rolledUp, ...listFields } = raw;
+  return {
+    list: listFields,
+    items: [...rolledUp.unchecked, ...rolledUp.checked],
+  };
 }
 
 export function addShoppingListItem(
   listId: string,
-  body: { text: string; recipe_id?: string },
+  body: { name: string; recipe_id?: string },
 ): Promise<ShoppingListItem> {
   return request<ShoppingListItem>(
     `/shopping-lists/${encodeURIComponent(listId)}/items`,
@@ -507,7 +517,7 @@ export function uncheckAllShoppingListItems(
   listId: string,
 ): Promise<void> {
   return request<void>(
-    `/shopping-lists/${encodeURIComponent(listId)}/items/uncheck-all`,
+    `/shopping-lists/${encodeURIComponent(listId)}/uncheck-all`,
     {
       method: "POST",
     },
