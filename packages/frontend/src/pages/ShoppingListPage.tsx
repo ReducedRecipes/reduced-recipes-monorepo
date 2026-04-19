@@ -7,24 +7,109 @@ import {
   useShareLink,
   useShoppingLists,
 } from "../hooks/useShoppingLists";
-import type { ShoppingListItem } from "@rr/shared";
+import type { SmartRollupItem } from "@rr/shared";
 
-function ItemRow({
-  item,
+const CATEGORY_ORDER = [
+  "Produce",
+  "Dairy",
+  "Meat & Seafood",
+  "Pantry",
+  "Frozen",
+  "Bakery",
+  "Beverages",
+  "Spices & Seasonings",
+  "Other",
+] as const;
+
+function groupByCategory(
+  items: SmartRollupItem[],
+): { category: string; items: SmartRollupItem[] }[] {
+  const groups = new Map<string, SmartRollupItem[]>();
+  for (const item of items) {
+    const cat = item.category || "Other";
+    const list = groups.get(cat);
+    if (list) list.push(item);
+    else groups.set(cat, [item]);
+  }
+  const result: { category: string; items: SmartRollupItem[] }[] = [];
+  for (const cat of CATEGORY_ORDER) {
+    const catItems = groups.get(cat);
+    if (catItems && catItems.length > 0) {
+      result.push({ category: cat, items: catItems });
+      groups.delete(cat);
+    }
+  }
+  // Any remaining categories not in CATEGORY_ORDER
+  for (const [cat, catItems] of groups) {
+    if (catItems.length > 0) {
+      result.push({ category: cat, items: catItems });
+    }
+  }
+  return result;
+}
+
+function CategorySection({
+  category,
+  items,
   onToggle,
   onDelete,
 }: {
-  item: ShoppingListItem;
+  category: string;
+  items: SmartRollupItem[];
+  onToggle: (item: SmartRollupItem) => void;
+  onDelete: (item: SmartRollupItem) => void;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="border-b border-gray-100 last:border-b-0">
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex w-full items-center justify-between px-4 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-sm font-semibold text-gray-700">{category}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">{items.length}</span>
+          <svg
+            className={`h-4 w-4 text-gray-400 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </div>
+      </button>
+      {!collapsed && (
+        <div className="divide-y divide-gray-100 px-4">
+          {items.map((item) => (
+            <RollupItemRow
+              key={item.canonical_item}
+              item={item}
+              onToggle={() => onToggle(item)}
+              onDelete={() => onDelete(item)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RollupItemRow({
+  item,
+  onToggle,
+  onDelete,
+  isChecked = false,
+}: {
+  item: SmartRollupItem;
   onToggle: () => void;
   onDelete: () => void;
+  isChecked?: boolean;
 }) {
-  const isChecked = item.checked === 1;
-  const displayName = item.item ?? item.original_text ?? "Unknown item";
-  const quantityStr =
-    item.quantity != null
-      ? `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`
-      : item.unit ?? "";
-
   return (
     <div className="flex items-center gap-3 py-2 group">
       <button
@@ -52,10 +137,7 @@ function ItemRow({
           isChecked ? "text-gray-400 line-through" : "text-gray-900"
         }`}
       >
-        {quantityStr && (
-          <span className="font-medium text-gray-600">{quantityStr} </span>
-        )}
-        {displayName}
+        {item.display_text}
       </span>
       <button
         onClick={onDelete}
@@ -151,8 +233,29 @@ export default function ShoppingListPage() {
     }
   };
 
+  const handleToggleItem = (item: SmartRollupItem) => {
+    // Toggle all source items for this rolled-up item
+    const newChecked = item.sources.length > 0 ? 1 : 0;
+    for (const source of item.sources) {
+      updateItem({ itemId: source.item_id, checked: newChecked });
+    }
+  };
+
+  const handleUncheckItem = (item: SmartRollupItem) => {
+    for (const source of item.sources) {
+      updateItem({ itemId: source.item_id, checked: 0 });
+    }
+  };
+
+  const handleDeleteItem = (item: SmartRollupItem) => {
+    for (const source of item.sources) {
+      deleteItem(source.item_id);
+    }
+  };
+
   const uncheckedItems = list.items.unchecked;
   const checkedItems = list.items.checked;
+  const categoryGroups = groupByCategory(uncheckedItems);
 
   return (
     <div className="mx-auto max-w-2xl py-8">
@@ -249,26 +352,23 @@ export default function ShoppingListPage() {
         </div>
       </div>
 
-      {/* Items */}
+      {/* Items grouped by category */}
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        {/* Unchecked items */}
-        <div className="divide-y divide-gray-100 px-4">
-          {uncheckedItems.length === 0 && checkedItems.length === 0 && (
-            <p className="py-8 text-center text-sm text-gray-500">
-              No items yet. Add some below.
-            </p>
-          )}
-          {uncheckedItems.map((item) => (
-            <ItemRow
-              key={item.id}
-              item={item}
-              onToggle={() =>
-                updateItem({ itemId: item.id, checked: 1 })
-              }
-              onDelete={() => deleteItem(item.id)}
-            />
-          ))}
-        </div>
+        {uncheckedItems.length === 0 && checkedItems.length === 0 && (
+          <p className="py-8 text-center text-sm text-gray-500">
+            No items yet. Add some below.
+          </p>
+        )}
+
+        {categoryGroups.map((group) => (
+          <CategorySection
+            key={group.category}
+            category={group.category}
+            items={group.items}
+            onToggle={handleToggleItem}
+            onDelete={handleDeleteItem}
+          />
+        ))}
 
         {/* Add item input */}
         <div className="border-t border-gray-200 px-4 py-3">
@@ -291,7 +391,7 @@ export default function ShoppingListPage() {
           </div>
         </div>
 
-        {/* Checked items */}
+        {/* Checked items section at bottom */}
         {checkedItems.length > 0 && (
           <div className="border-t border-gray-200">
             <div className="flex items-center justify-between px-4 py-2 bg-gray-50">
@@ -307,13 +407,12 @@ export default function ShoppingListPage() {
             </div>
             <div className="divide-y divide-gray-100 px-4">
               {checkedItems.map((item) => (
-                <ItemRow
-                  key={item.id}
+                <RollupItemRow
+                  key={item.canonical_item}
                   item={item}
-                  onToggle={() =>
-                    updateItem({ itemId: item.id, checked: 0 })
-                  }
-                  onDelete={() => deleteItem(item.id)}
+                  isChecked
+                  onToggle={() => handleUncheckItem(item)}
+                  onDelete={() => handleDeleteItem(item)}
                 />
               ))}
             </div>
