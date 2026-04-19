@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import shoppingLists from './shopping-lists';
+import shoppingLists, { validateShareToken } from './shopping-lists';
 import type { Env } from '@rr/shared/env';
 import type { User } from '@rr/shared';
 
@@ -33,11 +33,13 @@ function createMockKV(store = new Map<string, string>()) {
 function createMockUsersDB(overrides: {
   lists?: Record<string, unknown>[];
   listById?: Record<string, unknown> | null;
+  listByShareToken?: Record<string, unknown> | null;
   existingCount?: number;
   items?: Record<string, unknown>[];
 } = {}) {
   const lists = overrides.lists ?? [];
   const listById = overrides.listById === undefined ? null : overrides.listById;
+  const listByShareToken = overrides.listByShareToken === undefined ? null : overrides.listByShareToken;
   const existingCount = overrides.existingCount ?? 0;
   const items = overrides.items ?? [];
 
@@ -76,6 +78,20 @@ function createMockUsersDB(overrides: {
         return {
           bind: vi.fn().mockReturnThis(),
           run: vi.fn().mockResolvedValue({ success: true }),
+        };
+      }
+      // SELECT by share_token (shared list access)
+      if (sql.includes('FROM shopping_lists') && sql.includes('WHERE share_token = ?')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          first: vi.fn().mockResolvedValue(listByShareToken),
+        };
+      }
+      // SELECT share_token, share_expires_at (validateShareToken)
+      if (sql.includes('SELECT share_token, share_expires_at') && sql.includes('WHERE id = ?')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          first: vi.fn().mockResolvedValue(listById),
         };
       }
       // SELECT single shopping list by id and user_id
@@ -314,5 +330,175 @@ describe('DELETE /api/v1/shopping-lists/:id', () => {
       headers: AUTH_HEADERS,
     });
     expect(res.status).toBe(404);
+  });
+});
+
+// ── Share token routes ──────────────────────────────────────────────────
+
+describe('POST /api/v1/shopping-lists/:id/share', () => {
+  it('creates a share token and returns it with expiry', async () => {
+    const mockList = { id: 'list-1', user_id: 'user-1', name: 'Weekly', is_default: 0, share_token: null, share_expires_at: null };
+    const env = makeEnv(createMockUsersDB({ listById: mockList }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/share', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { share_token: string; expires_at: string; share_url: string };
+    expect(json.share_token).toBeDefined();
+    expect(json.share_token).toMatch(/^[0-9a-f-]{36}$/);
+    expect(json.expires_at).toBeDefined();
+    expect(json.share_url).toContain(json.share_token);
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/share', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('returns 401 without auth', async () => {
+    const env = makeEnv();
+    const res = await req('/api/v1/shopping-lists/list-1/share', env, { method: 'POST' });
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('POST /api/v1/shopping-lists/:id/share/renew', () => {
+  it('renews an existing share token expiry', async () => {
+    const mockList = { id: 'list-1', user_id: 'user-1', name: 'Weekly', is_default: 0, share_token: 'existing-token', share_expires_at: '2024-01-01T00:00:00Z' };
+    const env = makeEnv(createMockUsersDB({ listById: mockList }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/share/renew', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(200);
+    const json = await res.json() as { share_token: string; expires_at: string };
+    expect(json.share_token).toBe('existing-token');
+    expect(json.expires_at).toBeDefined();
+    // New expiry should be in the future
+    expect(new Date(json.expires_at).getTime()).toBeGreaterThan(Date.now());
+  });
+
+  it('returns 400 when no share token exists', async () => {
+    const mockList = { id: 'list-1', user_id: 'user-1', name: 'Weekly', is_default: 0, share_token: null, share_expires_at: null };
+    const env = makeEnv(createMockUsersDB({ listById: mockList }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/share/renew', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(400);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('NO_SHARE_TOKEN');
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/share/renew', env, {
+      method: 'POST',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('DELETE /api/v1/shopping-lists/:id/share', () => {
+  it('revokes share token and returns 204', async () => {
+    const mockList = { id: 'list-1', user_id: 'user-1', name: 'Weekly', is_default: 0, share_token: 'some-token', share_expires_at: '2025-01-01T00:00:00Z' };
+    const env = makeEnv(createMockUsersDB({ listById: mockList }));
+
+    const res = await req('/api/v1/shopping-lists/list-1/share', env, {
+      method: 'DELETE',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(204);
+  });
+
+  it('returns 404 when list not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listById: null }));
+
+    const res = await req('/api/v1/shopping-lists/nonexistent/share', env, {
+      method: 'DELETE',
+      headers: AUTH_HEADERS,
+    });
+    expect(res.status).toBe(404);
+  });
+});
+
+describe('GET /api/v1/shared/lists/:token', () => {
+  it('returns shared list with rollup when token is valid', async () => {
+    const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const mockList = { id: 'list-1', user_id: 'user-1', name: 'Shared List', is_default: 0, share_token: 'valid-share-token', share_expires_at: futureDate };
+    const mockItems = [
+      { id: 'item-1', shopping_list_id: 'list-1', original_text: 'Milk', item: 'milk', quantity: 1, unit: 'l', checked: 0, created_at: '2024-01-01T00:00:00Z' },
+    ];
+    const env = makeEnv(createMockUsersDB({ listByShareToken: mockList, items: mockItems }));
+
+    const res = await req('/api/v1/shared/lists/valid-share-token', env);
+    expect(res.status).toBe(200);
+    const json = await res.json() as Record<string, unknown>;
+    expect(json.name).toBe('Shared List');
+    expect(json.items).toBeDefined();
+  });
+
+  it('returns 404 when token not found', async () => {
+    const env = makeEnv(createMockUsersDB({ listByShareToken: null }));
+
+    const res = await req('/api/v1/shared/lists/invalid-token', env);
+    expect(res.status).toBe(404);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns 410 when share token is expired', async () => {
+    const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const mockList = { id: 'list-1', user_id: 'user-1', name: 'Expired List', share_token: 'expired-token', share_expires_at: pastDate };
+    const env = makeEnv(createMockUsersDB({ listByShareToken: mockList }));
+
+    const res = await req('/api/v1/shared/lists/expired-token', env);
+    expect(res.status).toBe(410);
+    const json = await res.json() as { error: { code: string } };
+    expect(json.error.code).toBe('EXPIRED');
+  });
+});
+
+describe('validateShareToken', () => {
+  it('returns true for valid non-expired token', async () => {
+    const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const db = createMockUsersDB({ listById: { share_token: 'valid-token', share_expires_at: futureDate } });
+
+    const result = await validateShareToken(db, 'list-1', 'valid-token');
+    expect(result).toBe(true);
+  });
+
+  it('returns false for mismatched token', async () => {
+    const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const db = createMockUsersDB({ listById: { share_token: 'other-token', share_expires_at: futureDate } });
+
+    const result = await validateShareToken(db, 'list-1', 'wrong-token');
+    expect(result).toBe(false);
+  });
+
+  it('returns false for expired token', async () => {
+    const pastDate = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const db = createMockUsersDB({ listById: { share_token: 'expired-token', share_expires_at: pastDate } });
+
+    const result = await validateShareToken(db, 'list-1', 'expired-token');
+    expect(result).toBe(false);
+  });
+
+  it('returns false when list not found', async () => {
+    const db = createMockUsersDB({ listById: null });
+
+    const result = await validateShareToken(db, 'nonexistent', 'any-token');
+    expect(result).toBe(false);
   });
 });
