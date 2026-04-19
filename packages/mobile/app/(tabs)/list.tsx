@@ -8,6 +8,7 @@ import {
   Alert,
   Share,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { useShoppingList } from '@/hooks/useShoppingList';
 import { BottomSheet, type BottomSheetRef } from '@/components/BottomSheet';
 import { EmptyState } from '@/components/EmptyState';
@@ -55,6 +56,41 @@ interface RecipePill {
   recipeTitle: string;
 }
 
+interface RecipeSource {
+  recipeId: string;
+  recipeTitle: string;
+  originalText: string;
+}
+
+/** Build a map of item ID → all recipe sources that contributed to the same ingredient text. */
+function buildSourceMap(items: ShoppingItem[]): Map<string, RecipeSource[]> {
+  const textToSources = new Map<string, RecipeSource[]>();
+  for (const item of items) {
+    if (!item.recipeId || !item.recipeTitle) continue;
+    const key = item.text.toLowerCase().trim();
+    const sources = textToSources.get(key) ?? [];
+    const alreadyHas = sources.some((s) => s.recipeId === item.recipeId);
+    if (!alreadyHas) {
+      sources.push({
+        recipeId: item.recipeId,
+        recipeTitle: item.recipeTitle,
+        originalText: item.text,
+      });
+    }
+    textToSources.set(key, sources);
+  }
+
+  const itemToSources = new Map<string, RecipeSource[]>();
+  for (const item of items) {
+    const key = item.text.toLowerCase().trim();
+    const sources = textToSources.get(key);
+    if (sources && sources.length > 0) {
+      itemToSources.set(item.id, sources);
+    }
+  }
+  return itemToSources;
+}
+
 export default function ShoppingListScreen() {
   const {
     items,
@@ -68,8 +104,11 @@ export default function ShoppingListScreen() {
     totalCount,
   } = useShoppingList();
 
+  const router = useRouter();
   const bottomSheetRef = useRef<BottomSheetRef>(null);
   const [manualText, setManualText] = useState('');
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
+  const [toastVisible, setToastVisible] = useState(false);
 
   const recipePills = useMemo<RecipePill[]>(() => {
     const seen = new Map<string, string>();
@@ -83,6 +122,8 @@ export default function ShoppingListScreen() {
       recipeTitle,
     }));
   }, [items]);
+
+  const sourceMap = useMemo(() => buildSourceMap(items), [items]);
 
   const sections = useMemo(() => {
     const result: { title: string; data: ShoppingItem[] }[] = [];
@@ -141,7 +182,7 @@ export default function ShoppingListScreen() {
     );
   }, [checkedCount, clearChecked]);
 
-  const handleShare = useCallback(async () => {
+  const buildShareMessage = useCallback(() => {
     const lines: string[] = [];
     for (const section of sections) {
       const icon = CATEGORY_ICONS[section.title] ?? '';
@@ -151,13 +192,115 @@ export default function ShoppingListScreen() {
         lines.push('  ' + prefix + ' ' + item.text);
       }
     }
-    const message = 'Shopping List\n' + lines.join('\n');
-    await Share.share({ message });
+    return 'Shopping List\n' + lines.join('\n');
   }, [sections]);
+
+  const handleShare = useCallback(async () => {
+    const message = buildShareMessage();
+    const result = await Share.share({ message });
+    if (result.action === Share.sharedAction) {
+      setToastVisible(true);
+      setTimeout(() => setToastVisible(false), 2000);
+    }
+  }, [buildShareMessage]);
+
+  const toggleExpanded = useCallback((itemId: string) => {
+    setExpandedItems((prev: Set<string>) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
+      return next;
+    });
+  }, []);
+
+  const navigateToRecipe = useCallback(
+    (recipeId: string) => {
+      router.push(`/recipe/${recipeId}`);
+    },
+    [router],
+  );
 
   const openAddSheet = useCallback(() => {
     bottomSheetRef.current?.snapToIndex(0);
   }, []);
+
+  const renderItem = useCallback(
+    ({ item }: { item: ShoppingItem }) => {
+      const sources = sourceMap.get(item.id) ?? [];
+      const isMultiSource = sources.length > 1;
+      const hasSources = sources.length > 0;
+      const isExpanded = expandedItems.has(item.id);
+
+      return (
+        <View className="bg-bg-card border-b border-bg-muted">
+          <TouchableOpacity
+            onPress={() => toggle(item.id)}
+            className="flex-row items-center px-5 py-3.5"
+          >
+            <View
+              className={`w-6 h-6 rounded-full border-2 mr-3 items-center justify-center ${
+                item.checked ? 'bg-orange border-orange' : 'border-ink-faint'
+              }`}
+            >
+              {item.checked && <Text className="text-white text-xs">{'\u2713'}</Text>}
+            </View>
+            <View className="flex-1">
+              <Text
+                className={`font-body text-base ${
+                  item.checked ? 'line-through text-ink-muted opacity-50' : 'text-ink'
+                }`}
+              >
+                {item.text}
+              </Text>
+              {hasSources && (
+                <TouchableOpacity
+                  onPress={() => toggleExpanded(item.id)}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  className="mt-1"
+                >
+                  <View className="flex-row items-center">
+                    <View className="bg-bg-muted px-2 py-0.5 rounded-full">
+                      <Text className="font-body text-xs text-ink-muted">
+                        {isMultiSource
+                          ? `from ${sources.length} recipes`
+                          : sources[0].recipeTitle}
+                      </Text>
+                    </View>
+                    <Text className="text-ink-muted text-xs ml-1">
+                      {isExpanded ? '\u25B2' : '\u25BC'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            </View>
+          </TouchableOpacity>
+
+          {isExpanded && hasSources && (
+            <View className="px-12 pb-3">
+              {sources.map((source: RecipeSource) => (
+                <TouchableOpacity
+                  key={source.recipeId}
+                  onPress={() => navigateToRecipe(source.recipeId)}
+                  className="flex-row items-center py-1.5"
+                >
+                  <Text className="font-body text-sm text-orange mr-2">
+                    {source.recipeTitle}
+                  </Text>
+                  <Text className="font-body text-xs text-ink-muted">
+                    {source.originalText}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+      );
+    },
+    [sourceMap, expandedItems, toggle, toggleExpanded, navigateToRecipe],
+  );
 
   if (totalCount === 0) {
     return (
@@ -261,27 +404,7 @@ export default function ShoppingListScreen() {
             </View>
           );
         }}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => toggle(item.id)}
-            className="flex-row items-center px-5 py-3.5 bg-bg-card border-b border-bg-muted"
-          >
-            <View
-              className={`w-6 h-6 rounded-full border-2 mr-3 items-center justify-center ${
-                item.checked ? 'bg-orange border-orange' : 'border-ink-faint'
-              }`}
-            >
-              {item.checked && <Text className="text-white text-xs">{'\u2713'}</Text>}
-            </View>
-            <Text
-              className={`flex-1 font-body text-base ${
-                item.checked ? 'line-through text-ink-muted opacity-50' : 'text-ink'
-              }`}
-            >
-              {item.text}
-            </Text>
-          </TouchableOpacity>
-        )}
+        renderItem={renderItem}
         stickySectionHeadersEnabled
         contentContainerStyle={{ paddingBottom: 120 }}
       />
@@ -296,6 +419,14 @@ export default function ShoppingListScreen() {
           <Text className="font-body text-base text-orange">Share list</Text>
         </TouchableOpacity>
       </View>
+
+      {toastVisible && (
+        <View className="absolute top-20 left-0 right-0 items-center" pointerEvents="none">
+          <View className="bg-ink px-4 py-2 rounded-full">
+            <Text className="font-body text-sm text-white">List shared successfully</Text>
+          </View>
+        </View>
+      )}
 
       <BottomSheet ref={bottomSheetRef} snapPoints={['30%']} onClose={() => setManualText('')}>
         <View className="px-5 pt-4">
