@@ -8,6 +8,14 @@ type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
 const shoppingLists = new Hono<AuthEnv>();
 
+// Helper: verify list ownership, returns list or null
+async function getOwnedList(db: D1Database, listId: string, userId: string) {
+  return db
+    .prepare('SELECT * FROM shopping_lists WHERE id = ? AND user_id = ?')
+    .bind(listId, userId)
+    .first<ShoppingList>();
+}
+
 // GET /api/v1/shopping-lists — list all user's shopping lists
 shoppingLists.get('/api/v1/shopping-lists', requireAuth, async (c) => {
   const userId = c.get('userId');
@@ -177,6 +185,240 @@ shoppingLists.delete('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
     .run();
 
   return c.body(null, 204);
+});
+
+// ── S-8: Recipe and item management routes ──────────────────────────────
+
+// POST /api/v1/shopping-lists/:id/recipes — add recipe ingredients to list
+shoppingLists.post('/api/v1/shopping-lists/:id/recipes', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  const body = await c.req.json<{ recipe_id: string; ingredients: string[] }>();
+  if (!body.recipe_id || !Array.isArray(body.ingredients) || body.ingredients.length === 0) {
+    return c.json({ error: { code: 'INVALID_INPUT', message: 'recipe_id and non-empty ingredients array are required' } }, 400);
+  }
+
+  const now = new Date().toISOString();
+  const items: { id: string; original_text: string }[] = [];
+
+  // Insert recipe junction
+  await c.env.USERS_DB!.prepare(
+    'INSERT INTO shopping_list_recipes (shopping_list_id, recipe_id, added_at) VALUES (?, ?, ?)',
+  )
+    .bind(listId, body.recipe_id, now)
+    .run();
+
+  // Insert items with parsing=1
+  for (const raw of body.ingredients) {
+    const id = crypto.randomUUID();
+    items.push({ id, original_text: raw });
+
+    await c.env.USERS_DB!.prepare(
+      `INSERT INTO shopping_list_items (id, shopping_list_id, recipe_id, original_text, quantity, unit, item, checked, parse_failed, parsing, source, position, created_at, updated_at)
+       VALUES (?, ?, ?, ?, NULL, NULL, NULL, 0, 0, 1, 'recipe', 0, ?, ?)`,
+    )
+      .bind(id, listId, body.recipe_id, raw, now, now)
+      .run();
+  }
+
+  // Send parse job to queue
+  if (c.env.INGREDIENT_PARSE_QUEUE) {
+    const job: IngredientParseJob = {
+      shopping_list_id: listId,
+      recipe_id: body.recipe_id,
+      items,
+    };
+    await c.env.INGREDIENT_PARSE_QUEUE.send(job);
+  }
+
+  return c.json({ items }, 201);
+});
+
+// DELETE /api/v1/shopping-lists/:id/recipes/:recipe_id — remove recipe and its items
+shoppingLists.delete('/api/v1/shopping-lists/:id/recipes/:recipe_id', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+  const recipeId = c.req.param('recipe_id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  // Delete associated items first, then recipe junction
+  await c.env.USERS_DB!.prepare(
+    'DELETE FROM shopping_list_items WHERE shopping_list_id = ? AND recipe_id = ?',
+  )
+    .bind(listId, recipeId)
+    .run();
+
+  await c.env.USERS_DB!.prepare(
+    'DELETE FROM shopping_list_recipes WHERE shopping_list_id = ? AND recipe_id = ?',
+  )
+    .bind(listId, recipeId)
+    .run();
+
+  return c.body(null, 204);
+});
+
+// POST /api/v1/shopping-lists/:id/items — add manual item
+shoppingLists.post('/api/v1/shopping-lists/:id/items', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  const body = await c.req.json<{ name: string; quantity?: number; unit?: string }>();
+  if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+    return c.json({ error: { code: 'INVALID_INPUT', message: 'name is required' } }, 400);
+  }
+
+  const parsed = parseIngredient(body.name);
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  const item: ShoppingListItem = {
+    id,
+    shopping_list_id: listId,
+    recipe_id: null,
+    original_text: body.name.trim(),
+    quantity: body.quantity ?? parsed.quantity,
+    unit: body.unit ?? (parsed.unit || null),
+    item: parsed.canonical_name || body.name.trim().toLowerCase(),
+    checked: 0,
+    parse_failed: 0,
+    parsing: 0,
+    source: 'manual',
+    position: 0,
+    created_at: now,
+    updated_at: now,
+  };
+
+  await c.env.USERS_DB!.prepare(
+    `INSERT INTO shopping_list_items (id, shopping_list_id, recipe_id, original_text, quantity, unit, item, checked, parse_failed, parsing, source, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 'manual', 0, ?, ?)`,
+  )
+    .bind(id, listId, null, item.original_text, item.quantity, item.unit, item.item, now, now)
+    .run();
+
+  return c.json(item, 201);
+});
+
+// PATCH /api/v1/shopping-lists/:id/items/:item_id — update item fields
+shoppingLists.patch('/api/v1/shopping-lists/:id/items/:item_id', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+  const itemId = c.req.param('item_id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  const existing = await c.env.USERS_DB!.prepare(
+    'SELECT * FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+  )
+    .bind(itemId, listId)
+    .first<ShoppingListItem>();
+
+  if (!existing) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Item not found' } }, 404);
+  }
+
+  const body = await c.req.json<{ checked?: number; quantity?: number; unit?: string; name?: string }>();
+  const now = new Date().toISOString();
+
+  const updates: string[] = [];
+  const values: unknown[] = [];
+
+  if (body.checked !== undefined) { updates.push('checked = ?'); values.push(body.checked); }
+  if (body.quantity !== undefined) { updates.push('quantity = ?'); values.push(body.quantity); }
+  if (body.unit !== undefined) { updates.push('unit = ?'); values.push(body.unit); }
+  if (body.name !== undefined) { updates.push('item = ?'); values.push(body.name); updates.push('original_text = ?'); values.push(body.name); }
+
+  if (updates.length === 0) {
+    return c.json(existing);
+  }
+
+  updates.push('updated_at = ?');
+  values.push(now);
+  values.push(itemId, listId);
+
+  await c.env.USERS_DB!.prepare(
+    `UPDATE shopping_list_items SET ${updates.join(', ')} WHERE id = ? AND shopping_list_id = ?`,
+  )
+    .bind(...values)
+    .run();
+
+  const updated = {
+    ...existing,
+    ...(body.checked !== undefined ? { checked: body.checked } : {}),
+    ...(body.quantity !== undefined ? { quantity: body.quantity } : {}),
+    ...(body.unit !== undefined ? { unit: body.unit } : {}),
+    ...(body.name !== undefined ? { item: body.name, original_text: body.name } : {}),
+    updated_at: now,
+  };
+
+  return c.json(updated);
+});
+
+// DELETE /api/v1/shopping-lists/:id/items/:item_id — remove item
+shoppingLists.delete('/api/v1/shopping-lists/:id/items/:item_id', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+  const itemId = c.req.param('item_id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  const existing = await c.env.USERS_DB!.prepare(
+    'SELECT id FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+  )
+    .bind(itemId, listId)
+    .first();
+
+  if (!existing) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Item not found' } }, 404);
+  }
+
+  await c.env.USERS_DB!.prepare(
+    'DELETE FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+  )
+    .bind(itemId, listId)
+    .run();
+
+  return c.body(null, 204);
+});
+
+// POST /api/v1/shopping-lists/:id/uncheck-all — uncheck all items in list
+shoppingLists.post('/api/v1/shopping-lists/:id/uncheck-all', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  const now = new Date().toISOString();
+  const result = await c.env.USERS_DB!.prepare(
+    'UPDATE shopping_list_items SET checked = 0, updated_at = ? WHERE shopping_list_id = ? AND checked = 1',
+  )
+    .bind(now, listId)
+    .run();
+
+  return c.json({ count: result.meta?.changes ?? 0 });
 });
 
 export default shoppingLists;
