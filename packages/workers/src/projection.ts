@@ -43,6 +43,15 @@ export default {
           continue;
         }
 
+        // ── Update KV with translated doc ────────────────────────
+        if (doc.original_language && doc.original_language !== 'en') {
+          await env.RECIPES_KV.put(
+            `recipe:${doc.id}`,
+            JSON.stringify(doc),
+            { expirationTtl: 31_536_000 },
+          );
+        }
+
         // ── Build D1 statements ───────────────────────────────────
         const statements: D1PreparedStatement[] = [];
 

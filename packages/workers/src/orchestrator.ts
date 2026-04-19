@@ -4,13 +4,26 @@ import { chunk, chunks } from '@rr/shared/utils';
 import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
 async function runScheduled(env: Env) {
-    // 1. Pull due URLs — use the domains table (small, ~400 rows) instead
-    //    of scanning 500k+ crawl_queue rows for DISTINCT domain.
-    //    Grab 100 random domains × 20 URLs each = up to 2000 URLs per run.
-    //    Combined with 30-min cron, this gives same throughput with 6x fewer scans.
-    const domains = await env.DB.prepare(
-      'SELECT domain FROM domains WHERE active = 1 ORDER BY RANDOM() LIMIT 100',
+    // 1. Pull due URLs — prioritise domains with high-priority URLs first,
+    //    then fill remaining slots with random domains.
+    const priorityDomains = await env.DB.prepare(`
+      SELECT DISTINCT domain FROM crawl_queue
+      WHERE status = 'pending' AND priority <= 3 AND next_crawl <= datetime('now')
+      LIMIT 20
+    `).all<{ domain: string }>();
+
+    const randomDomains = await env.DB.prepare(
+      'SELECT domain FROM domains WHERE active = 1 ORDER BY RANDOM() LIMIT 80',
     ).all<{ domain: string }>();
+
+    // Merge and deduplicate
+    const seen = new Set(priorityDomains.results.map((d) => d.domain));
+    const domains = {
+      results: [
+        ...priorityDomains.results,
+        ...randomDomains.results.filter((d) => !seen.has(d.domain)),
+      ].slice(0, 100),
+    };
 
     const due: { results: CrawlJob[] } = { results: [] };
     if (domains.results.length > 0) {
