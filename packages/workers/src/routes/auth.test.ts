@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { Env } from '@rr/shared/env';
 import type { User } from '@rr/shared';
-import auth from './auth';
+import auth, { validateReturnTo } from './auth';
 
 // ── Mock helpers ─────────────────────────────────────────────────────────
 
@@ -266,6 +266,88 @@ describe('Auth Routes', () => {
       expect(res.status).toBe(200);
       const body = (await res.json()) as { user: User };
       expect(body.user.id).toBe('user-1');
+    });
+  });
+
+  describe('validateReturnTo (open redirect protection)', () => {
+    it('allows valid relative paths for web', () => {
+      expect(validateReturnTo('/profile', 'web')).toBe('/profile');
+      expect(validateReturnTo('/recipes/123', 'web')).toBe('/recipes/123');
+      expect(validateReturnTo('/search?q=pasta', 'web')).toBe('/search?q=pasta');
+    });
+
+    it('allows valid relative paths for mobile', () => {
+      expect(validateReturnTo('/profile', 'mobile')).toBe('/profile');
+    });
+
+    it('allows mobile deep link scheme for mobile platform', () => {
+      expect(validateReturnTo('reducedrecipes://auth/callback', 'mobile')).toBe(
+        'reducedrecipes://auth/callback',
+      );
+      expect(validateReturnTo('reducedrecipes://home', 'mobile')).toBe('reducedrecipes://home');
+    });
+
+    it('blocks mobile deep link scheme for web platform', () => {
+      expect(validateReturnTo('reducedrecipes://auth/callback', 'web')).toBe('/');
+    });
+
+    it('blocks external URLs and returns safe default', () => {
+      expect(validateReturnTo('https://evil.com/steal', 'web')).toBe('/');
+      expect(validateReturnTo('https://evil.com/steal', 'mobile')).toBe(
+        'reducedrecipes://auth/callback',
+      );
+      expect(validateReturnTo('http://evil.com', 'web')).toBe('/');
+    });
+
+    it('blocks protocol-relative URLs', () => {
+      expect(validateReturnTo('//evil.com/steal', 'web')).toBe('/');
+      expect(validateReturnTo('//evil.com/steal', 'mobile')).toBe(
+        'reducedrecipes://auth/callback',
+      );
+    });
+
+    it('blocks javascript: scheme', () => {
+      expect(validateReturnTo('javascript:alert(1)', 'web')).toBe('/');
+    });
+
+    it('returns safe default for empty return_to', () => {
+      expect(validateReturnTo('', 'web')).toBe('/');
+      expect(validateReturnTo('', 'mobile')).toBe('reducedrecipes://auth/callback');
+    });
+
+    it('blocks data: scheme', () => {
+      expect(validateReturnTo('data:text/html,<script>alert(1)</script>', 'web')).toBe('/');
+    });
+  });
+
+  describe('GET /api/v1/auth/google/url - return_to validation', () => {
+    it('stores validated return_to in KV, rejecting external URLs', async () => {
+      const kvStore = new Map<string, string>();
+      const sessionKV = createMockKV(kvStore);
+      const env = createEnv({ SESSION_KV: sessionKV });
+
+      await auth.request(
+        '/api/v1/auth/google/url?return_to=https://evil.com/steal',
+        {},
+        env,
+      );
+
+      const putMock = sessionKV.put as unknown as ReturnType<typeof vi.fn>;
+      expect(putMock).toHaveBeenCalled();
+      const storedData = JSON.parse(putMock.mock.calls[0]![1] as string);
+      expect(storedData.return_to).toBe('/');
+    });
+
+    it('stores valid relative return_to path', async () => {
+      const kvStore = new Map<string, string>();
+      const sessionKV = createMockKV(kvStore);
+      const env = createEnv({ SESSION_KV: sessionKV });
+
+      await auth.request('/api/v1/auth/google/url?return_to=/recipes/123', {}, env);
+
+      const putMock = sessionKV.put as unknown as ReturnType<typeof vi.fn>;
+      const storedData = JSON.parse(putMock.mock.calls[0]![1] as string);
+      expect(storedData.return_to).toBe('/recipes/123');
     });
   });
 });
