@@ -4,13 +4,26 @@ import { chunk, chunks } from '@rr/shared/utils';
 import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
 async function runScheduled(env: Env) {
-    // 1. Pull due URLs — use the domains table (small, ~400 rows) instead
-    //    of scanning 500k+ crawl_queue rows for DISTINCT domain.
-    //    Grab 100 random domains × 20 URLs each = up to 2000 URLs per run.
-    //    Combined with 30-min cron, this gives same throughput with 6x fewer scans.
-    const domains = await env.DB.prepare(
-      'SELECT domain FROM domains WHERE active = 1 ORDER BY RANDOM() LIMIT 100',
+    // 1. Pull due URLs — prioritise domains with high-priority URLs first,
+    //    then fill remaining slots with random domains.
+    const priorityDomains = await env.DB.prepare(`
+      SELECT DISTINCT domain FROM crawl_queue
+      WHERE status = 'pending' AND priority <= 3 AND next_crawl <= datetime('now')
+      LIMIT 20
+    `).all<{ domain: string }>();
+
+    const randomDomains = await env.DB.prepare(
+      'SELECT domain FROM domains WHERE active = 1 ORDER BY RANDOM() LIMIT 80',
     ).all<{ domain: string }>();
+
+    // Merge and deduplicate
+    const seen = new Set(priorityDomains.results.map((d) => d.domain));
+    const domains = {
+      results: [
+        ...priorityDomains.results,
+        ...randomDomains.results.filter((d) => !seen.has(d.domain)),
+      ].slice(0, 100),
+    };
 
     const due: { results: CrawlJob[] } = { results: [] };
     if (domains.results.length > 0) {
@@ -32,8 +45,16 @@ async function runScheduled(env: Env) {
       }
     }
 
-    // 4. Always ingest sitemaps, even when queue is empty
-    await ingestNextSitemap(env);
+    // 3.5. Reset stuck 'crawling' URLs older than 10 minutes
+    await env.DB.prepare(`
+      UPDATE crawl_queue SET status = 'pending', next_crawl = datetime('now')
+      WHERE status = 'crawling' AND next_crawl < datetime('now', '-10 minutes')
+    `).run();
+
+    // 4. Ingest up to 3 sitemaps per run to speed up domain onboarding
+    for (let i = 0; i < 3; i++) {
+      await ingestNextSitemap(env);
+    }
 
     if (!due.results.length) return;
 
@@ -42,7 +63,7 @@ async function runScheduled(env: Env) {
     for (const batch of batches) {
       const batchUrls = batch.map((r) => r.url);
       await env.DB.prepare(
-        `UPDATE crawl_queue SET status = 'crawling'
+        `UPDATE crawl_queue SET status = 'crawling', next_crawl = datetime('now')
          WHERE url IN (${batchUrls.map(() => '?').join(',')})`,
       ).bind(...batchUrls).run();
 

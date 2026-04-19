@@ -340,7 +340,7 @@ describe('DELETE /api/v1/shopping-lists/:id', () => {
     expect(res.status).toBe(204);
   });
 
-  it('returns 400 when trying to delete default list', async () => {
+  it('allows deleting default list and promotes next list', async () => {
     const mockList = { id: 'list-1', user_id: 'user-1', name: 'Default', is_default: 1 };
     const env = makeEnv(createMockUsersDB({ listById: mockList }));
 
@@ -348,9 +348,7 @@ describe('DELETE /api/v1/shopping-lists/:id', () => {
       method: 'DELETE',
       headers: AUTH_HEADERS,
     });
-    expect(res.status).toBe(400);
-    const json = await res.json() as { error: { code: string } };
-    expect(json.error.code).toBe('CANNOT_DELETE_DEFAULT');
+    expect(res.status).toBe(204);
   });
 
   it('returns 404 when list not found', async () => {
