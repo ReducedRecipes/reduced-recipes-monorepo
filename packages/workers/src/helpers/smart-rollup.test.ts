@@ -10,6 +10,8 @@ function makeItem(overrides: Partial<ShoppingListItem> & { id: string }): Shoppi
     quantity: null,
     unit: null,
     item: null,
+    canonical_name: null,
+    category: null,
     checked: 0,
     parse_failed: 0,
     parsing: 0,

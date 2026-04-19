@@ -165,11 +165,22 @@ export interface ShoppingListItem {
   quantity: number | null;
   unit: string | null;
   item: string | null;
+  canonical_name: string | null;
+  category: string | null;
   checked: number;
   parse_failed: number;
   parsing: number;
   source: 'recipe' | 'manual';
   position: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Canonical ingredient entry for deduplication and categorisation. */
+export interface IngredientCanon {
+  canonical_name: string;
+  aliases: string[];
+  category: string;
   created_at: string;
   updated_at: string;
 }
@@ -233,6 +244,7 @@ export interface SmartRollupItem {
   display_text: string;
   total_quantity: number | null;
   unit: string | null;
+  category: string;
   sources: SmartRollupSource[];
   parsing?: boolean;
 }
