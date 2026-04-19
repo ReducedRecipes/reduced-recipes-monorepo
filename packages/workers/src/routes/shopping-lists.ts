@@ -401,6 +401,134 @@ shoppingLists.delete('/api/v1/shopping-lists/:id/items/:item_id', requireAuth, a
   return c.body(null, 204);
 });
 
+// ── S-9: Share routes ────────────────────────────────────────────────────
+
+const SHARE_TOKEN_EXPIRY_DAYS = 7;
+
+/** Validate a share token against a specific list. Exported for use by DO (S-11). */
+export async function validateShareToken(db: D1Database, listId: string, token: string): Promise<boolean> {
+  const row = await db
+    .prepare('SELECT share_token, share_expires_at FROM shopping_lists WHERE id = ? AND share_token = ?')
+    .bind(listId, token)
+    .first<{ share_token: string; share_expires_at: string }>();
+
+  if (!row) return false;
+  if (new Date(row.share_expires_at) < new Date()) return false;
+  return true;
+}
+
+// POST /api/v1/shopping-lists/:id/share — generate share token (owner only)
+shoppingLists.post('/api/v1/shopping-lists/:id/share', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  const shareToken = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + SHARE_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date().toISOString();
+
+  await c.env.USERS_DB!.prepare(
+    'UPDATE shopping_lists SET share_token = ?, share_expires_at = ?, updated_at = ? WHERE id = ?',
+  )
+    .bind(shareToken, expiresAt, now, listId)
+    .run();
+
+  return c.json({
+    share_token: shareToken,
+    expires_at: expiresAt,
+    share_url: `/shared/lists/${shareToken}`,
+  });
+});
+
+// POST /api/v1/shopping-lists/:id/share/renew — extend share token expiry (owner only)
+shoppingLists.post('/api/v1/shopping-lists/:id/share/renew', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  if (!list.share_token) {
+    return c.json({ error: { code: 'NO_SHARE_TOKEN', message: 'No share token to renew' } }, 400);
+  }
+
+  const expiresAt = new Date(Date.now() + SHARE_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000).toISOString();
+  const now = new Date().toISOString();
+
+  await c.env.USERS_DB!.prepare(
+    'UPDATE shopping_lists SET share_expires_at = ?, updated_at = ? WHERE id = ?',
+  )
+    .bind(expiresAt, now, listId)
+    .run();
+
+  return c.json({ share_token: list.share_token, expires_at: expiresAt });
+});
+
+// DELETE /api/v1/shopping-lists/:id/share — revoke share token (owner only)
+shoppingLists.delete('/api/v1/shopping-lists/:id/share', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const listId = c.req.param('id');
+
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
+  }
+
+  const now = new Date().toISOString();
+  await c.env.USERS_DB!.prepare(
+    'UPDATE shopping_lists SET share_token = NULL, share_expires_at = NULL, updated_at = ? WHERE id = ?',
+  )
+    .bind(now, listId)
+    .run();
+
+  return c.body(null, 204);
+});
+
+// GET /api/v1/shared/lists/:token — public shared list access (no auth required)
+shoppingLists.get('/api/v1/shared/lists/:token', async (c) => {
+  const token = c.req.param('token');
+
+  const list = await c.env.USERS_DB!.prepare(
+    'SELECT * FROM shopping_lists WHERE share_token = ?',
+  )
+    .bind(token)
+    .first<ShoppingList>();
+
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shared list not found' } }, 404);
+  }
+
+  if (list.share_expires_at && new Date(list.share_expires_at) < new Date()) {
+    return c.json({ error: { code: 'EXPIRED', message: 'Share link has expired' } }, 410);
+  }
+
+  // Fetch items and apply rollup
+  const itemsResult = await c.env.USERS_DB!.prepare(
+    'SELECT * FROM shopping_list_items WHERE shopping_list_id = ? ORDER BY created_at ASC',
+  )
+    .bind(list.id)
+    .all();
+
+  const items = itemsResult.results ?? [];
+  const rolledUpItems = { unchecked: [] as Record<string, unknown>[], checked: [] as Record<string, unknown>[] };
+  for (const item of items) {
+    const row = item as Record<string, unknown>;
+    if (row.checked) {
+      rolledUpItems.checked.push(row);
+    } else {
+      rolledUpItems.unchecked.push(row);
+    }
+  }
+
+  return c.json({ ...list, items: rolledUpItems });
+});
+
 // POST /api/v1/shopping-lists/:id/uncheck-all — uncheck all items in list
 shoppingLists.post('/api/v1/shopping-lists/:id/uncheck-all', requireAuth, async (c) => {
   const userId = c.get('userId');
