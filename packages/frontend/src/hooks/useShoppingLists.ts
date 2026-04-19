@@ -19,7 +19,7 @@ import type {
   ShareLinkResponse,
 } from "../lib/api";
 import { useAuth } from "./useAuth";
-import type { ShoppingList, ShoppingListItem } from "@rr/shared";
+import type { ShoppingList, SmartRollupItem } from "@rr/shared";
 
 export function useShoppingLists() {
   const { isAuthenticated } = useAuth();
@@ -162,26 +162,8 @@ export function useShoppingListItems(listId: string | undefined) {
       unit?: string;
       name?: string;
     }) => updateItem(listId!, itemId, data),
-    onMutate: async ({ itemId, ...data }) => {
-      await queryClient.cancelQueries({ queryKey: ["shopping-lists", listId] });
-      const previous = queryClient.getQueryData<ShoppingListDetailResponse>(["shopping-lists", listId]);
-      if (previous) {
-        const updateItems = (items: ShoppingListItem[]) =>
-          items.map((i) => (i.id === itemId ? { ...i, ...data, updated_at: new Date().toISOString() } : i));
-        queryClient.setQueryData<ShoppingListDetailResponse>(["shopping-lists", listId], {
-          ...previous,
-          items: {
-            unchecked: updateItems(previous.items.unchecked),
-            checked: updateItems(previous.items.checked),
-          },
-        });
-      }
-      return { previous };
-    },
-    onError: (_err, _params, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["shopping-lists", listId], context.previous);
-      }
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["shopping-lists", listId] });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["shopping-lists", listId] });
@@ -190,24 +172,8 @@ export function useShoppingListItems(listId: string | undefined) {
 
   const deleteItemMutation = useMutation({
     mutationFn: (itemId: string) => deleteItem(listId!, itemId),
-    onMutate: async (itemId) => {
-      await queryClient.cancelQueries({ queryKey: ["shopping-lists", listId] });
-      const previous = queryClient.getQueryData<ShoppingListDetailResponse>(["shopping-lists", listId]);
-      if (previous) {
-        queryClient.setQueryData<ShoppingListDetailResponse>(["shopping-lists", listId], {
-          ...previous,
-          items: {
-            unchecked: previous.items.unchecked.filter((i) => i.id !== itemId),
-            checked: previous.items.checked.filter((i) => i.id !== itemId),
-          },
-        });
-      }
-      return { previous };
-    },
-    onError: (_err, _id, context) => {
-      if (context?.previous) {
-        queryClient.setQueryData(["shopping-lists", listId], context.previous);
-      }
+    onError: () => {
+      queryClient.invalidateQueries({ queryKey: ["shopping-lists", listId] });
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["shopping-lists", listId] });

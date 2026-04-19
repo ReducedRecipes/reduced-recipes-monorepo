@@ -1,4 +1,4 @@
-import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification, Collection, BookmarkSyncAction, BookmarkSyncResult, ShoppingList, ShoppingListItem } from "@rr/shared";
+import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification, Collection, BookmarkSyncAction, BookmarkSyncResult, ShoppingList, ShoppingListItem, SmartRollupItem } from "@rr/shared";
 import { buildQuery } from "@rr/shared/build-query";
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE || ""}/api/v1`;
@@ -308,7 +308,7 @@ export interface ShoppingListListResponse {
 }
 
 export interface ShoppingListDetailResponse extends ShoppingList {
-  items: { unchecked: ShoppingListItem[]; checked: ShoppingListItem[] };
+  items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
 }
 
 export interface ShareLinkResponse {
