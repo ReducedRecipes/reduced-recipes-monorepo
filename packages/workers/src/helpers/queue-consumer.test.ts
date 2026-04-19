@@ -3,6 +3,15 @@ import type { Env } from '@rr/shared/env';
 import type { IngredientParseJob } from '@rr/shared';
 import { handleIngredientParseQueue } from './queue-consumer';
 
+vi.mock('./ingredient-canon', () => ({
+  resolveCanon: vi.fn().mockResolvedValue({
+    canonical_name: 'flour',
+    category: 'Pantry',
+  }),
+}));
+
+import { resolveCanon } from './ingredient-canon';
+
 function makeStmt() {
   return {
     bind: vi.fn().mockReturnThis(),
@@ -26,10 +35,15 @@ function createEnv(hasAI = false): Env {
       }
     : undefined;
 
+  const CACHE_KV = {
+    get: vi.fn().mockResolvedValue(null),
+    put: vi.fn().mockResolvedValue(undefined),
+  };
+
   return {
     DB: { prepare: vi.fn().mockReturnValue(makeStmt()) },
     RECIPES_KV: {} as unknown,
-    CACHE_KV: {} as unknown,
+    CACHE_KV,
     IMAGES_R2: {} as unknown,
     CRAWL_QUEUE: {} as unknown,
     PARSE_QUEUE: {} as unknown,
@@ -71,7 +85,7 @@ describe('handleIngredientParseQueue', () => {
     vi.clearAllMocks();
   });
 
-  it('parses ingredients with rule-based parser and updates D1', async () => {
+  it('parses ingredients with rule-based parser and updates D1 with canonical_name and category', async () => {
     const env = createEnv();
     const batch = createBatch([
       {
@@ -86,10 +100,18 @@ describe('handleIngredientParseQueue', () => {
 
     await handleIngredientParseQueue(batch, env);
 
+    // Verify resolveCanon was called for each item
+    expect(resolveCanon).toHaveBeenCalledTimes(2);
+
     // Verify batch was called with UPDATE statements
-    const usersDb = env.USERS_DB as unknown as { batch: ReturnType<typeof vi.fn> };
+    const usersDb = env.USERS_DB as unknown as { batch: ReturnType<typeof vi.fn>; prepare: ReturnType<typeof vi.fn> };
     expect(usersDb.batch).toHaveBeenCalledTimes(1);
     expect(usersDb.batch.mock.calls[0]![0]).toHaveLength(2);
+
+    // Verify the SQL includes canonical_name and category columns
+    const prepareCall = usersDb.prepare.mock.calls[0]![0] as string;
+    expect(prepareCall).toContain('canonical_name');
+    expect(prepareCall).toContain('category');
 
     // Verify message was acked
     const msg = batch.messages[0] as unknown as MockMessage<IngredientParseJob>;
@@ -181,5 +203,102 @@ describe('handleIngredientParseQueue', () => {
     const msg1 = batch.messages[1] as unknown as MockMessage<IngredientParseJob>;
     expect(msg0.ack).toHaveBeenCalled();
     expect(msg1.ack).toHaveBeenCalled();
+  });
+
+  it('resolves canon successfully and writes canonical_name + category to D1', async () => {
+    const mockResolveCanon = vi.mocked(resolveCanon);
+    mockResolveCanon.mockResolvedValueOnce({
+      canonical_name: 'flour',
+      category: 'Pantry',
+    });
+
+    const env = createEnv();
+    const batch = createBatch([
+      {
+        shopping_list_id: 'list-1',
+        recipe_id: 'recipe-1',
+        items: [{ id: 'item-1', original_text: '2 cups flour' }],
+      },
+    ]);
+
+    await handleIngredientParseQueue(batch, env);
+
+    expect(mockResolveCanon).toHaveBeenCalledWith('flour', env);
+
+    // Verify the bind call includes canonical_name and category
+    const usersDb = env.USERS_DB as unknown as { prepare: ReturnType<typeof vi.fn> };
+    const stmt = usersDb.prepare.mock.results[0]!.value;
+    const bindArgs = stmt.bind.mock.calls[0] as unknown[];
+    // bind args: item, quantity, unit, parse_failed, canonical_name, category, updated_at, id
+    expect(bindArgs[4]).toBe('flour');
+    expect(bindArgs[5]).toBe('Pantry');
+  });
+
+  it('gracefully handles resolveCanon failure — sets canonical_name and category to null', async () => {
+    const mockResolveCanon = vi.mocked(resolveCanon);
+    mockResolveCanon.mockRejectedValueOnce(new Error('KV timeout'));
+
+    const env = createEnv();
+    const batch = createBatch([
+      {
+        shopping_list_id: 'list-1',
+        recipe_id: 'recipe-1',
+        items: [{ id: 'item-1', original_text: '2 cups flour' }],
+      },
+    ]);
+
+    await handleIngredientParseQueue(batch, env);
+
+    // Item should still be updated (parsing completes), just without canon data
+    const usersDb = env.USERS_DB as unknown as { batch: ReturnType<typeof vi.fn>; prepare: ReturnType<typeof vi.fn> };
+    expect(usersDb.batch).toHaveBeenCalledTimes(1);
+
+    const stmt = usersDb.prepare.mock.results[0]!.value;
+    const bindArgs = stmt.bind.mock.calls[0] as unknown[];
+    // canonical_name and category should be null
+    expect(bindArgs[4]).toBeNull();
+    expect(bindArgs[5]).toBeNull();
+
+    // Message should still be acked
+    const msg = batch.messages[0] as unknown as MockMessage<IngredientParseJob>;
+    expect(msg.ack).toHaveBeenCalled();
+  });
+
+  it('resolves canon for each item in batch processing', async () => {
+    const mockResolveCanon = vi.mocked(resolveCanon);
+    mockResolveCanon
+      .mockResolvedValueOnce({ canonical_name: 'flour', category: 'Pantry' })
+      .mockResolvedValueOnce({ canonical_name: 'salt', category: 'Spices & Seasonings' });
+
+    const env = createEnv();
+    const batch = createBatch([
+      {
+        shopping_list_id: 'list-1',
+        recipe_id: 'recipe-1',
+        items: [
+          { id: 'item-1', original_text: '2 cups flour' },
+          { id: 'item-2', original_text: '1 tsp salt' },
+        ],
+      },
+    ]);
+
+    await handleIngredientParseQueue(batch, env);
+
+    expect(mockResolveCanon).toHaveBeenCalledTimes(2);
+    expect(mockResolveCanon).toHaveBeenCalledWith('flour', env);
+    expect(mockResolveCanon).toHaveBeenCalledWith('salt', env);
+
+    // prepare() returns the same mock stmt, so bind is called twice on it
+    const usersDb = env.USERS_DB as unknown as { prepare: ReturnType<typeof vi.fn> };
+    const stmt = usersDb.prepare.mock.results[0]!.value;
+    const allBindCalls = stmt.bind.mock.calls as unknown[][];
+
+    // First item: flour / Pantry
+    expect(allBindCalls[0]![4]).toBe('flour');
+    expect(allBindCalls[0]![5]).toBe('Pantry');
+
+    // Second item: salt / Spices & Seasonings
+    expect(allBindCalls[1]![4]).toBe('salt');
+    expect(allBindCalls[1]![5]).toBe('Spices & Seasonings');
   });
 });
