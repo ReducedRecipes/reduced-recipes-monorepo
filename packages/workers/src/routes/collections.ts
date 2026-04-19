@@ -3,6 +3,7 @@ import type { Env } from '@rr/shared/env';
 import type { Collection, Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 import { parseLimit, paginateRows } from '../helpers/pagination';
+import { validateCollectionOwnership } from '../helpers/collection-ownership';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -224,11 +225,7 @@ collections.get('/api/v1/collections/:id/bookmarks', requireAuth, async (c) => {
   const limit = parseLimit(c.req.query('limit'));
 
   // Verify collection ownership
-  const col = await c.env.USERS_DB!.prepare(
-    'SELECT id FROM collections WHERE id = ? AND user_id = ?',
-  )
-    .bind(collectionId, userId)
-    .first();
+  const col = await validateCollectionOwnership(c.env.USERS_DB!, collectionId, userId);
 
   if (!col) {
     return c.json(
