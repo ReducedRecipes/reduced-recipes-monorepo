@@ -118,9 +118,21 @@ A shared API client is extracted to `@rr/shared/api-client.ts` to ensure consist
 | Offline shopping lists | ✅ Done | Mobile `shopping-sync.store.ts` with offline mutation queue and batch sync endpoint. |
 | Unit normalisation | ✅ Done | `unit-normalisation.ts` shared helper for converting between units (cups, tbsp, ml, etc.). |
 
+**Additional features built during testing:**
+- "Add to Shopping List" button on recipe detail pages — pick a list, all ingredients added with parsing
+- Shopping Lists page (`/shopping-lists`) and detail page (`/shopping-lists/:id`)
+- Interactive shared lists (`/shared/lists/:token`) — anyone with link can check/uncheck items with optimistic UI
+- Default list deletion with automatic promotion of next list
+- Queue handler export for ingredient-parse-jobs consumer
+
 **PRs merged:** #184–#228 (34 PRs across two orchestrator runs + bug fixes)
 **Migrations added:** `0003_shopping_lists.sql`, `0004_fix_shopping_list_schema.sql`, `0005_fix_schema_constraints.sql`
 **New Durable Object:** `ShoppingListDO` for real-time collaboration
+**New Queue:** `ingredient-parse-jobs` for async ingredient parsing
+
+**Known limitations (follow-up):**
+- Smart rollup (ingredient deduplication) is built but not exposed in UI yet — needs a "shopping mode" view that merges items while preserving individual check/delete
+- Deep linking for shared list URLs on mobile not yet implemented
 
 ### Phase 3 — Ratings & Reviews (Weeks 14-18)
 
