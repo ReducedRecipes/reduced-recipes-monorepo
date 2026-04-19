@@ -104,21 +104,75 @@ A shared API client is extracted to `@rr/shared/api-client.ts` to ensure consist
 **PRs merged:** #163–#182 (20 PRs) + bug fixes (TS errors, migration, mobile tests)
 **Migration added:** `0002_follows.sql` — follows table for the follow system
 
-### Phase 2 — Shopping Lists (Weeks 8-13)
+### Phase 2 — Shopping Lists ✅ Completed 2026-04-19
+
+| Deliverable | Status | Notes |
+|---|---|---|
+| Shopping list CRUD | ✅ Done | `GET/POST /shopping-lists`, `PATCH/DELETE /shopping-lists/:id`. Multiple lists with default list. Items with quantities/units/categories. |
+| Ingredient parsing | ✅ Done | Rule-based pre-pass + Workers AI fallback via `ingredient-parser.ts`. Queue consumer for async parsing. |
+| Smart rollup | ✅ Done | `smart-rollup.ts` — cross-recipe deduplication with quantity aggregation and unit normalisation. |
+| Manual items | ✅ Done | `POST /shopping-lists/:id/items` with `source: "manual"`. |
+| Check-off | ✅ Done | `PATCH /shopping-lists/:id/items/:itemId` to toggle checked status. |
+| Shareable links | ✅ Done | `POST /shopping-lists/:id/share`, `DELETE /shopping-lists/:id/share`, `GET /shopping-lists/shared/:token`. 7-day expiry, renewable. |
+| Real-time collaboration | ✅ Done | `ShoppingListDO` Durable Object for live multi-user editing. WebSocket upgrade route. `useShoppingListSocket` frontend hook. |
+| Offline shopping lists | ✅ Done | Mobile `shopping-sync.store.ts` with offline mutation queue and batch sync endpoint. |
+| Unit normalisation | ✅ Done | `unit-normalisation.ts` shared helper for converting between units (cups, tbsp, ml, etc.). |
+
+**Additional features built during testing:**
+- "Add to Shopping List" button on recipe detail pages — pick a list, all ingredients added with parsing
+- Shopping Lists page (`/shopping-lists`) and detail page (`/shopping-lists/:id`)
+- Interactive shared lists (`/shared/lists/:token`) — anyone with link can check/uncheck items with optimistic UI
+- Default list deletion with automatic promotion of next list
+- Queue handler export for ingredient-parse-jobs consumer
+
+**PRs merged:** #184–#228 (34 PRs across two orchestrator runs + bug fixes)
+**Migrations added:** `0003_shopping_lists.sql`, `0004_fix_shopping_list_schema.sql`, `0005_fix_schema_constraints.sql`
+**New Durable Object:** `ShoppingListDO` for real-time collaboration
+**New Queue:** `ingredient-parse-jobs` for async ingredient parsing
+
+### Phase 2.5 — Shopping List UX & Ingredient Classification (follow-up)
 
 | Deliverable | Description |
 |---|---|
-| Shopping list CRUD | Multiple lists with a default list |
-| Ingredient parsing | Reuses dietary inference infrastructure: rule-based pre-pass + Workers AI for ambiguous items |
-| Smart rollup | Cross-recipe ingredient deduplication and quantity aggregation |
-| Manual items | Users can add free-text items to any list |
-| Check-off | Mark items as purchased while shopping |
-| Shareable links | Share tokens with full edit access, 7-day default expiry (renewable by owner) |
-| Real-time collaboration | Durable Objects for live multi-user editing with sequence-based reconnection |
-| Offline shopping lists | Local cache with offline check/uncheck, queued mutations, batch sync endpoint |
-| Deep linking | Universal links / App Links for shared shopping list URLs |
+| Ingredient canon system | Self-building ingredient knowledge base. New `ingredient_canon` D1 table stores canonical name, aliases, and category per unique ingredient. First encounter → Workers AI classifies once → stored permanently. Subsequent lookups are D1/KV cache hits (zero AI cost). Handles synonyms like cilantro = coriander leaf, aubergine = eggplant across cuisines. |
+| Aisle/category classification | Each canonical ingredient maps to a store category (Produce, Dairy, Meat & Seafood, Pantry, Frozen, Bakery, Beverages, Spices & Seasonings, etc.). Shopping list UI groups items by category for efficient shopping. |
+| Canonical deduplication | Smart rollup uses canonical names — "coriander leaf" from one recipe and "cilantro" from another merge into a single "cilantro" line with aggregated quantities. |
+| KV cache layer | Hot ingredients cached in KV (`ingredient:{normalised_name}`) with 30-day TTL. Estimated ~2,000-5,000 unique ingredients total — after warm-up, virtually all lookups are free KV hits. |
+| Quantity normalisation | Convert between unit systems (cups ↔ ml, lbs ↔ kg, tbsp ↔ ml). Handle ranges ("1.8-2kg" → use midpoint or upper bound), mixed fractions ("1 ½"), and descriptors stripped before comparison ("large onion" → "onion"). |
+| Shopping mode view | "Shopping mode" that applies smart rollup — merges duplicate ingredients with aggregated quantities, expandable to show individual sources for check/delete. Items grouped by store category. |
+| Rollup UX | When two recipes both need "flour", show "3 cups flour" with a badge "(from 2 recipes)" — tap to expand and see individual sources |
+| Better parsing | Improve ingredient parser to handle ranges ("1.8-2kg"), fractions ("1 ½"), descriptors ("large", "chopped"), and parenthetical notes ("(divided)") |
+| Mobile shopping list UI | Style and wire up the mobile shopping list screens (currently unstyled) — list view, detail view, add from recipe, share link |
+| Deep linking | Universal links / App Links for shared shopping list URLs on mobile |
+| Offline shopping mode | Offline check/uncheck with visual indicator for unsynced items, auto-sync on reconnect |
+| Recipe source badges | Show which recipe each ingredient came from in the list, with link back to the recipe |
 
-### Phase 3 — Ratings & Reviews (Weeks 14-18)
+#### Ingredient Canon Architecture
+
+```
+User adds "coriander leaf" to shopping list
+  ↓
+Parser extracts: item = "coriander leaf"
+  ↓
+Lookup ingredient_canon table (D1) or KV cache
+  ↓ miss
+Workers AI: "What is the canonical English name and store category for 'coriander leaf'?"
+  → { canonical: "cilantro", category: "Produce", aliases: ["coriander leaf", "fresh coriander"] }
+  ↓
+Store in ingredient_canon table + KV cache
+  ↓
+Shopping list item stored with canonical_name = "cilantro", category = "Produce"
+  ↓
+Next user adds "cilantro" → KV hit → same canonical → smart rollup merges them
+```
+
+**Cost model:**
+- Workers AI: ~2,000-5,000 calls total (once per unique ingredient, ever). Free tier covers 10,000 neurons/day.
+- KV reads: free tier covers 100,000/day. Ingredient lookups are negligible.
+- D1: one read per cache miss. Pennies at scale.
+- After warm-up period: effectively zero ongoing cost.
+
+### Phase 3 — Ratings & Reviews
 
 | Deliverable | Description |
 |---|---|
