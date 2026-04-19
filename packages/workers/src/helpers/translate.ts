@@ -33,14 +33,22 @@ async function translateWithLlama(
     messages: [
       {
         role: 'system',
-        content: `You are a culinary translator. Translate ${langName} recipe ${context} to natural English. Keep well-known dish names (like Tiramisu, Carbonara, Risotto, Focaccia) in their original form. Keep quantities and units as-is. Output ONLY the translation, no explanations.`,
+        content: `You are a culinary translator. Translate ${langName} recipe ${context} to natural English. Keep well-known dish names (like Tiramisu, Carbonara, Risotto, Focaccia) in their original form. Keep quantities and units as-is. Remove any footnote reference numbers (like standalone digits that appear after ingredient names in instructions, e.g. "onion 1, celery 2" should become "onion, celery"). Output ONLY the translation, no explanations.`,
       },
       { role: 'user', content: text },
     ],
     max_tokens: 2048,
   })) as { response?: string };
 
-  return result?.response?.trim() ?? text;
+  let translated = result?.response?.trim() ?? text;
+
+  // Strip footnote reference numbers (e.g. "onion 1, celery 2" → "onion, celery")
+  if (context === 'cooking instruction') {
+    translated = translated.replace(/\s+\d+\s*([,.\s])/g, '$1');
+    translated = translated.replace(/\s+\d+\s*$/g, '');
+  }
+
+  return translated;
 }
 
 /**
