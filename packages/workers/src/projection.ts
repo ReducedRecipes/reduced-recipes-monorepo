@@ -61,8 +61,8 @@ export default {
             INSERT OR IGNORE INTO recipes
               (id, source_url, domain, title, image_url, author, yields,
                prep_time, cook_time, total_time, cuisine, category,
-               schema_valid, extracted_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+               schema_valid, extracted_at, original_language)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).bind(
             doc.id,
             doc.source_url,
@@ -78,6 +78,7 @@ export default {
             doc.category,
             doc.schema_valid ? 1 : 0,
             doc.extracted_at,
+            doc.original_language ?? null,
           ),
         );
 
@@ -86,8 +87,20 @@ export default {
           env.DB.prepare('DELETE FROM recipe_tags WHERE recipe_id = ?').bind(doc.id),
         );
 
-        // 3. Insert new tags (max 20)
-        for (const tag of doc.tags.slice(0, 20)) {
+        // 3. Insert new tags (max 20) + language origin tag
+        const tags = [...doc.tags.slice(0, 20)];
+        if (doc.original_language && doc.original_language !== 'en') {
+          const langNames: Record<string, string> = {
+            it: 'italian', de: 'german', fr: 'french', es: 'spanish',
+            pt: 'portuguese', nl: 'dutch', pl: 'polish', tr: 'turkish',
+            sv: 'swedish', da: 'danish', no: 'norwegian', hu: 'hungarian',
+            ja: 'japanese', ko: 'korean', zh: 'chinese', ru: 'russian',
+            el: 'greek', ro: 'romanian', cs: 'czech', hr: 'croatian',
+          };
+          const langTag = langNames[doc.original_language];
+          if (langTag) tags.push(langTag, 'translated');
+        }
+        for (const tag of tags) {
           statements.push(
             env.DB.prepare(
               'INSERT OR IGNORE INTO recipe_tags (recipe_id, tag) VALUES (?, ?)',
