@@ -211,6 +211,8 @@ describe("shopping.store", () => {
             quantity: null,
             unit: null,
             item: "milk",
+            canonical_name: "milk",
+            category: "Dairy",
             checked: 0,
             parse_failed: 0,
             parsing: 0,
@@ -229,6 +231,108 @@ describe("shopping.store", () => {
       expect(useShoppingStore.getState().items).toHaveLength(1);
       expect(useShoppingStore.getState().items[0]!.text).toBe("milk");
       expect(useShoppingStore.getState().items[0]!.checked).toBe(false);
+      expect(useShoppingStore.getState().items[0]!.category).toBe("Dairy");
+    });
+
+    it("selectList uses backend category when provided", async () => {
+      const { getShoppingList } = await import("../../lib/api");
+      (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        list: { id: "l1" },
+        items: [
+          {
+            id: "item-2",
+            shopping_list_id: "l1",
+            recipe_id: "r1",
+            original_text: "fresh basil leaves",
+            quantity: 10,
+            unit: null,
+            item: "basil",
+            canonical_name: "basil",
+            category: "Produce",
+            checked: 0,
+            parse_failed: 0,
+            parsing: 0,
+            source: "recipe",
+            position: 0,
+            created_at: "",
+            updated_at: "",
+          },
+        ],
+      });
+      useShoppingStore.setState({ isOnline: true });
+
+      await useShoppingStore.getState().selectList("l1");
+
+      const items = useShoppingStore.getState().items;
+      expect(items[0]!.category).toBe("Produce");
+    });
+
+    it("selectList falls back to client-side categorisation when backend category is null", async () => {
+      const { getShoppingList } = await import("../../lib/api");
+      (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        list: { id: "l1" },
+        items: [
+          {
+            id: "item-3",
+            shopping_list_id: "l1",
+            recipe_id: null,
+            original_text: "2 cups flour",
+            quantity: 2,
+            unit: "cups",
+            item: "flour",
+            canonical_name: null,
+            category: null,
+            checked: 0,
+            parse_failed: 0,
+            parsing: 0,
+            source: "manual",
+            position: 0,
+            created_at: "",
+            updated_at: "",
+          },
+        ],
+      });
+      useShoppingStore.setState({ isOnline: true });
+
+      await useShoppingStore.getState().selectList("l1");
+
+      const items = useShoppingStore.getState().items;
+      expect(items[0]!.category).toBe("Pantry");
+    });
+
+    it("selectList maps checked server items correctly", async () => {
+      const { getShoppingList } = await import("../../lib/api");
+      (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        list: { id: "l1" },
+        items: [
+          {
+            id: "item-4",
+            shopping_list_id: "l1",
+            recipe_id: "r2",
+            original_text: "chicken breast",
+            quantity: 1,
+            unit: "lb",
+            item: "chicken",
+            canonical_name: "chicken breast",
+            category: "Meat & Seafood",
+            checked: 1,
+            parse_failed: 0,
+            parsing: 0,
+            source: "recipe",
+            position: 1,
+            created_at: "",
+            updated_at: "",
+          },
+        ],
+      });
+      useShoppingStore.setState({ isOnline: true });
+
+      await useShoppingStore.getState().selectList("l1");
+
+      const items = useShoppingStore.getState().items;
+      expect(items[0]!.checked).toBe(true);
+      expect(items[0]!.category).toBe("Meat & Seafood");
+      expect(items[0]!.recipeId).toBe("r2");
     });
 
     it("createList returns list when online", async () => {
