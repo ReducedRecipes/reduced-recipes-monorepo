@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from "vitest";
 import { useShoppingStore } from "../shopping.store";
+import { useShoppingSyncStore } from "../shopping-sync.store";
 
 vi.mock("../../lib/api", () => ({
   fetchShoppingLists: vi.fn().mockResolvedValue({ items: [] }),
@@ -9,6 +10,7 @@ vi.mock("../../lib/api", () => ({
   updateShoppingListItem: vi.fn().mockResolvedValue({}),
   deleteShoppingListItem: vi.fn().mockResolvedValue(undefined),
   uncheckAllShoppingListItems: vi.fn().mockResolvedValue(undefined),
+  syncShoppingListItems: vi.fn().mockResolvedValue({ results: [] }),
 }));
 
 function resetStore() {
@@ -19,6 +21,12 @@ function resetStore() {
     activeListId: null,
     isLoading: false,
     isOnline: false, // offline by default so server calls don't fire
+  });
+  useShoppingSyncStore.setState({
+    pendingMutations: [],
+    lastSyncTimestamp: null,
+    isSyncing: false,
+    retryCount: 0,
   });
 }
 
@@ -249,6 +257,51 @@ describe("shopping.store", () => {
       useShoppingStore.getState().addManual("eggs");
 
       expect(addShoppingListItem).toHaveBeenCalledWith("l1", { text: "eggs" });
+    });
+
+    it("addManual queues mutation when offline with active list", () => {
+      useShoppingStore.setState({ isOnline: false, activeListId: "l1" });
+
+      useShoppingStore.getState().addManual("eggs");
+
+      const { pendingMutations } = useShoppingSyncStore.getState();
+      expect(pendingMutations).toHaveLength(1);
+      expect(pendingMutations[0]!.type).toBe("add_item");
+      expect(pendingMutations[0]!.text).toBe("eggs");
+      expect(pendingMutations[0]!.shopping_list_id).toBe("l1");
+    });
+
+    it("toggle queues check_item mutation when offline", () => {
+      useShoppingStore.setState({ isOnline: false, activeListId: "l1" });
+      useShoppingStore.getState().addManual("butter");
+      const id = useShoppingStore.getState().items[0]!.id;
+
+      // Clear the add_item mutation from addManual
+      useShoppingSyncStore.setState({ pendingMutations: [] });
+
+      useShoppingStore.getState().toggle(id);
+
+      const { pendingMutations } = useShoppingSyncStore.getState();
+      expect(pendingMutations).toHaveLength(1);
+      expect(pendingMutations[0]!.type).toBe("check_item");
+      expect(pendingMutations[0]!.item_id).toBe(id);
+      expect(pendingMutations[0]!.checked).toBe(true);
+    });
+
+    it("remove queues remove_item mutation when offline", () => {
+      useShoppingStore.setState({ isOnline: false, activeListId: "l1" });
+      useShoppingStore.getState().addManual("butter");
+      const id = useShoppingStore.getState().items[0]!.id;
+
+      // Clear the add_item mutation from addManual
+      useShoppingSyncStore.setState({ pendingMutations: [] });
+
+      useShoppingStore.getState().remove(id);
+
+      const { pendingMutations } = useShoppingSyncStore.getState();
+      expect(pendingMutations).toHaveLength(1);
+      expect(pendingMutations[0]!.type).toBe("remove_item");
+      expect(pendingMutations[0]!.item_id).toBe(id);
     });
   });
 });

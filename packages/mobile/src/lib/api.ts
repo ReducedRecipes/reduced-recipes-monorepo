@@ -7,6 +7,8 @@ import type {
   BookmarkSyncResult,
   ShoppingList,
   ShoppingListItem,
+  ShoppingListItemSyncAction,
+  ShoppingListItemSyncResult,
 } from "@rr/shared";
 import { buildQuery } from "@rr/shared/build-query";
 
@@ -510,6 +512,22 @@ export function uncheckAllShoppingListItems(
       method: "POST",
     },
   );
+}
+
+// ── Phase 2: Shopping List Offline Sync ─────────────────────────
+
+export interface SyncShoppingListItemsResponse {
+  results: ShoppingListItemSyncResult[];
+}
+
+export function syncShoppingListItems(
+  shopping_list_id: string,
+  mutations: ShoppingListItemSyncAction[],
+): Promise<SyncShoppingListItemsResponse> {
+  return request<SyncShoppingListItemsResponse>("/sync/shopping-list-items", {
+    method: "POST",
+    body: JSON.stringify({ shopping_list_id, mutations }),
+  });
 }
 
 export const api = USE_MOCK ? mockApi : realApi;
