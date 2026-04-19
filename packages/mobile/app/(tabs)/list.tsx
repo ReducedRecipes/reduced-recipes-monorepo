@@ -14,7 +14,41 @@ import { EmptyState } from '@/components/EmptyState';
 import { ShoppingCartIcon } from '@/components/icons';
 import type { ShoppingItem } from '@/stores/shopping.store';
 
-const CATEGORY_ORDER = ['PRODUCE', 'DAIRY', 'MEAT', 'PANTRY', 'SPICES', 'OTHER'];
+const CATEGORY_ORDER = [
+  'Produce',
+  'Dairy',
+  'Meat & Seafood',
+  'Pantry',
+  'Frozen',
+  'Bakery',
+  'Beverages',
+  'Spices & Seasonings',
+  'Other',
+];
+
+const CATEGORY_ICONS: Record<string, string> = {
+  'Produce': '🥬',
+  'Dairy': '🧀',
+  'Meat & Seafood': '🥩',
+  'Pantry': '🫙',
+  'Frozen': '🧊',
+  'Bakery': '🍞',
+  'Beverages': '🥤',
+  'Spices & Seasonings': '🌿',
+  'Other': '📦',
+};
+
+const CATEGORY_COLORS: Record<string, string> = {
+  'Produce': 'bg-green-50 border-green-200',
+  'Dairy': 'bg-yellow-50 border-yellow-200',
+  'Meat & Seafood': 'bg-red-50 border-red-200',
+  'Pantry': 'bg-amber-50 border-amber-200',
+  'Frozen': 'bg-blue-50 border-blue-200',
+  'Bakery': 'bg-orange-50 border-orange-200',
+  'Beverages': 'bg-cyan-50 border-cyan-200',
+  'Spices & Seasonings': 'bg-lime-50 border-lime-200',
+  'Other': 'bg-gray-50 border-gray-200',
+};
 
 interface RecipePill {
   recipeId: string;
@@ -110,7 +144,8 @@ export default function ShoppingListScreen() {
   const handleShare = useCallback(async () => {
     const lines: string[] = [];
     for (const section of sections) {
-      lines.push('\n' + section.title);
+      const icon = CATEGORY_ICONS[section.title] ?? '';
+      lines.push('\n' + icon + ' ' + section.title);
       for (const item of section.data) {
         const prefix = item.checked ? '\u2611' : '\u2610';
         lines.push('  ' + prefix + ' ' + item.text);
@@ -177,6 +212,20 @@ export default function ShoppingListScreen() {
         </TouchableOpacity>
       </View>
 
+      {checkedCount > 0 && totalCount > 0 && (
+        <View className="px-5 pb-2">
+          <View className="bg-bg-muted rounded-full h-2 overflow-hidden">
+            <View
+              className="bg-orange h-full rounded-full"
+              style={{ width: `${(checkedCount / totalCount) * 100}%` }}
+            />
+          </View>
+          <Text className="font-body text-xs text-ink-muted mt-1">
+            {checkedCount} of {totalCount} items checked
+          </Text>
+        </View>
+      )}
+
       {recipePills.length > 0 && (
         <View className="flex-row flex-wrap px-5 pb-3 gap-2">
           {recipePills.map((pill) => (
@@ -195,20 +244,30 @@ export default function ShoppingListScreen() {
       <SectionList
         sections={sections}
         keyExtractor={(item) => item.id}
-        renderSectionHeader={({ section: { title } }) => (
-          <View className="bg-bg-muted px-5 py-2">
-            <Text className="font-body text-xs text-ink-muted font-medium tracking-wide">
-              {title}
-            </Text>
-          </View>
-        )}
+        renderSectionHeader={({ section: { title } }) => {
+          const icon = CATEGORY_ICONS[title] ?? '📦';
+          const colorClass = CATEGORY_COLORS[title] ?? 'bg-gray-50 border-gray-200';
+          return (
+            <View className={`flex-row items-center px-5 py-2.5 border-b ${colorClass}`}>
+              <Text className="text-base mr-2">{icon}</Text>
+              <Text className="font-display text-sm text-ink font-semibold tracking-wide">
+                {title}
+              </Text>
+              <View className="ml-auto bg-bg rounded-full px-2 py-0.5">
+                <Text className="font-body text-xs text-ink-muted">
+                  {sections.find((s) => s.title === title)?.data.length ?? 0}
+                </Text>
+              </View>
+            </View>
+          );
+        }}
         renderItem={({ item }) => (
           <TouchableOpacity
             onPress={() => toggle(item.id)}
-            className="flex-row items-center px-5 py-3 bg-bg-card border-b border-bg-muted"
+            className="flex-row items-center px-5 py-3.5 bg-bg-card border-b border-bg-muted"
           >
             <View
-              className={`w-6 h-6 rounded-md border-2 mr-3 items-center justify-center ${
+              className={`w-6 h-6 rounded-full border-2 mr-3 items-center justify-center ${
                 item.checked ? 'bg-orange border-orange' : 'border-ink-faint'
               }`}
             >
@@ -216,7 +275,7 @@ export default function ShoppingListScreen() {
             </View>
             <Text
               className={`flex-1 font-body text-base ${
-                item.checked ? 'line-through text-ink-muted' : 'text-ink'
+                item.checked ? 'line-through text-ink-muted opacity-50' : 'text-ink'
               }`}
             >
               {item.text}
