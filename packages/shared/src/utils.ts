@@ -10,15 +10,28 @@ export function chunk<T>(arr: T[], size: number): T[][] {
 /** Alias for {@link chunk}. */
 export const chunks = chunk;
 
-/** Strip HTML tags, collapse whitespace, and decode common entities. */
+/** Strip HTML tags, collapse whitespace, and decode all HTML entities. */
 export function cleanText(html: string): string {
   return html
     .replace(/<[^>]*>/g, "")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(Number(code)))
+    .replace(/&#x([0-9a-fA-F]+);/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
     .replace(/&amp;/g, "&")
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
+    .replace(/&apos;/g, "'")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&ndash;/g, "–")
+    .replace(/&mdash;/g, "—")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&rsquo;/g, "'")
+    .replace(/&ldquo;/g, "\u201C")
+    .replace(/&rdquo;/g, "\u201D")
+    .replace(/&deg;/g, "°")
+    .replace(/&frac12;/g, "½")
+    .replace(/&frac14;/g, "¼")
+    .replace(/&frac34;/g, "¾")
     .replace(/\s+/g, " ")
     .trim();
 }

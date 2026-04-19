@@ -4,6 +4,7 @@ import type { Env } from '@rr/shared/env';
 import type { ShoppingList, ShoppingListItem, IngredientParseJob } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 import { parseIngredient } from '../helpers/ingredient-parser';
+import { rollupItems } from '../helpers/smart-rollup';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -84,11 +85,7 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await c.env.USERS_DB!.prepare(
-    'SELECT * FROM shopping_lists WHERE id = ? AND user_id = ?',
-  )
-    .bind(listId, userId)
-    .first();
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
@@ -106,18 +103,19 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
 
   const items = itemsResult.results ?? [];
 
-  // Apply smart rollup (stub — returns items as-is when rollup helper not available)
-  const rolledUpItems = { unchecked: [] as Record<string, unknown>[], checked: [] as Record<string, unknown>[] };
+  // Split into unchecked/checked
+  const unchecked: Record<string, unknown>[] = [];
+  const checked: Record<string, unknown>[] = [];
   for (const item of items) {
     const row = item as Record<string, unknown>;
     if (row.checked) {
-      rolledUpItems.checked.push(row);
+      checked.push(row);
     } else {
-      rolledUpItems.unchecked.push(row);
+      unchecked.push(row);
     }
   }
 
-  return c.json({ ...list, items: rolledUpItems });
+  return c.json({ ...list, items: { unchecked, checked } });
 });
 
 // PATCH /api/v1/shopping-lists/:id — update list name
@@ -133,11 +131,7 @@ shoppingLists.patch('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
     );
   }
 
-  const list = await c.env.USERS_DB!.prepare(
-    'SELECT * FROM shopping_lists WHERE id = ? AND user_id = ?',
-  )
-    .bind(listId, userId)
-    .first();
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
@@ -161,11 +155,7 @@ shoppingLists.delete('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await c.env.USERS_DB!.prepare(
-    'SELECT * FROM shopping_lists WHERE id = ? AND user_id = ?',
-  )
-    .bind(listId, userId)
-    .first<ShoppingList>();
+  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
@@ -174,11 +164,21 @@ shoppingLists.delete('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
     );
   }
 
+  // If deleting the default list, promote the next oldest list
   if (list.is_default) {
-    return c.json(
-      { error: { code: 'CANNOT_DELETE_DEFAULT', message: 'Cannot delete the default shopping list' } },
-      400,
-    );
+    const nextList = await c.env.USERS_DB!.prepare(
+      'SELECT id FROM shopping_lists WHERE user_id = ? AND id != ? ORDER BY created_at ASC LIMIT 1',
+    )
+      .bind(userId, listId)
+      .first<{ id: string }>();
+
+    if (nextList) {
+      await c.env.USERS_DB!.prepare(
+        'UPDATE shopping_lists SET is_default = 1 WHERE id = ?',
+      )
+        .bind(nextList.id)
+        .run();
+    }
   }
 
   await c.env.USERS_DB!.prepare('DELETE FROM shopping_lists WHERE id = ?')
@@ -519,17 +519,61 @@ shoppingLists.get('/api/v1/shared/lists/:token', async (c) => {
     .all();
 
   const items = itemsResult.results ?? [];
-  const rolledUpItems = { unchecked: [] as Record<string, unknown>[], checked: [] as Record<string, unknown>[] };
+  const unchecked: Record<string, unknown>[] = [];
+  const checked: Record<string, unknown>[] = [];
   for (const item of items) {
     const row = item as Record<string, unknown>;
     if (row.checked) {
-      rolledUpItems.checked.push(row);
+      checked.push(row);
     } else {
-      rolledUpItems.unchecked.push(row);
+      unchecked.push(row);
     }
   }
 
-  return c.json({ ...list, items: rolledUpItems });
+  return c.json({ ...list, items: { unchecked, checked } });
+});
+
+// PATCH /api/v1/shared/lists/:token/items/:itemId — toggle item check via share token
+shoppingLists.patch('/api/v1/shared/lists/:token/items/:itemId', async (c) => {
+  const token = c.req.param('token');
+  const itemId = c.req.param('itemId');
+
+  const list = await c.env.USERS_DB!.prepare(
+    'SELECT id, share_token, share_expires_at FROM shopping_lists WHERE share_token = ?',
+  )
+    .bind(token)
+    .first<ShoppingList>();
+
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shared list not found' } }, 404);
+  }
+
+  if (list.share_expires_at && new Date(list.share_expires_at) < new Date()) {
+    return c.json({ error: { code: 'EXPIRED', message: 'Share link has expired' } }, 410);
+  }
+
+  const body = await c.req.json<{ checked?: number }>();
+  if (body.checked === undefined) {
+    return c.json({ error: { code: 'INVALID_INPUT', message: 'checked field is required' } }, 400);
+  }
+
+  const item = await c.env.USERS_DB!.prepare(
+    'SELECT id FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+  )
+    .bind(itemId, list.id)
+    .first();
+
+  if (!item) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Item not found' } }, 404);
+  }
+
+  await c.env.USERS_DB!.prepare(
+    'UPDATE shopping_list_items SET checked = ?, updated_at = ? WHERE id = ?',
+  )
+    .bind(body.checked, new Date().toISOString(), itemId)
+    .run();
+
+  return c.json({ ok: true });
 });
 
 // POST /api/v1/shopping-lists/:id/uncheck-all — uncheck all items in list
@@ -576,7 +620,7 @@ shoppingLists.get('/api/v1/shopping-lists/:id/ws', async (c) => {
     getCookie(c, 'session');
 
   if (sessionToken) {
-    const sessionData = await c.env.SESSION_KV?.get(`session:${sessionToken}`);
+    const sessionData = await c.env.SESSION_KV?.get(sessionToken);
     if (sessionData) {
       const session = JSON.parse(sessionData) as { userId?: string; user_id?: string };
       userId = session.userId ?? session.user_id ?? null;

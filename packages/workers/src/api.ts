@@ -447,5 +447,15 @@ app.onError((err, c) => {
   );
 });
 
+import { handleIngredientParseQueue } from './helpers/queue-consumer';
+import type { IngredientParseJob } from '@rr/shared';
+
 export { ShoppingListDO } from './durable-objects/ShoppingListDO';
-export default app;
+export { app };
+
+export default {
+  fetch: app.fetch,
+  async queue(batch: MessageBatch<IngredientParseJob>, env: Env) {
+    await handleIngredientParseQueue(batch, env);
+  },
+};

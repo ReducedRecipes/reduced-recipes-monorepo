@@ -48,6 +48,11 @@ export default function Layout() {
                   Saved
                 </Link>
               )}
+              {isAuthenticated && (
+                <Link to="/shopping-lists" className="hover:text-orange-600">
+                  Shopping
+                </Link>
+              )}
             </nav>
             <NotificationBell />
             <LoginButton />

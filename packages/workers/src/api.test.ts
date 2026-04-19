@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import app from './api';
+import { app } from './api';
 
 // ── Mock helpers ─────────────────────────────────────────────────────────
 

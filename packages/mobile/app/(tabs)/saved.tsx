@@ -9,7 +9,8 @@ import {
   Dimensions,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useSQLiteContext } from 'expo-sqlite';
+import * as SQLite from 'expo-sqlite';
+import { runMigrations } from '@/db/migrations';
 import { useSavedStore } from '@/stores/saved.store';
 import { getAllSaved, type SavedRecipe } from '@/db/queries';
 import { useSavedRecipes } from '@/hooks/useSavedRecipes';
@@ -69,12 +70,20 @@ function bookmarkToSummary(b: Bookmark): RecipeSummary {
 type TabItem = typeof ALL_SAVED_TAB | Collection;
 
 export default function SavedScreen() {
-  const db = useSQLiteContext();
+  const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
+  useEffect(() => {
+    SQLite.openDatabaseAsync('recipes.db')
+      .then(async (database) => {
+        await runMigrations(database);
+        setDb(database);
+      })
+      .catch(() => {});
+  }, []);
   const [recipes, setRecipes] = useState<SavedRecipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const savedIds = useSavedStore((s) => s.ids);
-  const { unsave } = useSavedRecipes({ db });
+  const { unsave } = useSavedRecipes({ db: db as any });
 
   // Collections state
   const [collections, setCollections] = useState<Collection[]>([]);
@@ -91,6 +100,7 @@ export default function SavedScreen() {
     try {
       setError(null);
       setLoading(true);
+      if (!db) { setLoading(false); return; }
       const saved = await getAllSaved(db);
       setRecipes(saved);
     } catch {

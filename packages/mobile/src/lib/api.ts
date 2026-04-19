@@ -492,11 +492,16 @@ export function updateShoppingListItem(
   itemId: string,
   body: { checked?: boolean; quantity?: number },
 ): Promise<ShoppingListItem> {
+  // Convert checked boolean to 0/1 integer for the worker API
+  const payload: { checked?: number; quantity?: number } = {};
+  if (body.checked !== undefined) payload.checked = body.checked ? 1 : 0;
+  if (body.quantity !== undefined) payload.quantity = body.quantity;
+
   return request<ShoppingListItem>(
     `/shopping-lists/${encodeURIComponent(listId)}/items/${encodeURIComponent(itemId)}`,
     {
       method: "PATCH",
-      body: JSON.stringify(body),
+      body: JSON.stringify(payload),
     },
   );
 }
@@ -526,18 +531,31 @@ export function uncheckAllShoppingListItems(
 
 // ── Phase 2: Shopping List Offline Sync ─────────────────────────
 
+/** Raw response from the worker sync endpoint. */
+interface SyncShoppingListItemsRawResponse {
+  applied: number;
+  conflicts: ShoppingListItemSyncResult[];
+}
+
 export interface SyncShoppingListItemsResponse {
   results: ShoppingListItemSyncResult[];
 }
 
-export function syncShoppingListItems(
-  shopping_list_id: string,
-  mutations: ShoppingListItemSyncAction[],
+export async function syncShoppingListItems(
+  _shopping_list_id: string,
+  actions: ShoppingListItemSyncAction[],
 ): Promise<SyncShoppingListItemsResponse> {
-  return request<SyncShoppingListItemsResponse>("/sync/shopping-list-items", {
+  const raw = await request<SyncShoppingListItemsRawResponse>("/sync/shopping-list-items", {
     method: "POST",
-    body: JSON.stringify({ shopping_list_id, mutations }),
+    body: JSON.stringify({ actions }),
   });
+  // Normalize: worker returns { applied, conflicts } — convert to { results }
+  // Build applied results from the actions that weren't in conflicts
+  const conflictIds = new Set(raw.conflicts.map((c) => c.item_id));
+  const applied: ShoppingListItemSyncResult[] = actions
+    .filter((a) => !conflictIds.has(a.item_id))
+    .map((a) => ({ item_id: a.item_id, status: 'applied' as const }));
+  return { results: [...applied, ...raw.conflicts] };
 }
 
 export const api = USE_MOCK ? mockApi : realApi;

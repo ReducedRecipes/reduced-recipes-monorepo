@@ -14,6 +14,26 @@ function timeAgo(dateStr: string): string {
   return `${days}d ago`;
 }
 
+function formatNotification(n: Notification): string {
+  try {
+    const data = typeof n.payload === "string" ? JSON.parse(n.payload) : n.payload;
+    switch (n.type) {
+      case "new_follower":
+        return `${data.follower_name || "Someone"} started following you`;
+      case "shared_list_update":
+        return `${data.user_name || "Someone"} updated a shared list`;
+      case "review_reply":
+        return `${data.user_name || "Someone"} replied to your review`;
+      case "flagged_review_outcome":
+        return "Your flagged review has been reviewed";
+      default:
+        return n.type.replace(/_/g, " ");
+    }
+  } catch {
+    return n.type.replace(/_/g, " ");
+  }
+}
+
 export default function NotificationBell({ className }: { className?: string }) {
   const { isAuthenticated } = useAuth();
   const { notifications, unreadCount, markRead, markAllRead } = useNotifications();
@@ -82,8 +102,9 @@ export default function NotificationBell({ className }: { className?: string }) 
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <p className="text-sm font-medium text-gray-800">{n.type}</p>
-                        <p className="truncate text-xs text-gray-500">{n.payload}</p>
+                        <p className="text-sm font-medium text-gray-800">
+                          {formatNotification(n)}
+                        </p>
                         <p className="mt-0.5 text-[10px] text-gray-400">
                           {timeAgo(n.created_at)}
                         </p>
