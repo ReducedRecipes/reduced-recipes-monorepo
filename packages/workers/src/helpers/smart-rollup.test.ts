@@ -35,11 +35,11 @@ describe('rollupItems', () => {
     ];
     const result = rollupItems(items);
     expect(result.items.unchecked).toHaveLength(1);
-    expect(result.items.unchecked[0].canonical_item).toBe('flour');
-    expect(result.items.unchecked[0].total_quantity).toBe(3);
-    expect(result.items.unchecked[0].unit).toBe('cup');
-    expect(result.items.unchecked[0].sources).toHaveLength(2);
-    expect(result.items.unchecked[0].display_text).toBe('3 cup flour');
+    expect(result.items.unchecked[0]!.canonical_item).toBe('flour');
+    expect(result.items.unchecked[0]!.total_quantity).toBe(3);
+    expect(result.items.unchecked[0]!.unit).toBe('cup');
+    expect(result.items.unchecked[0]!.sources).toHaveLength(2);
+    expect(result.items.unchecked[0]!.display_text).toBe('3 cup flour');
   });
 
   it('converts compatible units and sums', () => {
@@ -49,8 +49,8 @@ describe('rollupItems', () => {
     ];
     const result = rollupItems(items);
     expect(result.items.unchecked).toHaveLength(1);
-    expect(result.items.unchecked[0].total_quantity).toBe(1.5); // 1 kg + 500g = 1.5 kg
-    expect(result.items.unchecked[0].unit).toBe('kg');
+    expect(result.items.unchecked[0]!.total_quantity).toBe(1.5); // 1 kg + 500g = 1.5 kg
+    expect(result.items.unchecked[0]!.unit).toBe('kg');
   });
 
   it('keeps incompatible units separate', () => {
@@ -71,9 +71,9 @@ describe('rollupItems', () => {
     ];
     const result = rollupItems(items);
     expect(result.items.unchecked).toHaveLength(1);
-    expect(result.items.unchecked[0].total_quantity).toBe(2);
+    expect(result.items.unchecked[0]!.total_quantity).toBe(2);
     expect(result.items.checked).toHaveLength(1);
-    expect(result.items.checked[0].total_quantity).toBe(1);
+    expect(result.items.checked[0]!.total_quantity).toBe(1);
   });
 
   it('handles count-based items (no unit)', () => {
@@ -83,9 +83,9 @@ describe('rollupItems', () => {
     ];
     const result = rollupItems(items);
     expect(result.items.unchecked).toHaveLength(1);
-    expect(result.items.unchecked[0].total_quantity).toBe(5);
-    expect(result.items.unchecked[0].unit).toBeNull();
-    expect(result.items.unchecked[0].display_text).toBe('5 egg');
+    expect(result.items.unchecked[0]!.total_quantity).toBe(5);
+    expect(result.items.unchecked[0]!.unit).toBeNull();
+    expect(result.items.unchecked[0]!.display_text).toBe('5 egg');
   });
 
   it('canonicalises names — case insensitive, singularised', () => {
@@ -95,8 +95,8 @@ describe('rollupItems', () => {
     ];
     const result = rollupItems(items);
     expect(result.items.unchecked).toHaveLength(1);
-    expect(result.items.unchecked[0].canonical_item).toBe('onion');
-    expect(result.items.unchecked[0].total_quantity).toBe(3);
+    expect(result.items.unchecked[0]!.canonical_item).toBe('onion');
+    expect(result.items.unchecked[0]!.total_quantity).toBe(3);
   });
 
   it('includes parsing flag when any source item is parsing', () => {
@@ -117,8 +117,8 @@ describe('rollupItems', () => {
     ];
     const result = rollupItems(items);
     expect(result.items.unchecked).toHaveLength(1);
-    expect(result.items.unchecked[0].total_quantity).toBeNull();
-    expect(result.items.unchecked[0].display_text).toBe('salt');
+    expect(result.items.unchecked[0]!.total_quantity).toBeNull();
+    expect(result.items.unchecked[0]!.display_text).toBe('salt');
   });
 
   it('normalises unit aliases before grouping', () => {
@@ -128,8 +128,8 @@ describe('rollupItems', () => {
     ];
     const result = rollupItems(items);
     expect(result.items.unchecked).toHaveLength(1);
-    expect(result.items.unchecked[0].total_quantity).toBe(3);
-    expect(result.items.unchecked[0].unit).toBe('tbsp');
+    expect(result.items.unchecked[0]!.total_quantity).toBe(3);
+    expect(result.items.unchecked[0]!.unit).toBe('tbsp');
   });
 
   it('tracks source details for each merged item', () => {
@@ -138,7 +138,7 @@ describe('rollupItems', () => {
       makeItem({ id: 'b', item: 'butter', quantity: 1, unit: 'tbsp', recipe_id: 'r2', original_text: '1 tbsp butter' }),
     ];
     const result = rollupItems(items);
-    const sources = result.items.unchecked[0].sources;
+    const sources = result.items.unchecked[0]!.sources;
     expect(sources).toHaveLength(2);
     expect(sources[0]).toEqual({
       item_id: 'a',
@@ -161,9 +161,9 @@ describe('rollupItems', () => {
     ];
     const result = rollupItems(items);
     expect(result.items.unchecked).toHaveLength(1);
-    expect(result.items.unchecked[0].unit).toBe('tbsp');
+    expect(result.items.unchecked[0]!.unit).toBe('tbsp');
     // 1 tbsp + 3 tsp * (1/3) = 1 + 1 = 2 tbsp
-    expect(result.items.unchecked[0].total_quantity).toBe(2);
+    expect(result.items.unchecked[0]!.total_quantity).toBe(2);
   });
 
   it('uses original_text as fallback when item is null', () => {
@@ -171,6 +171,6 @@ describe('rollupItems', () => {
       makeItem({ id: '1', item: null, original_text: 'Salt and Pepper' }),
     ];
     const result = rollupItems(items);
-    expect(result.items.unchecked[0].canonical_item).toBe('salt and pepper');
+    expect(result.items.unchecked[0]!.canonical_item).toBe('salt and pepper');
   });
 });
