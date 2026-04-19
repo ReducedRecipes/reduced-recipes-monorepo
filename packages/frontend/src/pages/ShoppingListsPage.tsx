@@ -6,7 +6,7 @@ import { useShoppingLists } from "../hooks/useShoppingLists";
 export default function ShoppingListsPage() {
   const { isAuthenticated, isLoading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { lists, isLoading, createList, isCreating, deleteList } =
+  const { lists, isLoading, createListAsync, isCreating, deleteList } =
     useShoppingLists();
   const [newListName, setNewListName] = useState("");
 
@@ -26,10 +26,17 @@ export default function ShoppingListsPage() {
 
   if (!isAuthenticated) return null;
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     const name = newListName.trim();
-    createList(name ? { name } : {});
-    setNewListName("");
+    try {
+      const result = await createListAsync(name ? { name } : {});
+      setNewListName("");
+      if (result?.id) {
+        navigate(`/shopping-lists/${result.id}`);
+      }
+    } catch {
+      // mutation error handled by React Query
+    }
   };
 
   return (
