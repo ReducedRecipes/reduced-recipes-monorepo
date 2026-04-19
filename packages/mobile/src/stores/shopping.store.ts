@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { mmkvStorage } from "../lib/mmkv";
 import { categoriseIngredient } from "../lib/categorise";
-import type { ShoppingList, ShoppingListItem } from "@rr/shared";
+import type { ShoppingList, ShoppingListItem, SmartRollupItem } from "@rr/shared";
 import {
   fetchShoppingLists,
   createShoppingList,
@@ -28,8 +28,8 @@ interface ShoppingState {
   items: ShoppingItem[];
   /** Server shopping lists */
   lists: ShoppingList[];
-  /** Items from the currently active server list */
-  serverItems: ShoppingListItem[];
+  /** Rolled-up items from the currently active server list */
+  serverItems: SmartRollupItem[];
   /** Currently selected list ID */
   activeListId: string | null;
   /** Whether the store is fetching from server */
@@ -75,6 +75,18 @@ function serverItemToLocal(item: ShoppingListItem): ShoppingItem {
   };
 }
 
+function rollupItemToLocal(item: SmartRollupItem, checked: boolean): ShoppingItem {
+  const firstSource = item.sources[0];
+  return {
+    id: firstSource?.item_id ?? item.canonical_item,
+    text: item.display_text,
+    category: item.category || categoriseIngredient(item.display_text),
+    checked,
+    recipeId: firstSource?.recipe_id ?? null,
+    recipeTitle: null,
+  };
+}
+
 export const useShoppingStore = create<ShoppingState>()(
   persist(
     (set, get) => ({
@@ -104,10 +116,12 @@ export const useShoppingStore = create<ShoppingState>()(
         set({ isLoading: true });
         try {
           const res = await getShoppingList(listId);
-          const localItems = res.items.map(serverItemToLocal);
+          const uncheckedItems = res.items.unchecked.map((item) => rollupItemToLocal(item, false));
+          const checkedItems = res.items.checked.map((item) => rollupItemToLocal(item, true));
+          const allRollupItems = [...res.items.unchecked, ...res.items.checked];
           set({
-            serverItems: res.items,
-            items: localItems,
+            serverItems: allRollupItems,
+            items: [...uncheckedItems, ...checkedItems],
             isLoading: false,
           });
         } catch {

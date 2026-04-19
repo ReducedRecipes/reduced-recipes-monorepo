@@ -198,30 +198,23 @@ describe("shopping.store", () => {
       ]);
     });
 
-    it("selectList fetches items from server when online", async () => {
+    it("selectList fetches rolled-up items from server when online", async () => {
       const { getShoppingList } = await import("../../lib/api");
       (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         list: { id: "l1" },
-        items: [
-          {
-            id: "item-1",
-            shopping_list_id: "l1",
-            recipe_id: null,
-            original_text: "milk",
-            quantity: null,
-            unit: null,
-            item: "milk",
-            canonical_name: "milk",
-            category: "Dairy",
-            checked: 0,
-            parse_failed: 0,
-            parsing: 0,
-            source: "manual",
-            position: 0,
-            created_at: "",
-            updated_at: "",
-          },
-        ],
+        items: {
+          unchecked: [
+            {
+              canonical_item: "milk",
+              display_text: "milk",
+              total_quantity: null,
+              unit: null,
+              category: "Dairy",
+              sources: [{ item_id: "item-1", recipe_id: null, quantity: null, original_text: "milk" }],
+            },
+          ],
+          checked: [],
+        },
       });
       useShoppingStore.setState({ isOnline: true });
 
@@ -234,30 +227,23 @@ describe("shopping.store", () => {
       expect(useShoppingStore.getState().items[0]!.category).toBe("Dairy");
     });
 
-    it("selectList uses backend category when provided", async () => {
+    it("selectList uses backend category from rollup items", async () => {
       const { getShoppingList } = await import("../../lib/api");
       (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         list: { id: "l1" },
-        items: [
-          {
-            id: "item-2",
-            shopping_list_id: "l1",
-            recipe_id: "r1",
-            original_text: "fresh basil leaves",
-            quantity: 10,
-            unit: null,
-            item: "basil",
-            canonical_name: "basil",
-            category: "Produce",
-            checked: 0,
-            parse_failed: 0,
-            parsing: 0,
-            source: "recipe",
-            position: 0,
-            created_at: "",
-            updated_at: "",
-          },
-        ],
+        items: {
+          unchecked: [
+            {
+              canonical_item: "basil",
+              display_text: "10 basil leaves",
+              total_quantity: 10,
+              unit: null,
+              category: "Produce",
+              sources: [{ item_id: "item-2", recipe_id: "r1", quantity: 10, original_text: "fresh basil leaves" }],
+            },
+          ],
+          checked: [],
+        },
       });
       useShoppingStore.setState({ isOnline: true });
 
@@ -267,30 +253,23 @@ describe("shopping.store", () => {
       expect(items[0]!.category).toBe("Produce");
     });
 
-    it("selectList falls back to client-side categorisation when backend category is null", async () => {
+    it("selectList falls back to client-side categorisation when rollup category is empty", async () => {
       const { getShoppingList } = await import("../../lib/api");
       (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         list: { id: "l1" },
-        items: [
-          {
-            id: "item-3",
-            shopping_list_id: "l1",
-            recipe_id: null,
-            original_text: "2 cups flour",
-            quantity: 2,
-            unit: "cups",
-            item: "flour",
-            canonical_name: null,
-            category: null,
-            checked: 0,
-            parse_failed: 0,
-            parsing: 0,
-            source: "manual",
-            position: 0,
-            created_at: "",
-            updated_at: "",
-          },
-        ],
+        items: {
+          unchecked: [
+            {
+              canonical_item: "flour",
+              display_text: "2 cups flour",
+              total_quantity: 2,
+              unit: "cups",
+              category: "",
+              sources: [{ item_id: "item-3", recipe_id: null, quantity: 2, original_text: "2 cups flour" }],
+            },
+          ],
+          checked: [],
+        },
       });
       useShoppingStore.setState({ isOnline: true });
 
@@ -300,30 +279,23 @@ describe("shopping.store", () => {
       expect(items[0]!.category).toBe("Pantry");
     });
 
-    it("selectList maps checked server items correctly", async () => {
+    it("selectList maps checked rollup items correctly", async () => {
       const { getShoppingList } = await import("../../lib/api");
       (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
         list: { id: "l1" },
-        items: [
-          {
-            id: "item-4",
-            shopping_list_id: "l1",
-            recipe_id: "r2",
-            original_text: "chicken breast",
-            quantity: 1,
-            unit: "lb",
-            item: "chicken",
-            canonical_name: "chicken breast",
-            category: "Meat & Seafood",
-            checked: 1,
-            parse_failed: 0,
-            parsing: 0,
-            source: "recipe",
-            position: 1,
-            created_at: "",
-            updated_at: "",
-          },
-        ],
+        items: {
+          unchecked: [],
+          checked: [
+            {
+              canonical_item: "chicken breast",
+              display_text: "1 lb chicken breast",
+              total_quantity: 1,
+              unit: "lb",
+              category: "Meat & Seafood",
+              sources: [{ item_id: "item-4", recipe_id: "r2", quantity: 1, original_text: "chicken breast" }],
+            },
+          ],
+        },
       });
       useShoppingStore.setState({ isOnline: true });
 
@@ -333,6 +305,38 @@ describe("shopping.store", () => {
       expect(items[0]!.checked).toBe(true);
       expect(items[0]!.category).toBe("Meat & Seafood");
       expect(items[0]!.recipeId).toBe("r2");
+    });
+
+    it("selectList handles multi-source rollup items", async () => {
+      const { getShoppingList } = await import("../../lib/api");
+      (getShoppingList as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+        list: { id: "l1" },
+        items: {
+          unchecked: [
+            {
+              canonical_item: "onion",
+              display_text: "3 onions",
+              total_quantity: 3,
+              unit: null,
+              category: "Produce",
+              sources: [
+                { item_id: "item-5", recipe_id: "r1", quantity: 1, original_text: "1 onion" },
+                { item_id: "item-6", recipe_id: "r2", quantity: 2, original_text: "2 onions" },
+              ],
+            },
+          ],
+          checked: [],
+        },
+      });
+      useShoppingStore.setState({ isOnline: true });
+
+      await useShoppingStore.getState().selectList("l1");
+
+      const items = useShoppingStore.getState().items;
+      expect(items).toHaveLength(1);
+      expect(items[0]!.text).toBe("3 onions");
+      expect(items[0]!.category).toBe("Produce");
+      expect(items[0]!.id).toBe("item-5");
     });
 
     it("createList returns list when online", async () => {

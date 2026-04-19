@@ -9,6 +9,7 @@ import type {
   ShoppingListItem,
   ShoppingListItemSyncAction,
   ShoppingListItemSyncResult,
+  SmartRollupItem,
 } from "@rr/shared";
 import { buildQuery } from "@rr/shared/build-query";
 
@@ -439,12 +440,12 @@ export interface ShoppingListsResponse {
 
 export interface ShoppingListDetailResponse {
   list: ShoppingList;
-  items: ShoppingListItem[];
+  items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
 }
 
 /** Raw response shape from the worker (smart rollup format). */
 interface ShoppingListDetailRawResponse extends ShoppingList {
-  items: { unchecked: ShoppingListItem[]; checked: ShoppingListItem[] };
+  items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
 }
 
 export function fetchShoppingLists(): Promise<ShoppingListsResponse> {
@@ -470,7 +471,7 @@ export async function getShoppingList(
   const { items: rolledUp, ...listFields } = raw;
   return {
     list: listFields,
-    items: [...rolledUp.unchecked, ...rolledUp.checked],
+    items: rolledUp,
   };
 }
 
