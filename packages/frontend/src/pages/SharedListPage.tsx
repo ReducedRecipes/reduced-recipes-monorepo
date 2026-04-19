@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
 import type { ShoppingListItem } from "@rr/shared";
 
@@ -12,13 +12,33 @@ interface SharedListResponse {
   };
 }
 
+function formatItem(item: ShoppingListItem): string {
+  if (item.item) {
+    return `${item.quantity ?? ""} ${item.unit ?? ""} ${item.item}`.trim();
+  }
+  return item.original_text;
+}
+
 export default function SharedListPage() {
   const { token } = useParams<{ token: string }>();
+  const queryClient = useQueryClient();
 
   const { data: list, isLoading, error } = useQuery({
     queryKey: ["shared-list", token],
     queryFn: () => apiFetch<SharedListResponse>(`/shared/lists/${token}`),
     enabled: !!token,
+  });
+
+  const toggleItem = useMutation({
+    mutationFn: ({ itemId, checked }: { itemId: string; checked: number }) =>
+      apiFetch(`/shared/lists/${token}/items/${itemId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ checked }),
+      }),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
+    },
   });
 
   if (isLoading) {
@@ -55,17 +75,15 @@ export default function SharedListPage() {
           {unchecked.length > 0 && (
             <div className="space-y-1 mb-6">
               {unchecked.map((item) => (
-                <div
+                <button
                   key={item.id}
-                  className="flex items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3"
+                  type="button"
+                  onClick={() => toggleItem.mutate({ itemId: item.id, checked: 1 })}
+                  className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left hover:bg-gray-50 transition-colors"
                 >
-                  <div className="h-4 w-4 rounded border border-gray-300" />
-                  <span className="text-sm text-gray-900">
-                    {item.item
-                      ? `${item.quantity ?? ""} ${item.unit ?? ""} ${item.item}`.trim()
-                      : item.original_text}
-                  </span>
-                </div>
+                  <div className="h-5 w-5 shrink-0 rounded border-2 border-gray-300" />
+                  <span className="text-sm text-gray-900">{formatItem(item)}</span>
+                </button>
               ))}
             </div>
           )}
@@ -77,17 +95,19 @@ export default function SharedListPage() {
               </h3>
               <div className="space-y-1">
                 {checked.map((item) => (
-                  <div
+                  <button
                     key={item.id}
-                    className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3"
+                    type="button"
+                    onClick={() => toggleItem.mutate({ itemId: item.id, checked: 0 })}
+                    className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-left hover:bg-gray-100 transition-colors"
                   >
-                    <div className="h-4 w-4 rounded border border-gray-300 bg-orange-500" />
-                    <span className="text-sm text-gray-400 line-through">
-                      {item.item
-                        ? `${item.quantity ?? ""} ${item.unit ?? ""} ${item.item}`.trim()
-                        : item.original_text}
-                    </span>
-                  </div>
+                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-orange-500 bg-orange-500">
+                      <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <span className="text-sm text-gray-400 line-through">{formatItem(item)}</span>
+                  </button>
                 ))}
               </div>
             </div>
