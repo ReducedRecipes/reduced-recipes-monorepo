@@ -380,10 +380,10 @@ describe('POST /api/v1/shopping-lists/:id/recipes', () => {
     expect(res.status).toBe(201);
     const json = await res.json() as { items: { id: string; original_text: string }[] };
     expect(json.items).toHaveLength(2);
-    expect(json.items[0].original_text).toBe('2 cups flour');
-    expect(json.items[1].original_text).toBe('1 tsp salt');
+    expect(json.items[0]!.original_text).toBe('2 cups flour');
+    expect(json.items[1]!.original_text).toBe('1 tsp salt');
     // Verify queue was called
-    expect((env as Record<string, unknown>).INGREDIENT_PARSE_QUEUE).toBeDefined();
+    expect((env as unknown as Record<string, unknown>).INGREDIENT_PARSE_QUEUE).toBeDefined();
   });
 
   it('returns 400 when ingredients array is empty', async () => {
