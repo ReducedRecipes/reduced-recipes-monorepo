@@ -68,7 +68,7 @@ function serverItemToLocal(item: ShoppingListItem): ShoppingItem {
   return {
     id: item.id,
     text: item.original_text,
-    category: categoriseIngredient(item.original_text),
+    category: item.category ?? categoriseIngredient(item.original_text),
     checked: item.checked === 1,
     recipeId: item.recipe_id,
     recipeTitle: null,
