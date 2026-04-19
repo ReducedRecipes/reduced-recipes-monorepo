@@ -92,6 +92,32 @@ const INGREDIENT_RE = new RegExp(
   'i',
 );
 
+// ── Descriptor words to strip from item names ───────────────────────
+
+const DESCRIPTORS = [
+  'large', 'small', 'medium',
+  'chopped', 'diced', 'minced', 'sliced', 'crushed', 'grated',
+  'fresh', 'dried', 'frozen', 'whole', 'ground',
+  'finely', 'roughly', 'thinly', 'coarsely',
+];
+
+const DESCRIPTOR_RE = new RegExp(
+  `\\b(${DESCRIPTORS.join('|')})\\b`,
+  'gi',
+);
+
+/**
+ * Strip descriptor words (large, chopped, diced, etc.) from an item name
+ * to produce cleaner names for canonical lookup.
+ */
+function stripDescriptors(name: string): string {
+  return name
+    .replace(DESCRIPTOR_RE, '')
+    .replace(/\s{2,}/g, ' ')
+    .replace(/^[,\s]+|[,\s]+$/g, '')
+    .trim();
+}
+
 // ── Helpers ─────────────────────────────────────────────────────────
 
 function parseFraction(str: string): number {
@@ -223,6 +249,8 @@ export function parseIngredient(raw: string): ParsedIngredient {
   name = name.replace(/^[,\-–—]\s*/, '').trim();
   // Remove trailing punctuation
   name = name.replace(/[.,;]+$/, '').trim();
+  // Strip descriptor words for cleaner canonical names
+  name = stripDescriptors(name);
 
   return {
     name,
@@ -285,4 +313,4 @@ Examples:
 }
 
 // Export internals for testing
-export { canonicalise, singularise, parseQuantity };
+export { canonicalise, singularise, parseQuantity, stripDescriptors };
