@@ -103,11 +103,19 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
 
   const items = itemsResult.results ?? [];
 
-  // Apply smart rollup — deduplicates and aggregates quantities
-  const typedItems = items as unknown as ShoppingListItem[];
-  const rolledUp = rollupItems(typedItems);
+  // Split into unchecked/checked
+  const unchecked: Record<string, unknown>[] = [];
+  const checked: Record<string, unknown>[] = [];
+  for (const item of items) {
+    const row = item as Record<string, unknown>;
+    if (row.checked) {
+      checked.push(row);
+    } else {
+      unchecked.push(row);
+    }
+  }
 
-  return c.json({ ...list, items: rolledUp.items });
+  return c.json({ ...list, items: { unchecked, checked } });
 });
 
 // PATCH /api/v1/shopping-lists/:id — update list name
@@ -509,10 +517,18 @@ shoppingLists.get('/api/v1/shared/lists/:token', async (c) => {
     .all();
 
   const items = itemsResult.results ?? [];
-  const typedItems = items as unknown as ShoppingListItem[];
-  const rolledUp = rollupItems(typedItems);
+  const unchecked: Record<string, unknown>[] = [];
+  const checked: Record<string, unknown>[] = [];
+  for (const item of items) {
+    const row = item as Record<string, unknown>;
+    if (row.checked) {
+      checked.push(row);
+    } else {
+      unchecked.push(row);
+    }
+  }
 
-  return c.json({ ...list, items: rolledUp.items });
+  return c.json({ ...list, items: { unchecked, checked } });
 });
 
 // POST /api/v1/shopping-lists/:id/uncheck-all — uncheck all items in list
