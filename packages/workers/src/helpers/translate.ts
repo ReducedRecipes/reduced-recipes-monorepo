@@ -1,79 +1,53 @@
 /**
- * Recipe translation helper using Workers AI m2m100-1.2b model.
+ * Recipe translation helper using Workers AI Llama 3.1 model.
  *
- * Translates title, ingredients, and instructions from the source
- * language to English. Batches ingredients and instructions into
- * single AI calls (newline-separated) to minimise request count.
+ * Uses an LLM instead of a pure translation model for better
+ * handling of culinary terms, proper nouns, and recipe context.
  */
 
 import type { RecipeDocument } from '@rr/shared';
 
-const NEWLINE_SEPARATOR = '\n';
+const LANG_NAMES: Record<string, string> = {
+  it: 'Italian', de: 'German', fr: 'French', es: 'Spanish',
+  pt: 'Portuguese', nl: 'Dutch', pl: 'Polish', tr: 'Turkish',
+  sv: 'Swedish', da: 'Danish', no: 'Norwegian', hu: 'Hungarian',
+  cs: 'Czech', ro: 'Romanian', ja: 'Japanese', ko: 'Korean',
+  zh: 'Chinese', ru: 'Russian', ar: 'Arabic', th: 'Thai',
+  vi: 'Vietnamese', el: 'Greek', fi: 'Finnish', hr: 'Croatian',
+};
 
 /**
- * Translate a single text block via Workers AI m2m100.
- *
- * @returns Translated text, or the original if translation fails.
+ * Translate text using Llama 3.1 with recipe-aware prompting.
  */
-async function translateText(
+async function translateWithLlama(
   text: string,
   sourceLang: string,
+  context: string,
   ai: Ai,
 ): Promise<string> {
   if (!text.trim()) return text;
 
-  const result = (await ai.run('@cf/meta/m2m100-1.2b', {
-    text,
-    source_lang: sourceLang,
-    target_lang: 'en',
-  })) as { translated_text?: string };
+  const langName = LANG_NAMES[sourceLang] ?? sourceLang;
 
-  return result?.translated_text ?? text;
-}
+  const result = (await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+    messages: [
+      {
+        role: 'system',
+        content: `You are a culinary translator. Translate ${langName} recipe ${context} to natural English. Keep well-known dish names (like Tiramisu, Carbonara, Risotto, Focaccia) in their original form. Keep quantities and units as-is. Output ONLY the translation, no explanations.`,
+      },
+      { role: 'user', content: text },
+    ],
+    max_tokens: 2048,
+  })) as { response?: string };
 
-/**
- * Translate a list of strings by joining them with newlines,
- * translating as a single block, and splitting back.
- *
- * Falls back to per-item translation if the bulk result doesn't
- * produce the expected number of lines.
- */
-async function translateList(
-  items: string[],
-  sourceLang: string,
-  ai: Ai,
-): Promise<string[]> {
-  if (items.length === 0) return items;
-
-  const joined = items.join(NEWLINE_SEPARATOR);
-  const translated = await translateText(joined, sourceLang, ai);
-  const parts = translated.split(NEWLINE_SEPARATOR);
-
-  // If bulk split matches, use it directly
-  if (parts.length === items.length) {
-    return parts.map((p) => p.trim());
-  }
-
-  // Fallback: translate each item individually
-  const results: string[] = [];
-  for (const item of items) {
-    results.push(await translateText(item, sourceLang, ai));
-  }
-  return results;
+  return result?.response?.trim() ?? text;
 }
 
 /**
  * Translate a non-English recipe document to English.
  *
- * Translates `title`, `ingredients`, and `instructions`.
- * Sets `original_title` and `original_language` on the returned doc.
- *
- * If translation fails for any field, the original text is kept — the
- * recipe is never blocked by a translation failure.
- *
- * @param doc - Recipe document with `original_language` already set.
- * @param ai  - Cloudflare Workers AI binding.
- * @returns A new RecipeDocument with translated fields.
+ * Uses Llama 3.1 for context-aware translation that handles
+ * culinary terms, proper nouns, and recipe-specific language.
  */
 export async function translateRecipe(
   doc: RecipeDocument,
@@ -85,22 +59,41 @@ export async function translateRecipe(
   const translated = { ...doc };
   translated.original_title = doc.title;
 
+  // Translate title
   try {
-    translated.title = await translateText(doc.title, lang, ai);
+    translated.title = await translateWithLlama(doc.title, lang, 'title', ai);
   } catch {
-    // Keep original title on failure
+    // Keep original on failure
   }
 
+  // Translate ingredients as a batch
   try {
-    translated.ingredients = await translateList(doc.ingredients, lang, ai);
+    const ingredientBlock = doc.ingredients.join('\n');
+    const result = await translateWithLlama(
+      ingredientBlock,
+      lang,
+      'ingredients (one per line, keep the same number of lines)',
+      ai,
+    );
+    const lines = result.split('\n').map((l) => l.trim()).filter(Boolean);
+    // Only use if we got a reasonable number of lines back
+    if (lines.length >= doc.ingredients.length * 0.5) {
+      translated.ingredients = lines;
+    }
   } catch {
-    // Keep original ingredients on failure
+    // Keep original on failure
   }
 
+  // Translate instructions one at a time (they can be long)
   try {
-    translated.instructions = await translateList(doc.instructions, lang, ai);
+    const translatedSteps: string[] = [];
+    for (const step of doc.instructions) {
+      const result = await translateWithLlama(step, lang, 'cooking instruction', ai);
+      translatedSteps.push(result);
+    }
+    translated.instructions = translatedSteps;
   } catch {
-    // Keep original instructions on failure
+    // Keep original on failure
   }
 
   return translated;

@@ -29,6 +29,15 @@ export default {
           }
         }
 
+        // ── Update KV with translated doc ────────────────────────
+        if (doc.original_language && doc.original_language !== 'en') {
+          await env.RECIPES_KV.put(
+            `recipe:${doc.id}`,
+            JSON.stringify(doc),
+            { expirationTtl: 31_536_000 },
+          );
+        }
+
         // ── Skip category/listing pages (not actual recipe URLs) ──
         const urlPath = new URL(doc.source_url).pathname.toLowerCase();
         if (
