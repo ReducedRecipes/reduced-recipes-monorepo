@@ -4,6 +4,7 @@ import path from 'path';
 export default defineConfig({
   resolve: {
     alias: [
+      { find: 'cloudflare:workers', replacement: path.resolve(__dirname, 'packages/workers/src/__mocks__/cloudflare-workers') },
       { find: '@rr/shared/extract', replacement: path.resolve(__dirname, 'packages/shared/src/extract') },
       { find: '@rr/shared/robots', replacement: path.resolve(__dirname, 'packages/shared/src/robots') },
       { find: '@rr/shared/sitemap', replacement: path.resolve(__dirname, 'packages/shared/src/sitemap') },
