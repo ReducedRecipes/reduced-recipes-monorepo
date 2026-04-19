@@ -3,6 +3,7 @@ import type { Env } from '@rr/shared/env';
 import type { Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 import { parseLimit, paginateRows } from '../helpers/pagination';
+import { validateCollectionOwnership } from '../helpers/collection-ownership';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -36,11 +37,7 @@ bookmarks.post('/api/v1/bookmarks', requireAuth, async (c) => {
 
   if (body.collection_id) {
     // Validate the specified collection exists and belongs to user
-    const col = await c.env.USERS_DB!.prepare(
-      'SELECT id FROM collections WHERE id = ? AND user_id = ?',
-    )
-      .bind(body.collection_id, userId)
-      .first<{ id: string }>();
+    const col = await validateCollectionOwnership(c.env.USERS_DB!, body.collection_id, userId);
 
     if (!col) {
       return c.json(
@@ -126,11 +123,7 @@ bookmarks.post('/api/v1/bookmarks/move', requireAuth, async (c) => {
   }
 
   // Validate target collection exists and belongs to user
-  const targetCollection = await c.env.USERS_DB!.prepare(
-    'SELECT id FROM collections WHERE id = ? AND user_id = ?',
-  )
-    .bind(body.target_collection_id, userId)
-    .first<{ id: string }>();
+  const targetCollection = await validateCollectionOwnership(c.env.USERS_DB!, body.target_collection_id, userId);
 
   if (!targetCollection) {
     return c.json(
