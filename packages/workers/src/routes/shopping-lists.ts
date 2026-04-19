@@ -5,6 +5,7 @@ import type { ShoppingList, ShoppingListItem, IngredientParseJob } from '@rr/sha
 import { requireAuth } from '../middleware/auth';
 import { parseIngredient } from '../helpers/ingredient-parser';
 import { rollupItems } from '../helpers/smart-rollup';
+import { validateName } from '../helpers/validation';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -115,7 +116,8 @@ shoppingLists.patch('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
   const listId = c.req.param('id');
   const body = await c.req.json<{ name?: string }>();
 
-  if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+  const validatedName = validateName(body);
+  if (!validatedName) {
     return c.json(
       { error: { code: 'INVALID_INPUT', message: 'name is required and cannot be empty' } },
       400,
@@ -135,10 +137,10 @@ shoppingLists.patch('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
   await c.env.USERS_DB!.prepare(
     'UPDATE shopping_lists SET name = ?, updated_at = ? WHERE id = ?',
   )
-    .bind(body.name.trim(), now, listId)
+    .bind(validatedName, now, listId)
     .run();
 
-  return c.json({ ...list, name: body.name.trim(), updated_at: now });
+  return c.json({ ...list, name: validatedName, updated_at: now });
 });
 
 // DELETE /api/v1/shopping-lists/:id — delete a non-default list
@@ -270,7 +272,7 @@ shoppingLists.post('/api/v1/shopping-lists/:id/items', requireAuth, async (c) =>
   }
 
   const body = await c.req.json<{ name: string; quantity?: number; unit?: string }>();
-  if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+  if (!validateName(body)) {
     return c.json({ error: { code: 'INVALID_INPUT', message: 'name is required' } }, 400);
   }
 
