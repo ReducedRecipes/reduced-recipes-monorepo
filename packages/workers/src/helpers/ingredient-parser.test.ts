@@ -4,6 +4,7 @@ import {
   parseIngredientWithAI,
   canonicalise,
   singularise,
+  stripDescriptors,
 } from './ingredient-parser';
 
 // ── singularise ────────��─────────────────────���──────────────────────
@@ -96,12 +97,12 @@ describe('parseIngredient', () => {
     expect(result.canonical_name).toBe('salt and pepper to taste');
   });
 
-  it('parses "3 large eggs"', () => {
+  it('parses "3 large eggs" (strips descriptor)', () => {
     const result = parseIngredient('3 large eggs');
     expect(result.quantity).toBe(3);
     expect(result.unit).toBe('');
-    expect(result.name).toBe('large eggs');
-    expect(result.canonical_name).toBe('large egg');
+    expect(result.name).toBe('eggs');
+    expect(result.canonical_name).toBe('egg');
   });
 
   it('parses "500g chicken breast"', () => {
@@ -148,10 +149,10 @@ describe('parseIngredient', () => {
     expect(result.unit).toBe('');
   });
 
-  it('handles just a name with no quantity or unit', () => {
+  it('handles just a name with no quantity or unit (strips descriptor)', () => {
     const result = parseIngredient('fresh basil');
-    expect(result.name).toBe('fresh basil');
-    expect(result.canonical_name).toBe('fresh basil');
+    expect(result.name).toBe('basil');
+    expect(result.canonical_name).toBe('basil');
     expect(result.quantity).toBeNull();
     expect(result.unit).toBe('');
   });
@@ -177,7 +178,99 @@ describe('parseIngredient', () => {
   });
 });
 
-// ── parseIngredientWithAI ────────────────────���──────────────────────
+// ── stripDescriptors ──────────────────────────────────────────────
+
+describe('stripDescriptors', () => {
+  it('strips "large" from item name', () => {
+    expect(stripDescriptors('large onion')).toBe('onion');
+  });
+
+  it('strips "finely chopped" from item name', () => {
+    expect(stripDescriptors('finely chopped garlic')).toBe('garlic');
+  });
+
+  it('strips "dried" from item name', () => {
+    expect(stripDescriptors('dried oregano')).toBe('oregano');
+  });
+
+  it('strips "frozen" from item name', () => {
+    expect(stripDescriptors('frozen peas')).toBe('peas');
+  });
+
+  it('strips multiple descriptors', () => {
+    expect(stripDescriptors('finely diced small red pepper')).toBe('red pepper');
+  });
+
+  it('preserves names with no descriptors', () => {
+    expect(stripDescriptors('chicken breast')).toBe('chicken breast');
+  });
+
+  it('strips "grated" from item name', () => {
+    expect(stripDescriptors('grated parmesan')).toBe('parmesan');
+  });
+});
+
+// ── descriptor stripping in parseIngredient ────────────────────────
+
+describe('parseIngredient descriptor stripping', () => {
+  it('strips "chopped" from "1 cup chopped onions"', () => {
+    const result = parseIngredient('1 cup chopped onions');
+    expect(result.name).toBe('onions');
+    expect(result.canonical_name).toBe('onion');
+    expect(result.quantity).toBe(1);
+    expect(result.unit).toBe('cup');
+  });
+
+  it('strips "minced" from "2 cloves minced garlic"', () => {
+    const result = parseIngredient('2 cloves minced garlic');
+    expect(result.name).toBe('garlic');
+    expect(result.canonical_name).toBe('garlic');
+  });
+
+  it('strips "diced" from "1 cup diced tomatoes"', () => {
+    const result = parseIngredient('1 cup diced tomatoes');
+    expect(result.name).toBe('tomatoes');
+    expect(result.canonical_name).toBe('tomato');
+  });
+
+  it('strips "sliced" from "2 sliced mushrooms"', () => {
+    const result = parseIngredient('2 sliced mushrooms');
+    expect(result.name).toBe('mushrooms');
+    expect(result.canonical_name).toBe('mushroom');
+  });
+
+  it('strips "coarsely ground" from "1 tsp coarsely ground black pepper"', () => {
+    const result = parseIngredient('1 tsp coarsely ground black pepper');
+    expect(result.name).toBe('black pepper');
+    expect(result.canonical_name).toBe('black pepper');
+  });
+});
+
+// ── range quantity parsing ──────────────────────────────────────────
+
+describe('parseIngredient range quantities', () => {
+  it('parses "2-3 cups flour" as midpoint 2.5', () => {
+    const result = parseIngredient('2-3 cups flour');
+    expect(result.quantity).toBe(2.5);
+    expect(result.unit).toBe('cup');
+    expect(result.name).toBe('flour');
+  });
+
+  it('parses "4-6 tomatoes" as midpoint 5', () => {
+    const result = parseIngredient('4-6 tomatoes');
+    expect(result.quantity).toBe(5);
+    expect(result.name).toBe('tomatoes');
+  });
+
+  it('parses "1-2 tsp vanilla extract" as midpoint 1.5', () => {
+    const result = parseIngredient('1-2 tsp vanilla extract');
+    expect(result.quantity).toBe(1.5);
+    expect(result.unit).toBe('tsp');
+    expect(result.name).toBe('vanilla extract');
+  });
+});
+
+// ── parseIngredientWithAI ───────────────────────────────────────────
 
 describe('parseIngredientWithAI', () => {
   it('uses AI response when available', async () => {
