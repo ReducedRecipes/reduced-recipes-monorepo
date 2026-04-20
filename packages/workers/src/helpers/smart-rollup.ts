@@ -25,11 +25,12 @@ export function rollupItems(items: ShoppingListItem[]): SmartRollupResponse {
       }
     }
 
-    const canonical = canonicalise(item.item ?? item.original_text);
+    const itemName = item.item ?? item.original_text;
+    const canonical = canonicalise(itemName);
     const groups = item.checked ? checkedGroups : uncheckedGroups;
 
     if (!groups.has(canonical)) {
-      groups.set(canonical, { canonical, buckets: [] });
+      groups.set(canonical, { canonical, displayName: itemName.toLowerCase().trim(), buckets: [] });
     }
 
     const group = groups.get(canonical)!;
@@ -54,22 +55,27 @@ interface Bucket {
 }
 
 interface BucketGroup {
-  canonical: string;
+  canonical: string;   // sorted/normalised key for grouping
+  displayName: string; // human-readable name (from first item seen)
   buckets: Bucket[];
 }
 
 // ── Helpers ────────────────────────────────────────────────────────
+
+const STOP_WORDS = new Set(['of', 'a', 'an', 'the', 'and', 'or', 'to', 'for', 'with', 'in', 'on']);
 
 function canonicalise(raw: string): string {
   let s = raw.toLowerCase().trim();
   // Strip preparation notes after commas or common prep words
   s = s.replace(/[,(].*$/, '').trim();
   s = s.replace(/\s+(roughly|finely|thinly|freshly|coarsely|diced|minced|chopped|sliced|crushed|grated|peeled|halved|quartered|cut|stripped|torn|slivered|julienned)\b.*$/i, '').trim();
-  // basic singularisation: strip trailing 's' (but not 'ss')
-  if (s.length > 2 && s.endsWith('s') && !s.endsWith('ss')) {
-    s = s.slice(0, -1);
-  }
-  return s;
+  // Singularise each word, drop stop words, sort alphabetically
+  // so "shoulder of lamb" and "lamb shoulder" both become "lamb shoulder"
+  const words = s.split(/\s+/)
+    .filter((w) => !STOP_WORDS.has(w))
+    .map((w) => (w.length > 2 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
+    .sort();
+  return words.join(' ');
 }
 
 function addToBucket(group: BucketGroup, item: ShoppingListItem): void {
@@ -123,8 +129,8 @@ function flattenGroups(groups: Map<string, BucketGroup>): SmartRollupItem[] {
   for (const group of groups.values()) {
     for (const bucket of group.buckets) {
       result.push({
-        canonical_item: group.canonical,
-        display_text: buildDisplayText(group.canonical, bucket.totalQty, bucket.unit),
+        canonical_item: group.displayName,
+        display_text: buildDisplayText(group.displayName, bucket.totalQty, bucket.unit),
         total_quantity: bucket.totalQty,
         unit: bucket.unit,
         sources: bucket.sources,
