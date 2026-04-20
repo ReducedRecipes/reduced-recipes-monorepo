@@ -4,4 +4,4 @@ CREATE TABLE IF NOT EXISTS shopping_list_members (
   added_at TEXT NOT NULL DEFAULT (datetime('now')),
   PRIMARY KEY (shopping_list_id, user_id)
 );
-CREATE INDEX idx_slm_user ON shopping_list_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_slm_user ON shopping_list_members(user_id);
