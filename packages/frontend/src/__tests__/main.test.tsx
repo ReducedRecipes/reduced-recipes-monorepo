@@ -137,7 +137,8 @@ describe("main.tsx route definitions", () => {
 
   it("wraps all routes in Layout with header", () => {
     renderApp("/");
-    expect(screen.getByText("ReducedRecipes")).toBeDefined();
-    expect(screen.getByRole("link", { name: "Home" })).toBeDefined();
+    expect(screen.getByText("Reduced")).toBeDefined();
+    expect(screen.getByText("RECIPES")).toBeDefined();
+    expect(screen.getByText("00 — Index")).toBeDefined();
   });
 });
