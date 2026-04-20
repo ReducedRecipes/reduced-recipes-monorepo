@@ -7,6 +7,7 @@ import {
   useShareLink,
   useShoppingLists,
 } from "../hooks/useShoppingLists";
+import { Rule } from "../components/design-system";
 import type { SmartRollupItem } from "@rr/shared";
 
 function RollupItemRow({
@@ -29,19 +30,25 @@ function RollupItemRow({
   const hasMultipleSources = recipeCount >= 2;
 
   return (
-    <div className="py-2 group">
-      <div className="flex items-center gap-3">
+    <div style={{ padding: "10px 0" }} className="group">
+      <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <button
           onClick={onToggle}
-          className="flex-shrink-0 h-5 w-5 rounded flex items-center justify-center transition-colors"
-          style={isChecked
-            ? { border: "2px solid #E85D26", background: "#E85D26", color: "#fff" }
-            : { border: "2px solid #555" }
-          }
+          style={{
+            flexShrink: 0,
+            width: 18,
+            height: 18,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            border: isChecked ? "2px solid var(--accent)" : "2px solid var(--rule-2)",
+            background: isChecked ? "var(--accent)" : "transparent",
+            color: isChecked ? "var(--bg)" : "transparent",
+          }}
         >
           {isChecked && (
             <svg
-              className="h-3 w-3"
+              style={{ width: 10, height: 10 }}
               viewBox="0 0 12 12"
               fill="none"
               stroke="currentColor"
@@ -52,56 +59,74 @@ function RollupItemRow({
           )}
         </button>
         <span
-          className={`flex-1 text-sm ${
-            isChecked ? "text-gray-400 line-through" : "text-gray-900"
-          }`}
+          style={{
+            flex: 1,
+            fontSize: 14,
+            color: isChecked ? "var(--ink-3)" : "var(--ink)",
+            textDecoration: isChecked ? "line-through" : "none",
+            cursor: hasMultipleSources ? "pointer" : "default",
+          }}
           onClick={hasMultipleSources ? () => setExpanded(!expanded) : undefined}
-          style={hasMultipleSources ? { cursor: "pointer" } : undefined}
         >
           {item.display_text}
           {hasMultipleSources && (
-            <span className="ml-1 text-xs text-gray-400">
+            <span className="mono" style={{ marginLeft: 6, fontSize: 11, color: "var(--ink-3)" }}>
               ({recipeCount} recipes)
             </span>
           )}
         </span>
         <button
           onClick={onDelete}
-          className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
+          className="mono"
+          style={{
+            fontSize: 11,
+            color: "var(--ink-3)",
+            opacity: 0,
+            padding: "4px 8px",
+            border: "1px solid var(--rule)",
+            background: "transparent",
+            transition: "opacity 0.15s",
+          }}
+          onMouseEnter={(e) => { (e.target as HTMLElement).style.opacity = "1"; }}
+          onMouseLeave={(e) => { (e.target as HTMLElement).style.opacity = "0"; }}
           title="Remove item"
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-4 w-4"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
+          ×
         </button>
       </div>
       {hasMultipleSources && expanded && (
-        <div className="ml-8 mt-1 space-y-1 border-l-2 border-orange-200 pl-3">
+        <div
+          style={{
+            marginLeft: 30,
+            marginTop: 6,
+            paddingLeft: 12,
+            borderLeft: "2px solid var(--rule)",
+          }}
+        >
           {sources
             .filter((s) => s.recipe_id)
             .map((source) => (
               <div
                 key={source.item_id}
-                className="flex items-center gap-2 text-xs text-gray-600"
+                className="mono"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 11,
+                  color: "var(--ink-2)",
+                  padding: "3px 0",
+                }}
               >
-                <span className="truncate">
+                <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                   {source.original_text || item.canonical_item}
                   {source.quantity != null && ` (${source.quantity}${item.unit ? ` ${item.unit}` : ""})`}
                 </span>
                 <Link
                   to={`/recipe/${source.recipe_id}`}
-                  className="flex-shrink-0 text-orange-600 hover:text-orange-800 hover:underline"
+                  style={{ flexShrink: 0, color: "var(--accent-ink)" }}
                 >
-                  view
+                  view →
                 </Link>
               </div>
             ))}
@@ -125,29 +150,28 @@ function AisleSection({
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="border-b border-gray-100 last:border-b-0">
+    <div style={{ borderBottom: "1px solid var(--rule)" }}>
       <button
         onClick={() => setCollapsed(!collapsed)}
-        className="flex w-full items-center justify-between px-4 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+        style={{
+          display: "flex",
+          width: "100%",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 16px",
+          background: "var(--bg-2)",
+        }}
       >
-        <span className="text-sm font-semibold text-gray-700">{category}</span>
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-gray-400">{items.length}</span>
-          <svg
-            className={`h-4 w-4 text-gray-400 transition-transform ${collapsed ? "-rotate-90" : ""}`}
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-              clipRule="evenodd"
-            />
-          </svg>
+        <span className="caps" style={{ color: "var(--ink-2)" }}>{category}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)" }}>{items.length}</span>
+          <span style={{ color: "var(--ink-3)", transform: collapsed ? "rotate(-90deg)" : "none", transition: "transform 0.15s" }}>
+            ▾
+          </span>
         </div>
       </button>
       {!collapsed && (
-        <div className="divide-y divide-gray-100 px-4">
+        <div style={{ padding: "0 16px" }}>
           {items.map((item) => (
             <RollupItemRow
               key={item.canonical_item}
@@ -193,8 +217,10 @@ export default function ShoppingListPage() {
 
   if (authLoading || isLoading) {
     return (
-      <div className="flex justify-center py-16">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+      <div className="flex justify-center py-20">
+        <div className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
+          Loading&hellip;
+        </div>
       </div>
     );
   }
@@ -227,10 +253,8 @@ export default function ShoppingListPage() {
     if (list.share_token) {
       const url = `${window.location.origin}/shared/lists/${list.share_token}`;
       await navigator.clipboard.writeText(url);
-      alert("Share link copied to clipboard!");
     } else {
       createShareLink();
-      alert("Creating share link...");
     }
   };
 
@@ -255,7 +279,6 @@ export default function ShoppingListPage() {
       const items = groups.get(cat);
       if (items && items.length > 0) result.push({ category: cat, items });
     }
-    // Any remaining categories not in AISLE_ORDER
     for (const [cat, items] of groups) {
       if (!AISLE_ORDER.includes(cat) && items.length > 0) {
         result.push({ category: cat, items });
@@ -265,30 +288,19 @@ export default function ShoppingListPage() {
   })();
 
   return (
-    <div className="mx-auto max-w-2xl py-8">
+    <main style={{ maxWidth: 640, margin: "0 auto", padding: "48px 0" }}>
       {/* Back link */}
       <button
         onClick={() => navigate("/shopping-lists")}
-        className="mb-4 flex items-center gap-1 text-sm text-gray-500 hover:text-orange-600"
+        className="mono"
+        style={{ fontSize: 12, color: "var(--ink-3)", marginBottom: 24, display: "block" }}
       >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fillRule="evenodd"
-            d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z"
-            clipRule="evenodd"
-          />
-        </svg>
-        All Lists
+        ← All Lists
       </button>
 
       {/* Header */}
-      <div className="mb-6 flex items-start justify-between">
-        <div className="flex-1 min-w-0">
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 32 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {isEditingName ? (
             <input
               ref={nameInputRef}
@@ -300,11 +312,22 @@ export default function ShoppingListPage() {
                 if (e.key === "Enter") handleSaveName();
                 if (e.key === "Escape") setIsEditingName(false);
               }}
-              className="w-full text-2xl font-bold text-gray-900 border-b-2 border-orange-500 bg-transparent focus:outline-none"
+              className="serif"
+              style={{
+                width: "100%",
+                fontSize: 32,
+                background: "transparent",
+                border: "none",
+                borderBottom: "2px solid var(--accent)",
+                outline: "none",
+                color: "var(--ink)",
+                padding: 0,
+              }}
             />
           ) : (
             <h1
-              className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-orange-600"
+              className="serif"
+              style={{ fontSize: 32, margin: 0, lineHeight: 1.1, cursor: "pointer" }}
               onClick={() => {
                 setEditedName(list.name);
                 setIsEditingName(true);
@@ -317,91 +340,102 @@ export default function ShoppingListPage() {
         </div>
 
         {/* Actions */}
-        <div className="ml-4 flex items-center gap-2">
-          {/* Share */}
-          <div className="relative">
-            <button
-              onClick={handleCopyShareLink}
-              disabled={isCreatingShare}
-              className="rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-gray-50 hover:text-orange-600 disabled:opacity-50"
-              title="Share list"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-5 w-5"
-                viewBox="0 0 20 20"
-                fill="currentColor"
-              >
-                <path d="M15 8a3 3 0 10-2.977-2.63l-4.94 2.47a3 3 0 100 4.319l4.94 2.47a3 3 0 10.895-1.789l-4.94-2.47a3.027 3.027 0 000-.74l4.94-2.47C13.456 7.68 14.19 8 15 8z" />
-              </svg>
-            </button>
-          </div>
-
-          {/* Delete */}
+        <div style={{ marginLeft: 16, display: "flex", alignItems: "center", gap: 8 }}>
+          <button
+            onClick={handleCopyShareLink}
+            disabled={isCreatingShare}
+            className="mono"
+            style={{
+              fontSize: 11,
+              padding: "8px 12px",
+              border: "1px solid var(--rule-2)",
+              background: "transparent",
+              color: "var(--ink-2)",
+              opacity: isCreatingShare ? 0.5 : 1,
+              cursor: isCreatingShare ? "not-allowed" : "pointer",
+            }}
+            title="Share list"
+          >
+            Share
+          </button>
           <button
             onClick={handleDelete}
-            className="rounded-lg border border-gray-300 p-2 text-gray-600 hover:bg-red-50 hover:text-red-500"
+            className="mono"
+            style={{
+              fontSize: 11,
+              padding: "8px 12px",
+              border: "1px solid var(--rule-2)",
+              background: "transparent",
+              color: "var(--ink-3)",
+            }}
             title="Delete list"
           >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                clipRule="evenodd"
-              />
-            </svg>
+            Delete
           </button>
         </div>
       </div>
 
-      {/* Items */}
-      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+      {/* Items container */}
+      <div style={{ border: "1px solid var(--rule)", background: "var(--bg)" }}>
         {/* Unchecked items grouped by aisle */}
-        <div>
-          {uncheckedItems.length === 0 && checkedItems.length === 0 && (
-            <p className="py-8 text-center text-sm text-gray-500">
-              No items yet. Add some below.
-            </p>
-          )}
-          {uncheckedByAisle.map(({ category, items }) => (
-            <AisleSection
-              key={category}
-              category={category}
-              items={items}
-              onToggle={(item) => {
-                for (const s of item.sources ?? []) {
-                  updateItem({ itemId: s.item_id, checked: 1 });
-                }
-              }}
-              onDelete={(item) => {
-                for (const s of item.sources ?? []) {
-                  deleteItem(s.item_id);
-                }
-              }}
-            />
-          ))}
-        </div>
+        {uncheckedItems.length === 0 && checkedItems.length === 0 && (
+          <div style={{ padding: "40px 0", textAlign: "center", color: "var(--ink-3)", fontSize: 14 }}>
+            No items yet. Add some below.
+          </div>
+        )}
+        {uncheckedByAisle.map(({ category, items }) => (
+          <AisleSection
+            key={category}
+            category={category}
+            items={items}
+            onToggle={(item) => {
+              for (const s of item.sources ?? []) {
+                updateItem({ itemId: s.item_id, checked: 1 });
+              }
+            }}
+            onDelete={(item) => {
+              for (const s of item.sources ?? []) {
+                deleteItem(s.item_id);
+              }
+            }}
+          />
+        ))}
 
         {/* Add item input */}
-        <div className="border-t border-gray-200 px-4 py-3">
-          <div className="flex gap-2">
+        <div style={{ borderTop: "1px solid var(--rule)", padding: "12px 16px" }}>
+          <div style={{ display: "flex", gap: 10 }}>
             <input
               type="text"
               placeholder="Add an item..."
               value={newItemName}
               onChange={(e) => setNewItemName(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
-              className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              className="mono"
+              style={{
+                flex: 1,
+                fontSize: 13,
+                padding: "10px 12px",
+                background: "var(--bg-2)",
+                border: "1px solid var(--rule-2)",
+                color: "var(--ink)",
+                outline: "none",
+              }}
             />
             <button
               onClick={handleAddItem}
               disabled={isAdding || !newItemName.trim()}
-              className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+              className="mono"
+              style={{
+                fontSize: 12,
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                padding: "10px 16px",
+                background: "var(--ink)",
+                color: "var(--bg)",
+                border: "1px solid var(--ink)",
+                opacity: isAdding || !newItemName.trim() ? 0.5 : 1,
+                cursor: isAdding || !newItemName.trim() ? "not-allowed" : "pointer",
+              }}
             >
               Add
             </button>
@@ -410,19 +444,28 @@ export default function ShoppingListPage() {
 
         {/* Checked items */}
         {checkedItems.length > 0 && (
-          <div className="border-t border-gray-200">
-            <div className="flex items-center justify-between px-4 py-2 bg-gray-50">
-              <span className="text-sm font-medium text-gray-500">
+          <div style={{ borderTop: "1px solid var(--rule)" }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 16px",
+                background: "var(--bg-2)",
+              }}
+            >
+              <span className="caps" style={{ color: "var(--ink-3)" }}>
                 Checked ({checkedItems.length})
               </span>
               <button
                 onClick={() => uncheckAll()}
-                className="text-xs text-orange-600 hover:text-orange-700 font-medium"
+                className="mono"
+                style={{ fontSize: 11, color: "var(--accent-ink)" }}
               >
                 Uncheck all
               </button>
             </div>
-            <div className="divide-y divide-gray-100 px-4">
+            <div style={{ padding: "0 16px" }}>
               {checkedItems.map((item) => (
                 <RollupItemRow
                   key={item.canonical_item}
@@ -447,34 +490,42 @@ export default function ShoppingListPage() {
 
       {/* Share status */}
       {list.share_token && (
-        <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span>This list is shared via link.</span>
-              {(list as unknown as { member_count?: number }).member_count != null &&
-                (list as unknown as { member_count: number }).member_count > 0 && (
-                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
-                  </svg>
-                  Shared with {(list as unknown as { member_count: number }).member_count}{" "}
-                  {(list as unknown as { member_count: number }).member_count === 1 ? "person" : "people"}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={() => {
-                if (confirm("Revoke the share link?")) {
-                  revokeShareLink();
-                }
-              }}
-              className="text-orange-600 hover:text-orange-800 font-medium"
-            >
-              Revoke
-            </button>
+        <div
+          style={{
+            marginTop: 16,
+            padding: "12px 16px",
+            border: "1px solid var(--rule-2)",
+            background: "var(--bg-2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontSize: 13, color: "var(--ink-2)" }}>
+              This list is shared via link.
+            </span>
+            {(list as unknown as { member_count?: number }).member_count != null &&
+              (list as unknown as { member_count: number }).member_count > 0 && (
+              <span className="mono" style={{ fontSize: 11, color: "var(--accent-ink)" }}>
+                {(list as unknown as { member_count: number }).member_count}{" "}
+                {(list as unknown as { member_count: number }).member_count === 1 ? "person" : "people"}
+              </span>
+            )}
           </div>
+          <button
+            onClick={() => {
+              if (confirm("Revoke the share link?")) {
+                revokeShareLink();
+              }
+            }}
+            className="mono"
+            style={{ fontSize: 11, color: "var(--accent-ink)" }}
+          >
+            Revoke
+          </button>
         </div>
       )}
-    </div>
+    </main>
   );
 }
