@@ -1,37 +1,79 @@
 import { Link } from "react-router-dom";
+import { FoodPlaceholder } from "./design-system";
 import type { RecipeSummary } from "@rr/shared/types";
-
-function formatTime(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const hrs = Math.floor(minutes / 60);
-  const mins = minutes % 60;
-  return mins > 0 ? `${hrs} hr ${mins} min` : `${hrs} hr`;
-}
 
 export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
   return (
     <Link
       to={`/recipe/${recipe.id}`}
-      className="rounded-lg shadow hover:shadow-md transition-shadow overflow-hidden block"
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        textDecoration: "none",
+        color: "inherit",
+      }}
     >
-      {recipe.image_url ? (
-        <img
-          src={recipe.image_url}
-          alt={recipe.title}
-          loading="lazy"
-          className="aspect-[3/2] w-full object-cover"
-        />
-      ) : (
-        <div className="aspect-[3/2] w-full bg-gray-200" />
-      )}
-      <div className="p-3">
-        <h3 className="font-semibold line-clamp-2">{recipe.title}</h3>
-        <p className="text-sm text-gray-500">{recipe.domain}</p>
-        {recipe.total_time != null && (
-          <p className="text-sm text-gray-600 mt-1">
-            {formatTime(recipe.total_time)}
-          </p>
+      <div style={{ position: "relative" }}>
+        {recipe.image_url ? (
+          <img
+            src={recipe.image_url}
+            alt={recipe.title}
+            loading="lazy"
+            style={{
+              width: "100%",
+              aspectRatio: "3/2",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
+        ) : (
+          <FoodPlaceholder label={recipe.title} ratio="3/2" />
         )}
+        {recipe.total_time != null && (
+          <div
+            className="mono"
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 8,
+              background: "var(--bg)",
+              color: "var(--ink-2)",
+              fontSize: 10,
+              padding: "3px 6px",
+              border: "1px solid var(--rule-2)",
+            }}
+          >
+            {recipe.total_time}m
+          </div>
+        )}
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <div
+          className="serif"
+          style={{
+            fontSize: 20,
+            letterSpacing: "-0.01em",
+            lineHeight: 1.15,
+            display: "-webkit-box",
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: "vertical",
+            overflow: "hidden",
+          }}
+        >
+          {recipe.title}
+        </div>
+        <div
+          className="mono"
+          style={{
+            fontSize: 11,
+            color: "var(--ink-3)",
+            letterSpacing: "0.04em",
+            textTransform: "uppercase",
+          }}
+        >
+          {recipe.domain}
+        </div>
       </div>
     </Link>
   );

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { TextThumb } from "./design-system";
+import { FoodPlaceholder } from "./design-system";
 import type { RecipeSummary } from "@rr/shared";
 
 interface RecipeShelfProps {
@@ -74,14 +74,21 @@ export default function RecipeShelf({ title, items, ranked }: RecipeShelfProps) 
             style={{ textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}
           >
             <div style={{ position: "relative" }}>
-              <TextThumb
-                recipe={{
-                  id: r.id,
-                  title: r.title,
-                  time: r.total_time ?? 0,
-                  reviews: 0,
-                }}
-              />
+              {r.image_url ? (
+                <img
+                  src={r.image_url}
+                  alt={r.title}
+                  loading="lazy"
+                  style={{
+                    width: "100%",
+                    aspectRatio: "1/1",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <FoodPlaceholder label={r.title} ratio="1/1" />
+              )}
               {ranked && (
                 <div
                   className="mono"
