@@ -1,10 +1,16 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useRecipe } from "../hooks/useRecipe";
 import { useAuth } from "../hooks/useAuth";
 import { useShoppingLists } from "../hooks/useShoppingLists";
 import { BookmarkButton } from "../components/BookmarkButton";
 import { addRecipeToList } from "../lib/api";
+import { Rule, Pill, FoodPlaceholder } from "../components/design-system";
+import { StatRail } from "../components/recipe/StatRail";
+import { StickyControls } from "../components/recipe/StickyControls";
+import { CookMode } from "../components/recipe/CookMode";
+import { NutritionPanel } from "../components/recipe/NutritionPanel";
+import { scaleIngredient, parseIngredient, formatQty } from "../lib/formatQty";
 import type { RecipeDocument } from "@rr/shared/types";
 
 function formatTime(minutes: number): string {
@@ -20,7 +26,9 @@ function buildSchemaLd(recipe: RecipeDocument): string {
     "@type": "Recipe",
     name: recipe.title,
     image: recipe.image_url ?? undefined,
-    author: recipe.author ? { "@type": "Person", name: recipe.author } : undefined,
+    author: recipe.author
+      ? { "@type": "Person", name: recipe.author }
+      : undefined,
     totalTime: recipe.total_time ? `PT${recipe.total_time}M` : undefined,
     recipeYield: recipe.yields ?? undefined,
     recipeIngredient: recipe.ingredients,
@@ -35,31 +43,58 @@ function buildSchemaLd(recipe: RecipeDocument): string {
   });
 }
 
+function parseBaseServings(yields: string | null): number {
+  if (!yields) return 4;
+  const m = yields.match(/(\d+)/);
+  return m ? parseInt(m[1]!) : 4;
+}
+
 export default function RecipePage() {
   const { id } = useParams<{ id: string }>();
   const { data: recipe, isLoading, error } = useRecipe(id ?? "");
-
-  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(new Set());
-  const [highlightedStep, setHighlightedStep] = useState<number | null>(null);
   const { isAuthenticated } = useAuth();
   const { lists, createListAsync } = useShoppingLists();
+
+  const baseServings = useMemo(
+    () => parseBaseServings(recipe?.yields ?? null),
+    [recipe?.yields],
+  );
+  const [servings, setServings] = useState(baseServings);
+  const [unitSystem, setUnitSystem] = useState<"us" | "metric">("us");
+  const [checkedIngredients, setCheckedIngredients] = useState<Set<number>>(
+    new Set(),
+  );
+  const [completedSteps, setCompletedSteps] = useState<Set<number>>(new Set());
+  const [cookMode, setCookMode] = useState(false);
   const [showListPicker, setShowListPicker] = useState(false);
   const [addingToList, setAddingToList] = useState<string | null>(null);
   const [addedToList, setAddedToList] = useState<string | null>(null);
 
   useEffect(() => {
+    setServings(baseServings);
+  }, [baseServings]);
+
+  const multiplier = baseServings > 0 ? servings / baseServings : 1;
+
+  // SEO: document title + meta tags
+  useEffect(() => {
     if (!recipe) return;
 
     document.title = `${recipe.title} - ReducedRecipes`;
 
-    const description = recipe.ingredients.length > 0
-      ? `Recipe for ${recipe.title} with ${recipe.ingredients.length} ingredients.`
-      : recipe.instructions[0]?.slice(0, 160) ?? recipe.title;
+    const description =
+      recipe.ingredients.length > 0
+        ? `Recipe for ${recipe.title} with ${recipe.ingredients.length} ingredients.`
+        : recipe.instructions[0]?.slice(0, 160) ?? recipe.title;
 
     const metaTags: HTMLMetaElement[] = [];
     const linkTags: HTMLLinkElement[] = [];
 
-    function addMeta(attr: "name" | "property", key: string, content: string) {
+    function addMeta(
+      attr: "name" | "property",
+      key: string,
+      content: string,
+    ) {
       const el = document.createElement("meta");
       el.setAttribute(attr, key);
       el.content = content;
@@ -88,6 +123,7 @@ export default function RecipePage() {
     };
   }, [recipe]);
 
+  // Schema.org LD+JSON
   useEffect(() => {
     if (!recipe) return;
     const script = document.createElement("script");
@@ -109,13 +145,18 @@ export default function RecipePage() {
   }
 
   function toggleStep(index: number) {
-    setHighlightedStep((prev) => (prev === index ? null : index));
+    setCompletedSteps((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
   }
 
   if (isLoading) {
     return (
       <div className="flex justify-center py-16">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-amber-500 border-t-transparent" />
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-accent border-t-transparent" />
       </div>
     );
   }
@@ -130,193 +171,343 @@ export default function RecipePage() {
 
   if (!recipe) return null;
 
+  const tags = [
+    recipe.cuisine,
+    recipe.category,
+    ...recipe.tags,
+  ].filter(Boolean);
+
   return (
-    <article className="mx-auto max-w-3xl px-4 py-8">
-      {/* Hero image */}
-      {recipe.image_url ? (
-        <img
-          src={recipe.image_url}
-          alt={recipe.title}
-          loading="lazy"
-          className="aspect-[16/9] w-full rounded-lg object-cover"
+    <>
+      {cookMode && (
+        <CookMode
+          steps={recipe.instructions}
+          title={recipe.title}
+          onExit={() => setCookMode(false)}
         />
-      ) : (
-        <div className="aspect-[16/9] w-full rounded-lg bg-gray-200" />
       )}
 
-      {/* Title + Bookmark */}
-      <div className="mt-6 flex items-start justify-between gap-4">
-        <h1 className="text-3xl font-bold">{recipe.title}</h1>
-        <BookmarkButton recipeId={recipe.id} />
-      </div>
-
-      {/* Metadata */}
-      <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-gray-600">
-        {recipe.author && <span>By {recipe.author}</span>}
-        {recipe.domain && (
-          <Link to={`/site/${recipe.domain}`} className="underline hover:text-amber-600">
-            {recipe.domain}
+      <article className="mx-auto max-w-5xl py-4">
+        {/* ── 1. Spec-sheet header ── */}
+        <div className="mb-2">
+          <Link
+            to="/"
+            className="caps inline-flex items-center gap-1.5 text-ink-3 transition-colors hover:text-ink-2"
+          >
+            ← Back to index
           </Link>
-        )}
-        {recipe.total_time != null && <span>{formatTime(recipe.total_time)}</span>}
-        {recipe.yields && <span>{recipe.yields}</span>}
-      </div>
-
-      {/* Ingredients */}
-      {recipe.ingredients.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-xl font-semibold">Ingredients</h2>
-          <ul className="mt-3 space-y-2">
-            {recipe.ingredients.map((ingredient, i) => (
-              <li key={i} className="flex items-start gap-2">
-                <input
-                  type="checkbox"
-                  checked={checkedIngredients.has(i)}
-                  onChange={() => toggleIngredient(i)}
-                  className="mt-1 h-4 w-4 rounded border-gray-300 accent-amber-500"
-                />
-                <span className={checkedIngredients.has(i) ? "text-gray-400 line-through" : ""}>
-                  {ingredient}
-                </span>
-              </li>
-            ))}
-          </ul>
-
-          {/* Add to Shopping List */}
-          {isAuthenticated && (
-            <div className="relative mt-4">
-              {addedToList ? (
-                <p className="text-sm text-green-600 font-medium">
-                  Added to shopping list!{" "}
-                  <Link to={`/shopping-lists/${addedToList}`} className="underline">
-                    View list
-                  </Link>
-                </p>
-              ) : (
-                <button
-                  onClick={() => setShowListPicker((v) => !v)}
-                  className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700"
-                >
-                  Add to Shopping List
-                </button>
-              )}
-              {showListPicker && (
-                <>
-                  <div className="fixed inset-0 z-10" onClick={() => setShowListPicker(false)} />
-                  <div className="absolute left-0 z-20 mt-2 w-64 rounded-lg border border-gray-200 bg-white shadow-lg">
-                    <div className="border-b border-gray-100 px-4 py-2">
-                      <span className="text-sm font-semibold text-gray-800">Choose a list</span>
-                    </div>
-                    <ul className="max-h-48 overflow-y-auto">
-                      {lists.map((list) => (
-                        <li key={list.id}>
-                          <button
-                            type="button"
-                            disabled={addingToList === list.id}
-                            onClick={async () => {
-                              if (!recipe) return;
-                              setAddingToList(list.id);
-                              try {
-                                await addRecipeToList(list.id, {
-                                  recipe_id: recipe.id,
-                                  ingredients: recipe.ingredients,
-                                });
-                                setAddedToList(list.id);
-                                setShowListPicker(false);
-                              } catch { /* ignore */ }
-                              setAddingToList(null);
-                            }}
-                            className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                          >
-                            {addingToList === list.id ? "Adding..." : list.name}
-                          </button>
-                        </li>
-                      ))}
-                      {lists.length === 0 && (
-                        <li>
-                          <button
-                            type="button"
-                            onClick={async () => {
-                              const result = await createListAsync({ name: "My Shopping List" });
-                              if (result?.id && recipe) {
-                                setAddingToList(result.id);
-                                try {
-                                  await addRecipeToList(result.id, {
-                                    recipe_id: recipe.id,
-                                    ingredients: recipe.ingredients,
-                                  });
-                                  setAddedToList(result.id);
-                                  setShowListPicker(false);
-                                } catch { /* ignore */ }
-                                setAddingToList(null);
-                              }
-                            }}
-                            className="block w-full px-4 py-2 text-left text-sm text-orange-600 hover:bg-gray-100"
-                          >
-                            + Create new list
-                          </button>
-                        </li>
-                      )}
-                    </ul>
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </section>
-      )}
-
-      {/* Instructions */}
-      {recipe.instructions.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-xl font-semibold">Instructions</h2>
-          <ol className="mt-3 list-decimal space-y-3 pl-6">
-            {recipe.instructions.map((step, i) => (
-              <li
-                key={i}
-                onClick={() => toggleStep(i)}
-                className={`cursor-pointer rounded px-2 py-1 ${highlightedStep === i ? "bg-amber-100" : ""}`}
-              >
-                {step}
-              </li>
-            ))}
-          </ol>
-        </section>
-      )}
-
-      {/* Tags */}
-      {recipe.tags.length > 0 && (
-        <div className="mt-8 flex flex-wrap gap-2">
-          {recipe.tags.map((tag) => (
-            <Link
-              key={tag}
-              to={`/tag/${tag}`}
-              className="rounded-full bg-gray-100 px-3 py-1 text-sm text-gray-700 hover:bg-amber-100"
-            >
-              {tag}
-            </Link>
-          ))}
         </div>
-      )}
 
-      {/* Actions */}
-      <div className="mt-8 flex flex-wrap gap-3">
-        <a
-          href={recipe.source_url}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="rounded-lg bg-amber-500 px-5 py-2.5 font-medium text-white hover:bg-amber-600"
-        >
-          View Full Recipe on {recipe.domain}
-        </a>
-        <button
-          type="button"
-          onClick={() => window.print()}
-          className="rounded-lg border border-gray-300 px-5 py-2.5 font-medium text-gray-700 hover:bg-gray-50 print:hidden"
-        >
-          Print
-        </button>
-      </div>
-    </article>
+        <div className="mb-1 font-mono text-xs uppercase tracking-wider text-ink-3">
+          Recipe #{recipe.id.slice(0, 8)}
+        </div>
+
+        <h1 className="font-serif text-4xl italic leading-tight text-ink sm:text-5xl lg:text-6xl">
+          {recipe.title}
+        </h1>
+
+        {/* Summary */}
+        {recipe.ingredients.length > 0 && (
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-ink-2">
+            {recipe.ingredients.length} ingredients · {recipe.instructions.length}{" "}
+            steps
+            {recipe.total_time != null && ` · ${formatTime(recipe.total_time)}`}
+          </p>
+        )}
+
+        {/* Tags */}
+        {tags.length > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {tags.map((tag) => (
+              <Link
+                key={tag}
+                to={`/tag/${tag}`}
+                className="border border-rule px-2 py-0.5 font-mono text-[11px] uppercase tracking-wider text-ink-3 transition-colors hover:border-ink-3 hover:text-ink-2"
+              >
+                {tag}
+              </Link>
+            ))}
+          </div>
+        )}
+
+        {/* Filed under info card */}
+        <div className="mt-6 border border-rule bg-bg-2 px-5 py-4">
+          <div className="caps mb-2 text-ink-3">Filed under</div>
+          <div className="flex flex-wrap gap-x-8 gap-y-2 text-sm">
+            {recipe.author && (
+              <div>
+                <span className="text-ink-3">Author</span>{" "}
+                <span className="text-ink">{recipe.author}</span>
+              </div>
+            )}
+            {recipe.domain && (
+              <div>
+                <span className="text-ink-3">Source</span>{" "}
+                <Link
+                  to={`/site/${recipe.domain}`}
+                  className="text-ink underline decoration-rule hover:decoration-ink"
+                >
+                  {recipe.domain}
+                </Link>
+              </div>
+            )}
+            {recipe.category && (
+              <div>
+                <span className="text-ink-3">Category</span>{" "}
+                <span className="text-ink">{recipe.category}</span>
+              </div>
+            )}
+            {recipe.cuisine && (
+              <div>
+                <span className="text-ink-3">Cuisine</span>{" "}
+                <span className="text-ink">{recipe.cuisine}</span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── 2. Stat rail ── */}
+        <div className="mt-6">
+          <StatRail
+            totalTime={recipe.total_time}
+            prepTime={recipe.prep_time}
+            cookTime={recipe.cook_time}
+            yields={recipe.yields}
+            ingredientCount={recipe.ingredients.length}
+            stepCount={recipe.instructions.length}
+          />
+        </div>
+
+        {/* ── 3. Sticky controls ── */}
+        <StickyControls
+          servings={servings}
+          onServingsChange={setServings}
+          unitSystem={unitSystem}
+          onUnitToggle={() =>
+            setUnitSystem((s) => (s === "us" ? "metric" : "us"))
+          }
+          onPrint={() => window.print()}
+          onCookMode={() => setCookMode(true)}
+        />
+
+        {/* ── 4. Two-column body ── */}
+        <div className="mt-8 grid gap-10 lg:grid-cols-[300px_1fr]">
+          {/* Left sidebar: ingredients + equipment */}
+          <div className="lg:sticky lg:top-[200px] lg:self-start">
+            {recipe.ingredients.length > 0 && (
+              <section>
+                <Rule label="Ingredients" style={{ marginBottom: 12 }} />
+                <ul className="space-y-2">
+                  {recipe.ingredients.map((ingredient, i) => {
+                    const scaled = scaleIngredient(ingredient, multiplier);
+                    const checked = checkedIngredients.has(i);
+                    return (
+                      <li key={i} className="flex items-start gap-2.5">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleIngredient(i)}
+                          className="mt-1 h-3.5 w-3.5 rounded-none border-rule accent-accent"
+                        />
+                        <span
+                          className={`text-sm leading-snug ${
+                            checked
+                              ? "text-ink-3 line-through"
+                              : "text-ink"
+                          }`}
+                        >
+                          {multiplier !== 1 ? scaled : ingredient}
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+
+                {/* Shopping list integration */}
+                {isAuthenticated && (
+                  <div className="relative mt-5">
+                    {addedToList ? (
+                      <p className="font-mono text-xs text-accent-ink">
+                        Added to list{" "}
+                        <Link
+                          to={`/shopping-lists/${addedToList}`}
+                          className="underline"
+                        >
+                          View →
+                        </Link>
+                      </p>
+                    ) : (
+                      <Pill onClick={() => setShowListPicker((v) => !v)}>
+                        + Shopping list
+                      </Pill>
+                    )}
+                    {showListPicker && (
+                      <>
+                        <div
+                          className="fixed inset-0 z-10"
+                          onClick={() => setShowListPicker(false)}
+                        />
+                        <div className="absolute left-0 z-20 mt-2 w-56 border border-rule bg-bg shadow-lg">
+                          <div className="border-b border-rule px-3 py-2">
+                            <span className="caps text-ink-3">Choose a list</span>
+                          </div>
+                          <ul className="max-h-48 overflow-y-auto">
+                            {lists.map((list) => (
+                              <li key={list.id}>
+                                <button
+                                  type="button"
+                                  disabled={addingToList === list.id}
+                                  onClick={async () => {
+                                    if (!recipe) return;
+                                    setAddingToList(list.id);
+                                    try {
+                                      await addRecipeToList(list.id, {
+                                        recipe_id: recipe.id,
+                                        ingredients: recipe.ingredients,
+                                      });
+                                      setAddedToList(list.id);
+                                      setShowListPicker(false);
+                                    } catch {
+                                      /* ignore */
+                                    }
+                                    setAddingToList(null);
+                                  }}
+                                  className="block w-full px-3 py-2 text-left text-sm text-ink-2 transition-colors hover:bg-bg-2 disabled:opacity-50"
+                                >
+                                  {addingToList === list.id
+                                    ? "Adding..."
+                                    : list.name}
+                                </button>
+                              </li>
+                            ))}
+                            {lists.length === 0 && (
+                              <li>
+                                <button
+                                  type="button"
+                                  onClick={async () => {
+                                    const result = await createListAsync({
+                                      name: "My Shopping List",
+                                    });
+                                    if (result?.id && recipe) {
+                                      setAddingToList(result.id);
+                                      try {
+                                        await addRecipeToList(result.id, {
+                                          recipe_id: recipe.id,
+                                          ingredients: recipe.ingredients,
+                                        });
+                                        setAddedToList(result.id);
+                                        setShowListPicker(false);
+                                      } catch {
+                                        /* ignore */
+                                      }
+                                      setAddingToList(null);
+                                    }
+                                  }}
+                                  className="block w-full px-3 py-2 text-left text-sm text-accent-ink transition-colors hover:bg-bg-2"
+                                >
+                                  + Create new list
+                                </button>
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+          </div>
+
+          {/* Right: image + steps */}
+          <div>
+            {/* Hero image */}
+            {recipe.image_url ? (
+              <img
+                src={recipe.image_url}
+                alt={recipe.title}
+                loading="lazy"
+                className="mb-8 aspect-[16/9] w-full object-cover"
+              />
+            ) : (
+              <div className="mb-8">
+                <FoodPlaceholder label={recipe.title} ratio="16/9" />
+              </div>
+            )}
+
+            {/* Timeline + Steps */}
+            {recipe.instructions.length > 0 && (
+              <section>
+                <Rule label="Method" style={{ marginBottom: 16 }} />
+                <ol className="space-y-6">
+                  {recipe.instructions.map((step, i) => {
+                    const done = completedSteps.has(i);
+                    return (
+                      <li key={i} className="flex gap-4">
+                        {/* Step number */}
+                        <button
+                          onClick={() => toggleStep(i)}
+                          className={`flex h-7 w-7 flex-shrink-0 items-center justify-center border font-mono text-xs transition-all ${
+                            done
+                              ? "border-accent bg-accent text-bg"
+                              : "border-rule text-ink-3 hover:border-ink-3"
+                          }`}
+                        >
+                          {done ? "✓" : String(i + 1).padStart(2, "0")}
+                        </button>
+                        <p
+                          className={`text-[15px] leading-relaxed ${
+                            done ? "text-ink-3 line-through" : "text-ink"
+                          }`}
+                        >
+                          {step}
+                        </p>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </section>
+            )}
+
+            {/* ── 5. "Why this works" callout ── */}
+            {recipe.reduction && (
+              <div className="mt-10 border border-rule px-5 py-4">
+                <div className="caps mb-2 text-accent-ink">Why this works</div>
+                <p className="text-sm leading-relaxed text-ink-2">
+                  We reduced {recipe.reduction.original_words.toLocaleString()}{" "}
+                  words down to {recipe.reduction.recipe_words.toLocaleString()}{" "}
+                  — removing {recipe.reduction.bloat_percent}% of bloat
+                  {recipe.reduction.ads_detected > 0 &&
+                    ` and bypassing ${recipe.reduction.ads_detected} ad scripts`}
+                  . Just the recipe, nothing else.
+                </p>
+              </div>
+            )}
+
+            {/* ── 6. Nutrition panel ── */}
+            <div className="mt-10">
+              <NutritionPanel />
+            </div>
+          </div>
+        </div>
+
+        {/* ── Actions ── */}
+        <div className="mt-10 flex flex-wrap items-center gap-4 border-t border-rule pt-6">
+          <a
+            href={recipe.source_url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="border border-ink bg-ink px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-bg transition-opacity hover:opacity-90"
+          >
+            View original on {recipe.domain}
+          </a>
+          <BookmarkButton recipeId={recipe.id} />
+          <div className="flex-1" />
+          <span className="font-mono text-xs text-ink-3">
+            Indexed {new Date(recipe.extracted_at).toLocaleDateString()}
+          </span>
+        </div>
+      </article>
+    </>
   );
 }
