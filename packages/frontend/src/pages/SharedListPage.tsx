@@ -78,7 +78,7 @@ export default function SharedListPage() {
                   }}
                   className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left hover:bg-gray-50 transition-colors"
                 >
-                  <div className="h-5 w-5 shrink-0 rounded border-2 border-gray-500" />
+                  <div className="h-5 w-5 shrink-0 rounded" style={{ border: "2px solid var(--ink-2)" }} />
                   <span className="text-sm text-gray-900">{item.display_text}</span>
                 </button>
               ))}

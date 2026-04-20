@@ -33,11 +33,11 @@ function RollupItemRow({
       <div className="flex items-center gap-3">
         <button
           onClick={onToggle}
-          className={`flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
-            isChecked
-              ? "border-orange-500 bg-orange-500 text-white"
-              : "border-gray-500 hover:border-orange-400"
-          }`}
+          className="flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors"
+          style={isChecked
+            ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#fff" }
+            : { borderColor: "var(--ink-2)" }
+          }
         >
           {isChecked && (
             <svg
