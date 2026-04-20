@@ -1,8 +1,12 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { FoodPlaceholder } from "./design-system";
 import type { RecipeSummary } from "@rr/shared/types";
 
 export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  const showImage = recipe.image_url && !imgFailed;
+
   return (
     <Link
       to={`/recipe/${recipe.id}`}
@@ -15,11 +19,12 @@ export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
       }}
     >
       <div style={{ position: "relative" }}>
-        {recipe.image_url ? (
+        {showImage ? (
           <img
             src={recipe.image_url}
             alt={recipe.title}
             loading="lazy"
+            onError={() => setImgFailed(true)}
             style={{
               width: "100%",
               aspectRatio: "3/2",

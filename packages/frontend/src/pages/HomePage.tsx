@@ -521,7 +521,7 @@ export default function HomePage() {
                   className="mono"
                   style={{ fontSize: 12, color: "var(--ink-2)" }}
                 >
-                  <div>{r.total_time ?? "—"} min</div>
+                  <div>{r.total_time ? `${r.total_time} min` : ""}</div>
                   <div style={{ color: "var(--ink-3)" }}>{r.domain}</div>
                 </div>
                 <div
