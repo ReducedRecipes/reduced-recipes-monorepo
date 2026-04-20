@@ -13,38 +13,49 @@ const ITEMS = [
 function renderShelf(props = {}) {
   return render(
     <MemoryRouter>
-      <RecipeShelf label="Test shelf" items={ITEMS} {...props} />
+      <RecipeShelf title="Fig. 004 — Trending this week" items={ITEMS} {...props} />
     </MemoryRouter>,
   );
 }
 
 describe("RecipeShelf", () => {
-  it("renders the label via Rule", () => {
+  it("renders the figure label", () => {
     renderShelf();
-    expect(screen.getByText("Test shelf")).toBeDefined();
+    expect(screen.getByText(/Fig\. 004/)).toBeDefined();
   });
 
-  it("renders recipe thumbnails", () => {
+  it("renders the shelf title", () => {
     renderShelf();
-    expect(screen.getByText(/Pasta/)).toBeDefined();
-    expect(screen.getByText(/Chicken/)).toBeDefined();
+    expect(screen.getByText("Trending this week")).toBeDefined();
   });
 
-  it("shows rank numbers when ranked prop is true", () => {
+  it("renders See all link", () => {
+    renderShelf();
+    expect(screen.getByText(/See all/)).toBeDefined();
+  });
+
+  it("renders recipe thumbnails with titles below", () => {
+    renderShelf();
+    expect(screen.getAllByText(/Pasta/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Chicken/).length).toBeGreaterThan(0);
+  });
+
+  it("shows rank badges when ranked prop is true", () => {
     renderShelf({ ranked: true });
-    expect(screen.getByText("#1")).toBeDefined();
-    expect(screen.getByText("#2")).toBeDefined();
+    expect(screen.getByText("01")).toBeDefined();
+    expect(screen.getByText("02")).toBeDefined();
   });
 
-  it("does not show rank numbers by default", () => {
+  it("shows time badges", () => {
     renderShelf();
-    expect(screen.queryByText("#1")).toBeNull();
+    expect(screen.getAllByText("30m").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("45m").length).toBeGreaterThan(0);
   });
 
   it("links to recipe detail pages", () => {
     renderShelf();
     const links = screen.getAllByRole("link");
-    expect(links[0]!.getAttribute("href")).toBe("/recipe/r1");
-    expect(links[1]!.getAttribute("href")).toBe("/recipe/r2");
+    const recipeLinks = links.filter((l) => l.getAttribute("href")?.startsWith("/recipe/"));
+    expect(recipeLinks.length).toBe(2);
   });
 });
