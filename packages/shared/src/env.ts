@@ -34,4 +34,7 @@ export interface Env {
   /** Phase 2 bindings — shopping lists. */
   SHOPPING_LIST_DO?: DurableObjectNamespace;
   INGREDIENT_PARSE_QUEUE?: Queue;
+
+  /** Hot ranking configuration — all optional with sensible defaults. */
+  HOT_MIN_TOTAL_VOTES?: string;
 }
