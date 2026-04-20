@@ -20,25 +20,28 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
     return c.json({ error: { code: 'INVALID_INPUT', message: 'at least one ingredient required in have' } }, 400);
   }
 
-  // Build parameterised SQL
-  const havePlaceholders = have.map(() => '?').join(',');
+  // Build LIKE conditions for fuzzy ingredient matching
+  // "mince" matches "beef mince", "mincemeat", etc.
+  const haveConditions = have.map(() => 'ingredient LIKE ?').join(' OR ');
+  const haveLikeParams = have.map((h) => `%${h}%`);
 
   let sql: string;
   let params: (string | number)[];
 
   if (exclude.length > 0) {
-    const excludePlaceholders = exclude.map(() => '?').join(',');
+    const excludeConditions = exclude.map(() => 'ingredient LIKE ?').join(' OR ');
+    const excludeLikeParams = exclude.map((e) => `%${e}%`);
     sql = `
       WITH matched AS (
-        SELECT recipe_id, COUNT(*) as match_count
+        SELECT recipe_id, COUNT(DISTINCT ingredient) as match_count
         FROM recipe_ingredients
-        WHERE ingredient IN (${havePlaceholders})
+        WHERE ${haveConditions}
         GROUP BY recipe_id
       ),
       excluded AS (
         SELECT DISTINCT recipe_id
         FROM recipe_ingredients
-        WHERE ingredient IN (${excludePlaceholders})
+        WHERE ${excludeConditions}
       ),
       totals AS (
         SELECT recipe_id, COUNT(*) as total_count
@@ -53,13 +56,13 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
       ORDER BY missing_count ASC, m.match_count DESC
       LIMIT ? OFFSET ?
     `;
-    params = [...have, ...exclude, limit + 1, offset];
+    params = [...haveLikeParams, ...excludeLikeParams, limit + 1, offset];
   } else {
     sql = `
       WITH matched AS (
-        SELECT recipe_id, COUNT(*) as match_count
+        SELECT recipe_id, COUNT(DISTINCT ingredient) as match_count
         FROM recipe_ingredients
-        WHERE ingredient IN (${havePlaceholders})
+        WHERE ${haveConditions}
         GROUP BY recipe_id
       ),
       totals AS (
@@ -110,7 +113,9 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
     ingredientsByRecipe.set(r.recipe_id, list);
   }
 
-  const haveSet = new Set(have);
+  // Use substring matching for "missing" computation — same logic as SQL LIKE
+  const matchesAnyHave = (ingredient: string) =>
+    have.some((h) => ingredient.includes(h));
   const items = [];
 
   // Preserve ranking order from the SQL query
@@ -119,7 +124,7 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
     if (!recipe) continue;
 
     const recipeIngredients = ingredientsByRecipe.get(row.recipe_id) ?? [];
-    const missing = recipeIngredients.filter((name) => !haveSet.has(name));
+    const missing = recipeIngredients.filter((name) => !matchesAnyHave(name));
 
     items.push({
       id: recipe.id as string,
