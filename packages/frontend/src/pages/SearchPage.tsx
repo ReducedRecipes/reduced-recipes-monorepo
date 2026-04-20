@@ -122,12 +122,18 @@ export default function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { health } = useHealth();
 
+  // Initialize filters from URL params (for deep links from homepage)
+  const initMaxTime = searchParams.get("max_time");
+  const initDiet = searchParams.get("diet");
+  const initMethod = searchParams.get("method");
+  const initSort = searchParams.get("sort");
+
   const [filters, setFilters] = useState({
-    maxTime: null as number | null,
-    diet: [] as string[],
-    method: [] as string[],
+    maxTime: initMaxTime ? parseInt(initMaxTime, 10) : null as number | null,
+    diet: initDiet ? [initDiet] : [] as string[],
+    method: initMethod ? [initMethod] : [] as string[],
   });
-  const [sortBy, setSortBy] = useState("newest");
+  const [sortBy, setSortBy] = useState(initSort || "newest");
 
   const isSearching = q.length >= 2;
 

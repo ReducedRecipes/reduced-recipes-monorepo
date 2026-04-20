@@ -575,27 +575,27 @@ export default function HomePage() {
             {
               k: "By diet",
               items: [
-                { label: "Vegetarian", to: "/tag/vegetarian" },
-                { label: "Vegan", to: "/tag/vegan" },
-                { label: "Gluten-free", to: "/tag/gluten-free" },
-                { label: "Keto", to: "/tag/keto" },
+                { label: "Vegetarian", to: "/search?diet=vegetarian" },
+                { label: "Vegan", to: "/search?diet=vegan" },
+                { label: "Gluten-free", to: "/search?diet=gluten-free" },
+                { label: "Keto", to: "/search?diet=keto" },
               ],
             },
             {
               k: "By method",
               items: [
-                { label: "One-pan", to: "/tag/one-pan" },
-                { label: "Sheet-pan", to: "/tag/sheet-pan" },
-                { label: "Slow-cook", to: "/tag/slow-cooker" },
-                { label: "No-cook", to: "/tag/no-cook" },
+                { label: "One-pan", to: "/search?method=one-pan" },
+                { label: "Sheet-pan", to: "/search?method=sheet-pan" },
+                { label: "Slow-cook", to: "/search?method=slow-cook" },
+                { label: "No-cook", to: "/search?method=no-cook" },
               ],
             },
             {
               k: "By source",
               items: [
                 { label: "All sources", to: "/search" },
-                { label: "Popular sites", to: "/search" },
-                { label: "New additions", to: "/search" },
+                { label: "Popular sites", to: "/search?sort=newest" },
+                { label: "New additions", to: "/search?sort=newest" },
                 { label: "Verified", to: "/search" },
               ],
             },
