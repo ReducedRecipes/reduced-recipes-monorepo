@@ -737,6 +737,28 @@ export default function HomePage() {
           </div>
         ))}
       </footer>
+
+      <div
+        className="mono"
+        style={{
+          fontSize: 10,
+          color: "var(--ink-3)",
+          textAlign: "center",
+          padding: "0 0 16px",
+          borderTop: "1px solid var(--rule)",
+          paddingTop: 12,
+        }}
+      >
+        <a
+          href="https://www.flaticon.com/free-icons/wireframe"
+          title="wireframe icons"
+          style={{ color: "var(--ink-3)" }}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Wireframe icons created by Pixel perfect - Flaticon
+        </a>
+      </div>
     </main>
   );
 }

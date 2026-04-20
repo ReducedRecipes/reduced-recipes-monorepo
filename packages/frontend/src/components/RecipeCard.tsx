@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { FoodPlaceholder } from "./design-system";
 import type { RecipeSummary } from "@rr/shared/types";
 
 export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
@@ -33,7 +32,22 @@ export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
             }}
           />
         ) : (
-          <FoodPlaceholder label={recipe.title} ratio="3/2" />
+          <div
+            style={{
+              width: "100%",
+              aspectRatio: "3/2",
+              background: "oklch(0.82 0.03 200)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <img
+              src="/placeholder-recipe.png"
+              alt=""
+              style={{ width: "40%", opacity: 0.9, filter: "brightness(10)" }}
+            />
+          </div>
         )}
         {recipe.total_time != null && (
           <div
