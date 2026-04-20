@@ -91,13 +91,19 @@ export async function translateRecipe(
     // Keep original on failure
   }
 
-  // Translate ingredients with cheap m2m100 (good enough for short items)
+  // Translate ingredients with Llama (m2m100 was too inaccurate)
   try {
-    const results: string[] = [];
-    for (const item of doc.ingredients) {
-      results.push(await translateCheap(item, lang, ai));
+    const ingredientBlock = doc.ingredients.join('\n');
+    const result = await translateWithLlama(
+      ingredientBlock,
+      lang,
+      'ingredients list (one ingredient per line, keep quantities and units, keep the same number of lines)',
+      ai,
+    );
+    const lines = result.split('\n').map((l) => l.trim()).filter(Boolean);
+    if (lines.length >= doc.ingredients.length * 0.5) {
+      translated.ingredients = lines;
     }
-    translated.ingredients = results;
   } catch {
     // Keep original on failure
   }
