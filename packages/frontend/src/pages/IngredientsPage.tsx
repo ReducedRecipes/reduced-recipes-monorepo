@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { searchByIngredients } from "../lib/api";
@@ -76,19 +76,16 @@ function ResultCard({ recipe }: { recipe: IngredientSearchResult }) {
 export default function IngredientsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const haveParam = searchParams.get("have") ?? "";
-  const excludeParam = searchParams.get("exclude") ?? "";
+  // Derive from URL — single source of truth
+  const have = (searchParams.get("have") ?? "").split(",").filter(Boolean);
+  const excluded = (searchParams.get("exclude") ?? "").split(",").filter(Boolean);
 
-  const [have, setHave] = useState<string[]>(haveParam ? haveParam.split(",").filter(Boolean) : []);
-  const [excluded, setExcluded] = useState<string[]>(excludeParam ? excludeParam.split(",").filter(Boolean) : []);
-
-  // Sync URL when ingredients change
-  useEffect(() => {
+  const updateIngredients = (nextHave: string[], nextExcluded: string[]) => {
     const next = new URLSearchParams();
-    if (have.length > 0) next.set("have", have.join(","));
-    if (excluded.length > 0) next.set("exclude", excluded.join(","));
+    if (nextHave.length > 0) next.set("have", nextHave.join(","));
+    if (nextExcluded.length > 0) next.set("exclude", nextExcluded.join(","));
     setSearchParams(next, { replace: true });
-  }, [have, excluded, setSearchParams]);
+  };
 
   const { data, isLoading } = useQuery({
     queryKey: ["ingredient-search", have, excluded],
@@ -115,14 +112,14 @@ export default function IngredientsPage() {
           <IngredientBoard
             title="Have"
             items={have}
-            onAdd={(it) => setHave((prev) => [...prev, it])}
-            onRemove={(it) => setHave((prev) => prev.filter((x) => x !== it))}
+            onAdd={(it) => updateIngredients([...have, it], excluded)}
+            onRemove={(it) => updateIngredients(have.filter((x) => x !== it), excluded)}
           />
           <IngredientBoard
             title="Exclude"
             items={excluded}
-            onAdd={(it) => setExcluded((prev) => [...prev, it])}
-            onRemove={(it) => setExcluded((prev) => prev.filter((x) => x !== it))}
+            onAdd={(it) => updateIngredients(have, [...excluded, it])}
+            onRemove={(it) => updateIngredients(have, excluded.filter((x) => x !== it))}
             negative
           />
         </div>
