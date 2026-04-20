@@ -3,6 +3,7 @@ import type { ProjectionJob, RecipeDocument } from '@rr/shared';
 import { chunk } from '@rr/shared/utils';
 import { inferDietaryBitmask } from './helpers/dietary-inference';
 import { translateRecipe } from './helpers/translate';
+import { extractIngredientNames } from './helpers/ingredient-extract';
 
 export default {
   async queue(batch: MessageBatch<ProjectionJob>, env: Env) {
@@ -170,6 +171,35 @@ export default {
           } catch (error) {
             console.warn('Dietary inference failed for recipe', doc.id, error);
           }
+        }
+
+        // 8. Best-effort ingredient index
+        try {
+          const ingredientNames = extractIngredientNames(doc.ingredients);
+          if (ingredientNames.length > 0) {
+            const ingredientStmts: D1PreparedStatement[] = [];
+            ingredientStmts.push(
+              env.DB.prepare('DELETE FROM recipe_ingredients WHERE recipe_id = ?').bind(doc.id),
+            );
+            for (const name of ingredientNames) {
+              ingredientStmts.push(
+                env.DB.prepare(
+                  'INSERT INTO ingredients (name, count) VALUES (?, 1) ON CONFLICT(name) DO UPDATE SET count = count + 1',
+                ).bind(name),
+              );
+              ingredientStmts.push(
+                env.DB.prepare(
+                  'INSERT OR IGNORE INTO recipe_ingredients (recipe_id, ingredient) VALUES (?, ?)',
+                ).bind(doc.id, name),
+              );
+            }
+            const ingredientBatches = chunk(ingredientStmts, 100);
+            for (const b of ingredientBatches) {
+              await env.DB.batch(b);
+            }
+          }
+        } catch (error) {
+          console.warn('Ingredient extraction failed for recipe', doc.id, error);
         }
 
         msg.ack();

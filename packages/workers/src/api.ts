@@ -11,6 +11,7 @@ import userRoutes from './routes/users';
 import collectionsRoutes from './routes/collections';
 import syncRoutes from './routes/sync';
 import shoppingListRoutes from './routes/shopping-lists';
+import ingredientSearchRoutes from './routes/ingredient-search';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -410,6 +411,77 @@ app.post('/api/v1/admin/rebuild', async (c) => {
   return c.json({ ok: true, queued });
 });
 
+// ── Admin: Backfill ingredient index ──────────────────────────────────
+app.post('/api/v1/admin/backfill-ingredients', async (c) => {
+  const authHeader = c.req.header('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token || token !== c.env.ADMIN_TOKEN) {
+    return c.json({ error: { code: 401, message: 'Unauthorized' } }, 401);
+  }
+
+  const body = await c.req.json<{ cursor?: string; batch_size?: number }>().catch(() => ({} as { cursor?: string; batch_size?: number }));
+  const batchSize = Math.min(body.batch_size ?? 200, 500);
+
+  const { extractIngredientNames } = await import('./helpers/ingredient-extract');
+  const { chunk } = await import('@rr/shared/utils');
+
+  const opts: KVNamespaceListOptions = { prefix: 'recipe:', limit: batchSize };
+  if (body.cursor) opts.cursor = body.cursor;
+
+  const list = await c.env.RECIPES_KV.list(opts);
+  let processed = 0;
+  let skipped = 0;
+
+  for (const key of list.keys) {
+    try {
+      const value = await c.env.RECIPES_KV.get(key.name, 'text');
+      if (!value) { skipped++; continue; }
+
+      const doc: RecipeDocument = JSON.parse(value);
+      if (!doc.ingredients || doc.ingredients.length === 0) { skipped++; continue; }
+
+      const names = extractIngredientNames(doc.ingredients);
+      if (names.length === 0) { skipped++; continue; }
+
+      const stmts: D1PreparedStatement[] = [];
+      stmts.push(c.env.DB.prepare('DELETE FROM recipe_ingredients WHERE recipe_id = ?').bind(doc.id));
+
+      for (const name of names) {
+        stmts.push(
+          c.env.DB.prepare(
+            'INSERT INTO ingredients (name, count) VALUES (?, 1) ON CONFLICT(name) DO UPDATE SET count = count + 1',
+          ).bind(name),
+        );
+        stmts.push(
+          c.env.DB.prepare(
+            'INSERT OR IGNORE INTO recipe_ingredients (recipe_id, ingredient) VALUES (?, ?)',
+          ).bind(doc.id, name),
+        );
+      }
+
+      const batches = chunk(stmts, 100);
+      for (const b of batches) {
+        await c.env.DB.batch(b);
+      }
+
+      processed++;
+    } catch (error) {
+      console.error('Backfill failed for', key.name, error);
+      skipped++;
+    }
+  }
+
+  const nextCursor = list.list_complete ? null : list.cursor;
+
+  return c.json({
+    ok: true,
+    processed,
+    skipped,
+    next_cursor: nextCursor,
+    done: list.list_complete,
+  });
+});
+
 // ── Removal request ──────────────────────────────────────────────────
 app.post('/api/v1/remove', async (c) => {
   const body = await c.req.json<{ url: string; email: string; reason: string }>();
@@ -456,6 +528,7 @@ app.route('/', userRoutes);
 app.route('/', collectionsRoutes);
 app.route('/', syncRoutes);
 app.route('/', shoppingListRoutes);
+app.route('/', ingredientSearchRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {
