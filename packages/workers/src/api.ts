@@ -169,6 +169,17 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
   const { tag, tags: tagsParam, domain, cuisine, max_time, min_time, cursor, limit: limitParam, sort } = c.req.query();
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
 
+  // Cold start check for sort=hot: if total votes < threshold, fall back to newest
+  const hotMinTotalVotes = parseInt((c.env as Record<string, string>).HOT_MIN_TOTAL_VOTES ?? '100', 10);
+  let effectiveSort = sort ?? '';
+  if (sort === 'hot') {
+    const totalsRow = await c.env.DB.prepare('SELECT COALESCE(SUM(vote_count), 0) as total FROM recipes').first() as Record<string, number> | null;
+    const totalVotes = totalsRow?.total ?? 0;
+    if (totalVotes < hotMinTotalVotes) {
+      effectiveSort = 'newest';
+    }
+  }
+
   const conditions: string[] = [];
   const params: (string | number)[] = [];
 
@@ -188,9 +199,19 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
     conditions.push('r.total_time >= ?');
     params.push(parseInt(min_time, 10));
   }
+
+  // Cursor pagination — column depends on sort
   if (cursor) {
-    conditions.push('r.extracted_at < ?');
-    params.push(cursor);
+    if (effectiveSort === 'hot') {
+      conditions.push('r.hot_score < ?');
+      params.push(parseFloat(cursor));
+    } else if (effectiveSort === 'top') {
+      conditions.push('r.vote_count < ?');
+      params.push(parseInt(cursor, 10));
+    } else {
+      conditions.push('r.extracted_at < ?');
+      params.push(cursor);
+    }
   }
 
   // Dietary bitmask filtering
@@ -212,16 +233,18 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  // Sort options: relevance (default/extracted_at), rating, cook_time, reviews
+  // Sort options
   const sortMap: Record<string, string> = {
+    hot: 'r.hot_score DESC, r.extracted_at DESC',
+    top: 'r.vote_count DESC, r.extracted_at DESC',
     rating: 'r.total_time ASC',      // TODO: use avg_rating when Phase 3 lands
     cook_time: 'r.total_time ASC',
     time: 'r.total_time ASC',
     newest: 'r.extracted_at DESC',
   };
-  const orderBy = sortMap[sort ?? ''] ?? 'r.extracted_at DESC';
+  const orderBy = sortMap[effectiveSort] ?? 'r.extracted_at DESC';
 
-  const sql = `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY ${orderBy} LIMIT ?`;
+  const sql = `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at, r.hot_score, r.vote_count FROM recipes r ${joinClause} ${whereClause} ORDER BY ${orderBy} LIMIT ?`;
   params.push(limit + 1);
 
   const result = await c.env.DB.prepare(sql).bind(...params).all();
@@ -231,7 +254,13 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
   if (rows.length > limit) {
     rows.pop();
     const lastRow = rows[rows.length - 1] as Record<string, unknown>;
-    next_cursor = lastRow.extracted_at as string;
+    if (effectiveSort === 'hot') {
+      next_cursor = String(lastRow.hot_score ?? '');
+    } else if (effectiveSort === 'top') {
+      next_cursor = String(lastRow.vote_count ?? '');
+    } else {
+      next_cursor = lastRow.extracted_at as string;
+    }
   }
 
   const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
