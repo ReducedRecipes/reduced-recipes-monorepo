@@ -62,20 +62,31 @@ interface BucketGroup {
 
 // ── Helpers ────────────────────────────────────────────────────────
 
+// Words that don't identify the ingredient itself
 const STOP_WORDS = new Set(['of', 'a', 'an', 'the', 'and', 'or', 'to', 'for', 'with', 'in', 'on']);
+// Form/count words: describe packaging or shape, not the ingredient
+const FORM_WORDS = new Set([
+  'sprig', 'clove', 'head', 'bunch', 'can', 'jar', 'bottle', 'bag',
+  'box', 'pack', 'package', 'piece', 'slice', 'stalk', 'stick', 'leaf',
+  'strip', 'sheet', 'dash', 'pinch', 'handful', 'knob', 'splash',
+]);
 
 function canonicalise(raw: string): string {
   let s = raw.toLowerCase().trim();
+  // Strip leading non-alpha chars (e.g. "/ 3.5 lb lamb shoulder" from bad parses)
+  s = s.replace(/^[^a-z]+/, '');
   // Strip preparation notes after commas or common prep words
   s = s.replace(/[,(].*$/, '').trim();
-  s = s.replace(/\s+(roughly|finely|thinly|freshly|coarsely|diced|minced|chopped|sliced|crushed|grated|peeled|halved|quartered|cut|stripped|torn|slivered|julienned)\b.*$/i, '').trim();
-  // Singularise each word, drop stop words, sort alphabetically
-  // so "shoulder of lamb" and "lamb shoulder" both become "lamb shoulder"
+  s = s.replace(/\b(roughly|finely|thinly|freshly|coarsely|diced|minced|chopped|sliced|crushed|grated|peeled|halved|quartered|cut|stripped|torn|slivered|julienned)\b/gi, '').trim();
+  // Strip stray numbers, units, and standalone unit words that leaked through parsing
+  s = s.replace(/\b\d+(\.\d+)?\s*/g, '').trim();
+  s = s.replace(/\b(kg|g|lb|oz|ml|l|tsp|tbsp|cup|cups|x)\b/gi, '').trim();
+  // Singularise first, THEN drop stop/form words, then sort alphabetically
   const words = s.split(/\s+/)
-    .filter((w) => !STOP_WORDS.has(w))
     .map((w) => (w.length > 2 && w.endsWith('s') && !w.endsWith('ss') ? w.slice(0, -1) : w))
+    .filter((w) => w && !STOP_WORDS.has(w) && !FORM_WORDS.has(w))
     .sort();
-  return words.join(' ');
+  return words.join(' ') || s; // fallback to original if all words stripped
 }
 
 function addToBucket(group: BucketGroup, item: ShoppingListItem): void {
