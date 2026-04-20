@@ -19,7 +19,7 @@ vi.mock("../../hooks/useAuth", () => ({
 }));
 
 vi.mock("../../components/BookmarkButton", () => ({
-  BookmarkButton: () => null,
+  BookmarkButton: () => <button data-testid="bookmark-btn">Bookmark</button>,
 }));
 
 vi.mock("../../lib/api", () => ({
@@ -41,7 +41,11 @@ const mockRecipe: RecipeDocument = {
   cook_time: 40,
   total_time: 60,
   ingredients: ["2 cups flour", "1 cup sugar", "3 eggs"],
-  instructions: ["Preheat oven to 350F", "Mix dry ingredients", "Bake for 40 minutes"],
+  instructions: [
+    "Preheat oven to 350F",
+    "Mix dry ingredients",
+    "Bake for 40 minutes",
+  ],
   tags: ["dessert", "chocolate"],
   cuisine: "American",
   category: "Dessert",
@@ -55,8 +59,14 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   document.title = "";
-  document.head.querySelectorAll('script[type="application/ld+json"]').forEach((s) => s.remove());
-  document.head.querySelectorAll('meta[name="description"], meta[property^="og:"], link[rel="canonical"]').forEach((el) => el.remove());
+  document
+    .head.querySelectorAll('script[type="application/ld+json"]')
+    .forEach((s) => s.remove());
+  document
+    .head.querySelectorAll(
+      'meta[name="description"], meta[property^="og:"], link[rel="canonical"]',
+    )
+    .forEach((el) => el.remove());
 });
 
 function renderPage(id = "abc123") {
@@ -88,10 +98,10 @@ describe("RecipePage", () => {
   it("renders recipe title and metadata", async () => {
     renderPage();
     expect(await screen.findByText("Chocolate Cake")).toBeDefined();
-    expect(screen.getByText("By Chef Test")).toBeDefined();
+    expect(screen.getByText("Chef Test")).toBeDefined();
     expect(screen.getByText("example.com")).toBeDefined();
-    expect(screen.getByText("1 hr")).toBeDefined();
-    expect(screen.getByText("8 servings")).toBeDefined();
+    // Yields "8 servings" is parsed to "8" in the stat rail
+    expect(screen.getAllByText("8").length).toBeGreaterThan(0);
   });
 
   it("renders ingredients with checkboxes", async () => {
@@ -124,14 +134,15 @@ describe("RecipePage", () => {
     expect(screen.getByText("Bake for 40 minutes")).toBeDefined();
   });
 
-  it("highlights instruction step on click", async () => {
+  it("toggles step completion on click", async () => {
     renderPage();
     await screen.findByText("Chocolate Cake");
-    const step = screen.getByText("Preheat oven to 350F");
-    fireEvent.click(step);
-    expect(step.className).toContain("bg-amber-100");
-    fireEvent.click(step);
-    expect(step.className).not.toContain("bg-amber-100");
+    // Click the step number button (01) to mark done
+    const stepBtn = screen.getByText("01");
+    fireEvent.click(stepBtn);
+    expect(stepBtn.textContent).toBe("✓");
+    fireEvent.click(stepBtn);
+    expect(stepBtn.textContent).toBe("01");
   });
 
   it("renders tags as links", async () => {
@@ -144,8 +155,10 @@ describe("RecipePage", () => {
   it("renders source link", async () => {
     renderPage();
     await screen.findByText("Chocolate Cake");
-    const sourceLink = screen.getByText("View Full Recipe on example.com");
-    expect(sourceLink.getAttribute("href")).toBe("https://example.com/recipe");
+    const sourceLink = screen.getByText("View original on example.com");
+    expect(sourceLink.getAttribute("href")).toBe(
+      "https://example.com/recipe",
+    );
     expect(sourceLink.getAttribute("target")).toBe("_blank");
     expect(sourceLink.getAttribute("rel")).toBe("noopener noreferrer");
   });
@@ -159,7 +172,9 @@ describe("RecipePage", () => {
   it("injects Schema.org ld+json", async () => {
     renderPage();
     await screen.findByText("Chocolate Cake");
-    const script = document.head.querySelector('script[type="application/ld+json"]');
+    const script = document.head.querySelector(
+      'script[type="application/ld+json"]',
+    );
     expect(script).not.toBeNull();
     const schema = JSON.parse(script!.textContent!);
     expect(schema["@type"]).toBe("Recipe");
@@ -178,7 +193,9 @@ describe("RecipePage", () => {
     expect(ogTitle).not.toBeNull();
     expect(ogTitle!.getAttribute("content")).toBe("Chocolate Cake");
 
-    const ogDesc = document.head.querySelector('meta[property="og:description"]');
+    const ogDesc = document.head.querySelector(
+      'meta[property="og:description"]',
+    );
     expect(ogDesc).not.toBeNull();
 
     const ogType = document.head.querySelector('meta[property="og:type"]');
@@ -187,7 +204,9 @@ describe("RecipePage", () => {
 
     const ogImage = document.head.querySelector('meta[property="og:image"]');
     expect(ogImage).not.toBeNull();
-    expect(ogImage!.getAttribute("content")).toBe("https://example.com/cake.jpg");
+    expect(ogImage!.getAttribute("content")).toBe(
+      "https://example.com/cake.jpg",
+    );
 
     const canonical = document.head.querySelector('link[rel="canonical"]');
     expect(canonical).not.toBeNull();
@@ -201,9 +220,99 @@ describe("RecipePage", () => {
 
   it("renders placeholder when image_url is null", async () => {
     mockFetchRecipe.mockResolvedValueOnce({ ...mockRecipe, image_url: null });
-    const { container } = renderPage();
+    renderPage();
     await screen.findByText("Chocolate Cake");
     expect(screen.queryByRole("img")).toBeNull();
-    expect(container.querySelector(".bg-gray-200")).toBeDefined();
+  });
+
+  it("renders stat rail with recipe stats", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    expect(screen.getByText("Total")).toBeDefined();
+    expect(screen.getByText("Active")).toBeDefined();
+    // "Ingredients" appears both as Rule label and Stat label
+    expect(screen.getAllByText("Ingredients").length).toBeGreaterThan(0);
+    expect(screen.getByText("Steps")).toBeDefined();
+    expect(screen.getByText("1h")).toBeDefined(); // total_time = 60
+    expect(screen.getAllByText("3").length).toBeGreaterThan(0); // 3 ingredients or steps
+  });
+
+  it("renders servings adjuster in sticky controls", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    // "Servings" appears in both stat rail and sticky controls
+    expect(screen.getAllByText("Servings").length).toBeGreaterThanOrEqual(2);
+    expect(screen.getAllByText("8").length).toBeGreaterThan(0);
+    expect(screen.getByText("US")).toBeDefined();
+    expect(screen.getByText("Metric")).toBeDefined();
+    expect(screen.getByText("Cook mode")).toBeDefined();
+  });
+
+  it("adjusts servings with +/- buttons", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const plusBtn = screen.getByText("+");
+    fireEvent.click(plusBtn);
+    expect(screen.getByText("9")).toBeDefined();
+    const minusBtn = screen.getByText("−");
+    fireEvent.click(minusBtn);
+    expect(screen.getAllByText("8").length).toBeGreaterThan(0);
+  });
+
+  it("renders back link", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const backLink = screen.getByText("← Back to index");
+    expect(backLink.closest("a")?.getAttribute("href")).toBe("/");
+  });
+
+  it("renders recipe id label", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    expect(screen.getByText("Recipe #abc123")).toBeDefined();
+  });
+
+  it("renders filed-under card with author and source", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    expect(screen.getByText("Filed under")).toBeDefined();
+    expect(screen.getByText("Author")).toBeDefined();
+    expect(screen.getByText("Source")).toBeDefined();
+  });
+
+  it("opens cook mode and navigates steps", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const cookBtn = screen.getByText("Cook mode");
+    fireEvent.click(cookBtn);
+    expect(screen.getByText("Step 1 of 3")).toBeDefined();
+    // Step text appears in both main view and cook mode overlay
+    expect(screen.getAllByText("Preheat oven to 350F").length).toBeGreaterThanOrEqual(1);
+
+    // Navigate to next step
+    const nextBtn = screen.getByText("Next →");
+    fireEvent.click(nextBtn);
+    expect(screen.getByText("Step 2 of 3")).toBeDefined();
+    expect(screen.getAllByText("Mix dry ingredients").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("shows reduction callout when available", async () => {
+    mockFetchRecipe.mockResolvedValueOnce({
+      ...mockRecipe,
+      reduction: {
+        original_words: 2500,
+        recipe_words: 150,
+        words_removed: 2350,
+        bloat_percent: 94,
+        ads_detected: 12,
+      },
+    });
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    expect(screen.getByText("Why this works")).toBeDefined();
+    // The callout text contains reduction stats across the paragraph
+    const callout = screen.getByText(/Just the recipe/);
+    expect(callout).toBeDefined();
+    expect(callout.textContent).toMatch(/94%/);
   });
 });
