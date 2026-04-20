@@ -59,43 +59,43 @@ export function CollectionList() {
   return (
     <div>
       {/* Create new collection */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16, minWidth: 0 }}>
+      <div style={{ marginBottom: 16 }}>
         <input
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-          placeholder="New collection name"
+          placeholder="Collection name"
           className="mono"
           style={{
-            flex: 1,
-            minWidth: 0,
-            fontSize: 13,
-            padding: "8px 10px",
+            width: "100%",
+            fontSize: 12,
+            padding: "7px 8px",
             background: "transparent",
             border: "1px solid var(--rule-2)",
             color: "var(--ink)",
             outline: "none",
+            boxSizing: "border-box",
           }}
         />
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={!newName.trim()}
-          className="mono"
-          style={{
-            fontSize: 11,
-            textTransform: "uppercase",
-            letterSpacing: "0.1em",
-            padding: "8px 14px",
-            background: newName.trim() ? "var(--ink)" : "transparent",
-            color: newName.trim() ? "var(--bg)" : "var(--ink-3)",
-            border: "1px solid " + (newName.trim() ? "var(--ink)" : "var(--rule-2)"),
-            cursor: newName.trim() ? "pointer" : "default",
-          }}
-        >
-          Create
-        </button>
+        {newName.trim() && (
+          <button
+            type="button"
+            onClick={handleCreate}
+            className="mono"
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginTop: 6,
+              color: "var(--accent-ink)",
+              background: "none",
+              border: "none",
+            }}
+          >
+            + Create "{newName.trim()}"
+          </button>
+        )}
       </div>
 
       {/* Collection list */}
