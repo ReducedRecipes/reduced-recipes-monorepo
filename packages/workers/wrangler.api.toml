@@ -61,6 +61,10 @@ id = "b780ce4935dd4cd6834defdb30c2137f"
 binding = "USER_CACHE_KV"
 id = "41828007810046b2bc6feab80aece86a"
 
+[[kv_namespaces]]
+binding = "VOTES_KV"
+id = "votes-kv-placeholder"
+
 [durable_objects]
 bindings = [
   { name = "SHOPPING_LIST_DO", class_name = "ShoppingListDO" },
@@ -78,6 +82,18 @@ BOT_USER_AGENT = "ReducedRecipesBot/1.0"
 DEFAULT_CRAWL_DELAY_MS = "2000"
 MAX_QUEUE_BATCH = "10"
 ENVIRONMENT = "production"
+
+# Hot ranking
+HOT_DECAY_SECONDS = "90000"
+HOT_MIN_VOTES_FEATURED = "3"
+HOT_MIN_TOTAL_VOTES = "100"
+HOT_RATE_LIMIT_PER_DAY = "100"
+HOT_EPOCH = "1704067200"
+
+# Engagement weights
+WEIGHT_HEART = "1.0"
+WEIGHT_LIST_ADD = "1.5"
+WEIGHT_AUTH_VIEW = "0.1"
 
 # Secrets (set via `wrangler secret put <NAME>`):
 #   ADMIN_TOKEN
