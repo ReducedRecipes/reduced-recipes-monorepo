@@ -29,14 +29,20 @@ function normaliseForIndex(raw: string): string {
   s = s.replace(/\(+[^)]*\)+/g, '').trim();
   // Strip everything after a comma
   s = s.replace(/,.*$/, '').trim();
-  // Strip prep words
+  // Strip Italian/recipe quantity phrases (q.b., as needed, to taste, etc.)
+  s = s.replace(/\b(q\.?b\.?|as needed|to taste|taste|as desired|about|approx\.?|approximately)\b/gi, '').trim();
+  // Strip measurement/serving descriptors
+  s = s.replace(/\b(tablespoon|teaspoon|ounce|fluid ounce|ladle|cup|pound)\b/gi, '').trim();
+  // Strip prep/descriptor words
   s = s.replace(
-    /\b(roughly|finely|thinly|freshly|coarsely|diced|minced|chopped|sliced|crushed|grated|peeled|halved|quartered|cut|stripped|torn|slivered|julienned|boneless|skinless|frozen|dried|fresh|organic|large|medium|small|extra|optional)\b/gi,
+    /\b(roughly|finely|thinly|freshly|coarsely|diced|minced|chopped|sliced|crushed|grated|peeled|halved|quartered|cut|stripped|torn|slivered|julienned|boneless|skinless|frozen|dried|fresh|organic|large|medium|small|extra|optional|room temperature|at room temperature|warm|cold|hot|unsalted|salted|pure|raw|cooked|uncooked|packed|loosely|firmly|divided|plus more|more)\b/gi,
     '',
   ).trim();
   // Strip stray numbers and units
   s = s.replace(/\b\d+(\.\d+)?\s*/g, '').trim();
   s = s.replace(/\b(kg|g|lb|oz|ml|l|tsp|tbsp|cup|cups|x)\b/gi, '').trim();
+  // Normalise hyphens to spaces for consistency (all-purpose → all purpose)
+  s = s.replace(/-/g, ' ');
   // Singularise and filter stop/form words, preserve order
   const words = s
     .split(/\s+/)
