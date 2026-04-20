@@ -77,6 +77,20 @@ export function LoginButton({ className = "" }: { className?: string }) {
             Profile
           </Link>
           <Link
+            to="/saved"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            Saved Recipes
+          </Link>
+          <Link
+            to="/shopping-lists"
+            onClick={() => setOpen(false)}
+            className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+          >
+            Shopping Lists
+          </Link>
+          <Link
             to="/settings"
             onClick={() => setOpen(false)}
             className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"

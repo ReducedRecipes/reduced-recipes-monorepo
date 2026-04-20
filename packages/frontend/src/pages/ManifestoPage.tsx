@@ -1,4 +1,18 @@
+import { useHealth } from "../hooks/useHealth";
+
+function formatMillions(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
+  return n.toLocaleString();
+}
+
 export default function ManifestoPage() {
+  const { health } = useHealth();
+  const wordsRemoved = health?.total_words_removed ?? 0;
+  const adsRemoved = health?.total_ads_removed ?? 0;
+  const totalRecipes = health?.total_recipes ?? 0;
+  const sources = health?.sources_count ?? 0;
+
   return (
     <main className="px-6 py-20 mx-auto" style={{ maxWidth: 900 }}>
       <div className="caps text-accent-ink mb-4">◆ Fig. 000 — Manifesto</div>
@@ -103,11 +117,11 @@ export default function ManifestoPage() {
         }}
       >
         {[
-          ["Words removed", "184M"],
-          ["Ads bypassed", "14,201"],
-          ["Scrolls saved", "≈ 9 km"],
+          ["Words removed", formatMillions(wordsRemoved)],
+          ["Ads bypassed", adsRemoved.toLocaleString()],
+          ["Recipes indexed", totalRecipes.toLocaleString()],
           ["Avg. time to ingredients", "0.4 s"],
-          ["Avg. recipe length", "182 words"],
+          ["Sources crawled", sources.toLocaleString()],
           ["Stories per recipe", "0"],
         ].map(([label, value]) => (
           <div key={label} className="bg-bg p-6">
