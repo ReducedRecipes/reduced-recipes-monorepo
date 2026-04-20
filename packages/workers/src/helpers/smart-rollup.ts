@@ -30,7 +30,7 @@ export function rollupItems(items: ShoppingListItem[]): SmartRollupResponse {
     const groups = item.checked ? checkedGroups : uncheckedGroups;
 
     if (!groups.has(canonical)) {
-      groups.set(canonical, { canonical, displayName: itemName.toLowerCase().trim(), buckets: [] });
+      groups.set(canonical, { canonical, displayName: cleanDisplayName(itemName), buckets: [] });
     }
 
     const group = groups.get(canonical)!;
@@ -87,6 +87,20 @@ function canonicalise(raw: string): string {
     .filter((w) => w && !STOP_WORDS.has(w) && !FORM_WORDS.has(w))
     .sort();
   return words.join(' ') || s; // fallback to original if all words stripped
+}
+
+/** Strip prep notes, parentheticals, and trailing instructions for display */
+function cleanDisplayName(raw: string): string {
+  let s = raw.toLowerCase().trim();
+  // Strip parenthetical notes (including double parens)
+  s = s.replace(/\(+[^)]*\)+/g, '').trim();
+  // Strip everything after a comma
+  s = s.replace(/,.*$/, '').trim();
+  // Strip prep words
+  s = s.replace(/\b(roughly|finely|thinly|freshly|coarsely|diced|minced|chopped|sliced|crushed|grated|peeled|halved|quartered|cut|stripped|torn|slivered|julienned)\b/gi, '').trim();
+  // Collapse whitespace
+  s = s.replace(/\s+/g, ' ').trim();
+  return s || raw.toLowerCase().trim();
 }
 
 function normaliseFormUnit(unit: string | null): string | null {
