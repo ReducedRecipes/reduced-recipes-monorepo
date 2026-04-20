@@ -108,26 +108,14 @@ export async function translateRecipe(
     // Keep original on failure
   }
 
-  // Translate all instructions in one call
+  // Translate instructions one at a time (batching caused parsing failures)
   try {
-    const numberedSteps = doc.instructions.map((s, i) => `[${i + 1}] ${s}`).join('\n\n');
-    const result = await translateWithLlama(
-      numberedSteps,
-      lang,
-      'cooking instructions (keep the [1], [2], etc. markers, translate everything else)',
-      ai,
-    );
-    const steps = result.split(/\[(\d+)\]\s*/).filter(Boolean);
-    const parsed: string[] = [];
-    for (let i = 0; i < steps.length; i++) {
-      const trimmed = steps[i]!.trim();
-      if (trimmed && !/^\d+$/.test(trimmed)) {
-        parsed.push(trimmed);
-      }
+    const translatedSteps: string[] = [];
+    for (const step of doc.instructions) {
+      const result = await translateWithLlama(step, lang, 'cooking instruction', ai);
+      translatedSteps.push(result);
     }
-    if (parsed.length >= doc.instructions.length * 0.5) {
-      translated.instructions = parsed;
-    }
+    translated.instructions = translatedSteps;
   } catch {
     // Keep original on failure
   }
