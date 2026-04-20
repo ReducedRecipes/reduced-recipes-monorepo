@@ -36,10 +36,12 @@ export interface RecipeListResponse {
 
 export interface RecipeListParams {
   tag?: string;
+  tags?: string;
   domain?: string;
   cuisine?: string;
   max_time?: number;
   min_time?: number;
+  sort?: string;
   cursor?: string;
   limit?: number;
 }
