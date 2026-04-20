@@ -265,9 +265,9 @@ export default function SearchPage() {
       </section>
 
       {/* Filters + Results */}
-      <section style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: 40, padding: "40px 24px", alignItems: "start" }}>
+      <section style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 32, padding: "40px 0", alignItems: "start" }}>
         {/* Filter sidebar */}
-        <aside style={{ position: "sticky", top: 170 }}>
+        <aside style={{ position: "sticky", top: 170, alignSelf: "start", zIndex: 5 }}>
           <div className="caps" style={{ marginBottom: 18, color: "var(--ink-3)" }}>— Refine by</div>
 
           <FilterGroup title="Maximum time">
