@@ -99,7 +99,9 @@ function renderApp(initialRoute: string) {
 describe("main.tsx route definitions", () => {
   it("renders HomePage at /", () => {
     renderApp("/");
-    expect(screen.getByText("No recipes found")).toBeDefined();
+    expect(
+      screen.getByText("Recipes, reduced to what you actually need"),
+    ).toBeDefined();
   });
 
   it("renders RecipePage at /recipe/:id without crashing", () => {
@@ -137,8 +139,8 @@ describe("main.tsx route definitions", () => {
 
   it("wraps all routes in Layout with header", () => {
     renderApp("/");
-    expect(screen.getByText("Reduced")).toBeDefined();
-    expect(screen.getByText("RECIPES")).toBeDefined();
+    expect(screen.getAllByText("Reduced").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("RECIPES").length).toBeGreaterThan(0);
     expect(screen.getByText("00 — Index")).toBeDefined();
   });
 });
