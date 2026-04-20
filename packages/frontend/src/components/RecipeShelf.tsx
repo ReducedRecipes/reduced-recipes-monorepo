@@ -21,7 +21,7 @@ function ShelfCard({ r, index, ranked }: { r: RecipeSummary; index: number; rank
       <div style={{ position: "relative" }}>
         {showImage ? (
           <img
-            src={r.image_url}
+            src={r.image_url ?? undefined}
             alt={r.title}
             loading="lazy"
             onError={() => setImgFailed(true)}
@@ -175,7 +175,7 @@ export default function RecipeShelf({ title, items, ranked }: RecipeShelfProps) 
         }}
       >
         {items.map((r, i) => (
-          <ShelfCard key={r.id} r={r} index={i} ranked={ranked} />
+          <ShelfCard key={r.id} r={r} index={i} ranked={ranked ?? false} />
         ))}
       </div>
     </section>

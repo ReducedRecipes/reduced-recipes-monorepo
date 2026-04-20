@@ -20,7 +20,7 @@ export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
       <div style={{ position: "relative" }}>
         {showImage ? (
           <img
-            src={recipe.image_url}
+            src={recipe.image_url ?? undefined}
             alt={recipe.title}
             loading="lazy"
             onError={() => setImgFailed(true)}
