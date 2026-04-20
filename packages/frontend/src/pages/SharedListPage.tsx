@@ -117,6 +117,32 @@ export default function SharedListPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ checked }),
       }),
+    onMutate: async ({ itemId, checked }) => {
+      await queryClient.cancelQueries({ queryKey: ["shared-list", token] });
+      const prev = queryClient.getQueryData<SharedListResponse>(["shared-list", token]);
+      if (prev) {
+        const all = [...(prev.items?.unchecked ?? []), ...(prev.items?.checked ?? [])];
+        const newUnchecked: SmartRollupItem[] = [];
+        const newChecked: SmartRollupItem[] = [];
+        for (const item of all) {
+          const hasSource = item.sources?.some((s) => s.item_id === itemId);
+          if (hasSource) {
+            (checked ? newChecked : newUnchecked).push(item);
+          } else {
+            if (prev.items.unchecked.includes(item)) newUnchecked.push(item);
+            else newChecked.push(item);
+          }
+        }
+        queryClient.setQueryData<SharedListResponse>(["shared-list", token], {
+          ...prev,
+          items: { unchecked: newUnchecked, checked: newChecked },
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["shared-list", token], ctx.prev);
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
     },

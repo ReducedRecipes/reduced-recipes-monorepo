@@ -24,7 +24,7 @@ import type {
   SharedListMembership,
 } from "../lib/api";
 import { useAuth } from "./useAuth";
-import type { ShoppingList } from "@rr/shared";
+import type { ShoppingList, SmartRollupItem } from "@rr/shared";
 
 export function useShoppingLists() {
   const { isAuthenticated } = useAuth();
@@ -167,6 +167,35 @@ export function useShoppingListItems(listId: string | undefined) {
       unit?: string;
       name?: string;
     }) => updateItem(listId!, itemId, data),
+    onMutate: async ({ itemId, checked }) => {
+      if (checked === undefined) return;
+      await queryClient.cancelQueries({ queryKey: ["shopping-lists", listId] });
+      const prev = queryClient.getQueryData<ShoppingListDetailResponse>(["shopping-lists", listId]);
+      if (prev) {
+        const all = [...prev.items.unchecked, ...prev.items.checked];
+        // Move the item's source between unchecked/checked
+        const newUnchecked: SmartRollupItem[] = [];
+        const newChecked: SmartRollupItem[] = [];
+        for (const item of all) {
+          const hasSource = item.sources?.some((s) => s.item_id === itemId);
+          if (hasSource) {
+            (checked ? newChecked : newUnchecked).push(item);
+          } else {
+            // Keep in original bucket
+            if (prev.items.unchecked.includes(item)) newUnchecked.push(item);
+            else newChecked.push(item);
+          }
+        }
+        queryClient.setQueryData<ShoppingListDetailResponse>(["shopping-lists", listId], {
+          ...prev,
+          items: { unchecked: newUnchecked, checked: newChecked },
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["shopping-lists", listId], ctx.prev);
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["shopping-lists", listId] });
     },
@@ -174,6 +203,30 @@ export function useShoppingListItems(listId: string | undefined) {
 
   const deleteItemMutation = useMutation({
     mutationFn: (itemId: string) => deleteItem(listId!, itemId),
+    onMutate: async (itemId) => {
+      await queryClient.cancelQueries({ queryKey: ["shopping-lists", listId] });
+      const prev = queryClient.getQueryData<ShoppingListDetailResponse>(["shopping-lists", listId]);
+      if (prev) {
+        const filterSources = (items: SmartRollupItem[]) =>
+          items
+            .map((item) => ({
+              ...item,
+              sources: item.sources?.filter((s) => s.item_id !== itemId),
+            }))
+            .filter((item) => (item.sources?.length ?? 0) > 0);
+        queryClient.setQueryData<ShoppingListDetailResponse>(["shopping-lists", listId], {
+          ...prev,
+          items: {
+            unchecked: filterSources(prev.items.unchecked),
+            checked: filterSources(prev.items.checked),
+          },
+        });
+      }
+      return { prev };
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) queryClient.setQueryData(["shopping-lists", listId], ctx.prev);
+    },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ["shopping-lists", listId] });
       queryClient.invalidateQueries({ queryKey: ["shopping-lists"] });
