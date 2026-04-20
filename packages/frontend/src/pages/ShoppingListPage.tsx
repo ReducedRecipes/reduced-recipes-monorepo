@@ -36,7 +36,7 @@ function RollupItemRow({
           className={`flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
             isChecked
               ? "border-orange-500 bg-orange-500 text-white"
-              : "border-gray-300 hover:border-orange-400"
+              : "border-gray-500 hover:border-orange-400"
           }`}
         >
           {isChecked && (
