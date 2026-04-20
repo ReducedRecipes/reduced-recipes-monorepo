@@ -32,46 +32,31 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
     const excludeConditions = exclude.map(() => 'ingredient LIKE ?').join(' OR ');
     const excludeLikeParams = exclude.map((e) => `%${e}%`);
     sql = `
-      WITH matched AS (
-        SELECT recipe_id, COUNT(DISTINCT ingredient) as match_count
-        FROM recipe_ingredients
-        WHERE ${haveConditions}
-        GROUP BY recipe_id
-      ),
-      excluded AS (
-        SELECT DISTINCT recipe_id
-        FROM recipe_ingredients
-        WHERE ${excludeConditions}
-      )
-      SELECT m.recipe_id, m.match_count,
-             (SELECT COUNT(*) FROM recipe_ingredients ri WHERE ri.recipe_id = m.recipe_id) as total_count,
-             (SELECT COUNT(*) FROM recipe_ingredients ri WHERE ri.recipe_id = m.recipe_id) - m.match_count as missing_count
-      FROM matched m
-      WHERE m.recipe_id NOT IN (SELECT recipe_id FROM excluded)
-      ORDER BY missing_count ASC, m.match_count DESC
+      SELECT recipe_id, COUNT(DISTINCT ingredient) as match_count
+      FROM recipe_ingredients
+      WHERE (${haveConditions})
+        AND recipe_id NOT IN (
+          SELECT DISTINCT recipe_id FROM recipe_ingredients WHERE ${excludeConditions}
+        )
+      GROUP BY recipe_id
+      ORDER BY match_count DESC
       LIMIT ? OFFSET ?
     `;
     params = [...haveLikeParams, ...excludeLikeParams, limit + 1, offset];
   } else {
     sql = `
-      WITH matched AS (
-        SELECT recipe_id, COUNT(DISTINCT ingredient) as match_count
-        FROM recipe_ingredients
-        WHERE ${haveConditions}
-        GROUP BY recipe_id
-      )
-      SELECT m.recipe_id, m.match_count,
-             (SELECT COUNT(*) FROM recipe_ingredients ri WHERE ri.recipe_id = m.recipe_id) as total_count,
-             (SELECT COUNT(*) FROM recipe_ingredients ri WHERE ri.recipe_id = m.recipe_id) - m.match_count as missing_count
-      FROM matched m
-      ORDER BY missing_count ASC, m.match_count DESC
+      SELECT recipe_id, COUNT(DISTINCT ingredient) as match_count
+      FROM recipe_ingredients
+      WHERE ${haveConditions}
+      GROUP BY recipe_id
+      ORDER BY match_count DESC
       LIMIT ? OFFSET ?
     `;
     params = [...have, limit + 1, offset];
   }
 
   const ingredientResults = await c.env.DB.prepare(sql).bind(...params).all();
-  const rows = (ingredientResults.results ?? []) as { recipe_id: string; match_count: number; total_count: number }[];
+  const rows = (ingredientResults.results ?? []) as { recipe_id: string; match_count: number }[];
   const hasMore = rows.length > limit;
   if (hasMore) rows.pop();
 
@@ -115,6 +100,7 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
 
     const recipeIngredients = ingredientsByRecipe.get(row.recipe_id) ?? [];
     const missing = recipeIngredients.filter((name) => !matchesAnyHave(name));
+    const totalCount = recipeIngredients.length;
 
     items.push({
       id: recipe.id as string,
@@ -127,12 +113,15 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
       cuisine: (recipe.cuisine as string) ?? null,
       category: (recipe.category as string) ?? null,
       match: {
-        have: row.match_count,
-        total: row.total_count,
+        have: row.match_count as number,
+        total: totalCount,
         missing,
       },
     });
   }
+
+  // Sort by fewest missing ingredients, then most matched
+  items.sort((a, b) => a.match.missing.length - b.match.missing.length || b.match.have - a.match.have);
 
   return c.json({ items, has_more: hasMore });
 });
