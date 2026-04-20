@@ -78,7 +78,7 @@ export default function ManifestoPage() {
           <ul className="list-none flex flex-col gap-3 mono" style={{ fontSize: 14 }}>
             <li>→ Respect every site's <code>robots.txt</code> — if they say don't crawl, we don't</li>
             <li>→ Link back to the original source on every recipe</li>
-            <li>→ Honour removal requests within 24 hours</li>
+            <li>→ Process removal requests within 24 hours — legitimate requests are honoured promptly, though we reserve the right to review claims that lack legal basis</li>
             <li>→ Never reproduce copyrighted photographs — we use the image URL the publisher provides in their structured data, or none at all</li>
             <li>→ Rate-limit our crawler to avoid placing load on source servers</li>
           </ul>
