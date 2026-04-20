@@ -228,7 +228,7 @@ export default function HomePage() {
               className="mono"
               style={{ fontSize: 48, color: "var(--ink)" }}
             >
-              {haveIngredients.length > 0 ? Math.max(1, items.filter(() => Math.random() > 0.5).length) : 0}
+              {haveIngredients.length > 0 ? totalCount : 0}
             </div>
             <div className="caps" style={{ color: "var(--ink-3)", marginTop: 8 }}>
               recipes match
