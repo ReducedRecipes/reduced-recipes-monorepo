@@ -277,18 +277,22 @@ shoppingLists.post('/api/v1/shopping-lists/:id/recipes', requireAuth, async (c) 
   }
 
   // Fire-and-forget implicit vote (weight 1.5 shopping-list signal) for hot score
-  c.executionCtx.waitUntil(
-    castVote(
-      c.env.USERS_DB!,
-      c.env.DB,
-      userId,
-      body.recipe_id,
-      'list_add',
-      parseFloat(c.env.WEIGHT_LIST_ADD ?? '1.5') || 1.5,
-      parseInt(c.env.HOT_DECAY_SECONDS ?? '90000', 10) || 90000,
-      parseInt(c.env.HOT_EPOCH ?? '1704067200', 10) || 1704067200,
-    ).catch(() => {}),
-  );
+  try {
+    c.executionCtx.waitUntil(
+      castVote(
+        c.env.USERS_DB!,
+        c.env.DB,
+        userId,
+        body.recipe_id,
+        'list_add',
+        parseFloat(c.env.WEIGHT_LIST_ADD ?? '1.5') || 1.5,
+        parseInt(c.env.HOT_DECAY_SECONDS ?? '90000', 10) || 90000,
+        parseInt(c.env.HOT_EPOCH ?? '1704067200', 10) || 1704067200,
+      ).catch(() => {}),
+    );
+  } catch {
+    // No execution context (e.g. tests) — skip fire-and-forget
+  }
 
   return c.json({ items }, 201);
 });

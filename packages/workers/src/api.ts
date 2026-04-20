@@ -153,20 +153,24 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
     const decaySeconds = parseInt(c.env.HOT_DECAY_SECONDS ?? '90000', 10) || 90000;
     const epoch = parseInt(c.env.HOT_EPOCH ?? '1704067200', 10) || 1704067200;
     const viewWeight = parseFloat(c.env.WEIGHT_AUTH_VIEW ?? '0.1') || 0.1;
-    c.executionCtx.waitUntil(
-      Promise.all([
-        usersDb
-          .prepare(
-            `INSERT OR IGNORE INTO recipe_views (user_id, recipe_id, source, viewed_date, viewed_at)
-             VALUES (?, ?, 'view', date('now'), datetime('now'))`,
-          )
-          .bind(userId, id)
-          .run()
-          .catch(() => {}),
-        castVote(usersDb, recipesDb, userId, id, 'auth_view', viewWeight, decaySeconds, epoch)
-          .catch(() => {}),
-      ]),
-    );
+    try {
+      c.executionCtx.waitUntil(
+        Promise.all([
+          usersDb
+            .prepare(
+              `INSERT OR IGNORE INTO recipe_views (user_id, recipe_id, source, viewed_date, viewed_at)
+               VALUES (?, ?, 'view', date('now'), datetime('now'))`,
+            )
+            .bind(userId, id)
+            .run()
+            .catch(() => {}),
+          castVote(usersDb, recipesDb, userId, id, 'auth_view', viewWeight, decaySeconds, epoch)
+            .catch(() => {}),
+        ]),
+      );
+    } catch {
+      // No execution context (e.g. tests) — skip fire-and-forget
+    }
   }
 
   const doc: RecipeDocument = JSON.parse(value);
