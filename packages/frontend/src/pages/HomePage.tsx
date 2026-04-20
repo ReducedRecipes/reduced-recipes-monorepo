@@ -278,7 +278,7 @@ export default function HomePage() {
             </span>
           </div>
           <Link
-            to={`/ingredients${have.length > 0 ? `?have=${have.join(",")}${excluded.length > 0 ? `&exclude=${excluded.join(",")}` : ""}` : ""}`}
+            to={`/ingredients${have.length > 0 || excluded.length > 0 ? "?" + [have.length > 0 ? `have=${have.join(",")}` : "", excluded.length > 0 ? `exclude=${excluded.join(",")}` : ""].filter(Boolean).join("&") : ""}`}
             className="mono"
             style={{
               fontSize: 11,
