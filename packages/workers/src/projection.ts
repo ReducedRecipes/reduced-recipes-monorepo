@@ -88,6 +88,15 @@ export default {
           ),
         );
 
+        // 1b. Update reduction stats (works even if INSERT was ignored)
+        if (doc.reduction) {
+          statements.push(
+            env.DB.prepare(
+              'UPDATE recipes SET words_removed = ?, ads_detected = ? WHERE id = ?',
+            ).bind(doc.reduction.words_removed, doc.reduction.ads_detected, doc.id),
+          );
+        }
+
         // 2. Delete existing tags
         statements.push(
           env.DB.prepare('DELETE FROM recipe_tags WHERE recipe_id = ?').bind(doc.id),

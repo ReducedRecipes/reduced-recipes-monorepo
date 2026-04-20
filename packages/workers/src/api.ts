@@ -91,6 +91,8 @@ app.get('/api/v1/health', async (c) => {
     c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='pending'"),
     c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='failed'"),
     c.env.DB.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
+    c.env.DB.prepare('SELECT COALESCE(SUM(words_removed), 0) as total FROM recipes'),
+    c.env.DB.prepare('SELECT COALESCE(SUM(ads_detected), 0) as total FROM recipes'),
   ]);
 
   const getTotal = (r: D1Result | undefined): number =>
@@ -102,6 +104,8 @@ app.get('/api/v1/health', async (c) => {
     pending_crawls: getTotal(results[1]),
     failed_crawls: getTotal(results[2]),
     active_domains: getTotal(results[3]),
+    total_words_removed: getTotal(results[4]),
+    total_ads_removed: getTotal(results[5]),
   });
 });
 
