@@ -8,16 +8,17 @@ function RecipePlaceholder({ ratio = "3/2" }: { ratio?: string }) {
       style={{
         width: "100%",
         aspectRatio: ratio,
-        background: "oklch(0.82 0.03 200)",
+        background: "var(--bg-2)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        border: "1px solid var(--rule)",
       }}
     >
       <img
         src="/placeholder-recipe.png"
         alt=""
-        style={{ width: "40%", opacity: 0.9, filter: "brightness(10)" }}
+        style={{ width: "30%", opacity: 0.45 }}
       />
     </div>
   );
