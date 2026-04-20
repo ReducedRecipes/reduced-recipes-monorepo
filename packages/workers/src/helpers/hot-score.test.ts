@@ -39,7 +39,7 @@ describe('updateHotScore', () => {
     expect(recipesDb.prepare).toHaveBeenCalledWith(
       expect.stringContaining('UPDATE recipes'),
     );
-    const bindCall = recipesStmt.bind.mock.calls[0];
+    const bindCall = recipesStmt.bind.mock.calls[0]!;
     expect(bindCall[0]).toBe(0); // votes
     expect(typeof bindCall[1]).toBe('number'); // score
     expect(bindCall[3]).toBe('recipe-1');
@@ -56,7 +56,7 @@ describe('updateHotScore', () => {
 
     await updateHotScore(usersDb, recipesDb, 'recipe-1', 90000, 1704067200);
 
-    const bindCall = recipesStmt.bind.mock.calls[0];
+    const bindCall = recipesStmt.bind.mock.calls[0]!;
     const score = bindCall[1] as number;
     const expectedEpochSecs = new Date(firstVoted).getTime() / 1000;
     const expectedScore = Math.log10(10) + (expectedEpochSecs - 1704067200) / 90000;

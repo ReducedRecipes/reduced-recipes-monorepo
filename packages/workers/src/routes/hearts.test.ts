@@ -121,7 +121,7 @@ function makeRequest(method: string, path: string, env: Env) {
     method,
     headers: { Authorization: 'Bearer test-token' },
   });
-  return hearts.request(req, env);
+  return hearts.request(req, {}, env);
 }
 
 describe('GET /api/v1/recipes/:id/heart', () => {
@@ -151,6 +151,7 @@ describe('GET /api/v1/recipes/:id/heart', () => {
     const env = createEnv({ SESSION_KV: createMockKV(), USERS_DB: makeUsersDB() });
     const res = await hearts.request(
       new Request('http://localhost/api/v1/recipes/recipe-1/heart'),
+      {},
       env,
     );
     expect(res.status).toBe(401);
