@@ -3,6 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useNavigate } from "react-router-dom";
 import { apiFetch, getDietaryPreferences, setDietaryPreferences } from "../lib/api";
 import { DIETARY_LABELS, type DietaryRestriction } from "@rr/shared/dietary";
+import { Rule, Pill } from "../components/design-system";
 
 export default function SettingsPage() {
   const { user, isAuthenticated, isLoading, logout } = useAuth();
@@ -51,8 +52,10 @@ export default function SettingsPage() {
 
   if (isLoading) {
     return (
-      <div className="flex justify-center py-16">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+      <div className="flex justify-center py-20">
+        <div className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
+          Loading&hellip;
+        </div>
       </div>
     );
   }
@@ -98,91 +101,139 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Settings</h1>
+    <main style={{ maxWidth: 640, margin: "0 auto", padding: "48px 0" }}>
+      <div className="caps" style={{ color: "var(--accent-ink)", marginBottom: 16 }}>
+        ◆ Settings
+      </div>
+      <h1 className="serif" style={{ fontSize: 40, margin: "0 0 40px", lineHeight: 1 }}>
+        Preferences
+      </h1>
 
       {/* Dietary Preferences */}
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Dietary Preferences</h2>
-        <p className="text-sm text-gray-500 mb-4">
+      <section style={{ marginBottom: 40 }}>
+        <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 12 }}>
+          Dietary restrictions
+        </div>
+        <p style={{ fontSize: 14, color: "var(--ink-2)", marginBottom: 16, maxWidth: 440 }}>
           Select your dietary restrictions to filter recipes automatically.
         </p>
-        <div className="flex flex-wrap gap-2">
-          {(Object.keys(DIETARY_LABELS) as DietaryRestriction[]).map((key) => {
-            const isSelected = selectedRestrictions.has(key);
-            return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => toggleRestriction(key)}
-                disabled={!dietaryLoaded}
-                className={`rounded-full border px-3 py-1.5 text-sm transition-colors ${
-                  isSelected
-                    ? "border-orange-500 bg-orange-100 text-orange-800"
-                    : "border-gray-300 bg-white text-gray-700 hover:border-orange-500 hover:text-orange-600"
-                } disabled:opacity-50`}
-              >
-                {DIETARY_LABELS[key]}
-              </button>
-            );
-          })}
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, opacity: dietaryLoaded ? 1 : 0.5 }}>
+          {(Object.keys(DIETARY_LABELS) as DietaryRestriction[]).map((key) => (
+            <Pill
+              key={key}
+              active={selectedRestrictions.has(key)}
+              onClick={() => dietaryLoaded && toggleRestriction(key)}
+            >
+              {DIETARY_LABELS[key]}
+            </Pill>
+          ))}
         </div>
         {matchingCount !== null && (
-          <p className="mt-3 text-sm text-gray-600">
-            <span className="font-semibold text-orange-700">{matchingCount}</span>{" "}
+          <div className="mono" style={{ marginTop: 12, fontSize: 12, color: "var(--ink-2)" }}>
+            <span style={{ color: "var(--accent-ink)", fontWeight: 600 }}>{matchingCount}</span>{" "}
             recipes match your preferences
-          </p>
+          </div>
         )}
-        <div className="mt-4">
+        <div style={{ marginTop: 20 }}>
           <button
-            type="button"
             onClick={handleSaveDietary}
             disabled={dietarySaving || !dietaryLoaded}
-            className="rounded-lg bg-orange-600 px-4 py-2 text-sm font-medium text-white hover:bg-orange-700 disabled:opacity-50"
+            className="mono"
+            style={{
+              fontSize: 12,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              padding: "12px 20px",
+              background: "var(--ink)",
+              color: "var(--bg)",
+              border: "1px solid var(--ink)",
+              opacity: dietarySaving || !dietaryLoaded ? 0.5 : 1,
+              cursor: dietarySaving || !dietaryLoaded ? "not-allowed" : "pointer",
+            }}
           >
             {dietarySaving ? "Saving..." : "Save preferences"}
           </button>
         </div>
       </section>
 
+      <Rule />
+
       {/* Data & Privacy */}
-      <section className="mb-8 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <h2 className="text-lg font-semibold text-gray-900 mb-4">Data & Privacy</h2>
+      <section style={{ marginTop: 32 }}>
+        <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 20 }}>
+          Data &amp; Privacy
+        </div>
 
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-900">Export your data</p>
-              <p className="text-xs text-gray-500">Download all your data as JSON</p>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 0",
+            borderBottom: "1px solid var(--rule)",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 14, color: "var(--ink)" }}>Export your data</div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
+              Download all your data as JSON
             </div>
-            <button
-              onClick={handleExport}
-              disabled={saving}
-              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-            >
-              Export
-            </button>
           </div>
+          <button
+            onClick={handleExport}
+            disabled={saving}
+            className="mono"
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              padding: "10px 16px",
+              background: "transparent",
+              color: "var(--ink)",
+              border: "1px solid var(--rule-2)",
+              opacity: saving ? 0.5 : 1,
+              cursor: saving ? "not-allowed" : "pointer",
+            }}
+          >
+            Export
+          </button>
+        </div>
 
-          <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-red-600">Delete account</p>
-              <p className="text-xs text-gray-500">Permanently delete your account and all data</p>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "14px 0",
+            borderBottom: "1px solid var(--rule)",
+          }}
+        >
+          <div>
+            <div style={{ fontSize: 14, color: "oklch(0.50 0.15 25)" }}>Delete account</div>
+            <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 2 }}>
+              Permanently delete your account and all data
             </div>
-            <button
-              onClick={handleDeleteAccount}
-              disabled={saving}
-              className={`rounded-lg px-4 py-2 text-sm font-medium ${
-                deleteConfirm
-                  ? "bg-red-600 text-white hover:bg-red-700"
-                  : "border border-red-300 text-red-600 hover:bg-red-50"
-              } disabled:opacity-50`}
-            >
-              {deleteConfirm ? "Confirm delete" : "Delete account"}
-            </button>
           </div>
+          <button
+            onClick={handleDeleteAccount}
+            disabled={saving}
+            className="mono"
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              padding: "10px 16px",
+              background: deleteConfirm ? "oklch(0.50 0.15 25)" : "transparent",
+              color: deleteConfirm ? "var(--bg)" : "oklch(0.50 0.15 25)",
+              border: `1px solid oklch(0.50 0.15 25)`,
+              opacity: saving ? 0.5 : 1,
+              cursor: saving ? "not-allowed" : "pointer",
+            }}
+          >
+            {deleteConfirm ? "Confirm delete" : "Delete account"}
+          </button>
         </div>
       </section>
-    </div>
+    </main>
   );
 }

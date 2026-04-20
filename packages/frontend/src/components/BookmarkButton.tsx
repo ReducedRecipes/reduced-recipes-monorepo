@@ -58,20 +58,33 @@ export function BookmarkButton({ recipeId, className = "", compact = false }: Bo
   };
 
   return (
-    <div className="relative" ref={pickerRef}>
+    <div style={{ position: "relative" }} ref={pickerRef}>
       <button
         type="button"
         onClick={handleClick}
         onContextMenu={handleContextMenu}
-        className={`inline-flex items-center justify-center ${compact ? "p-1" : "p-2"} rounded-full transition-colors hover:bg-gray-100 ${className}`}
+        className={className}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: compact ? 4 : 8,
+          background: "none",
+          border: "none",
+        }}
         aria-label={bookmarked ? "Remove bookmark" : "Add bookmark"}
         title="Right-click to save to a collection"
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
-          className={`${compact ? "h-5 w-5" : "h-6 w-6"} ${bookmarked ? "fill-red-500 stroke-red-500" : "fill-none stroke-gray-500"}`}
-          strokeWidth={2}
+          style={{
+            width: compact ? 18 : 22,
+            height: compact ? 18 : 22,
+            fill: bookmarked ? "var(--accent)" : "none",
+            stroke: bookmarked ? "var(--accent)" : "var(--ink-3)",
+            strokeWidth: 2,
+          }}
         >
           <path
             strokeLinecap="round"
@@ -82,10 +95,22 @@ export function BookmarkButton({ recipeId, className = "", compact = false }: Bo
       </button>
 
       {showPicker && (
-        <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
-          <p className="mb-1 px-1 text-xs font-medium text-gray-500">
+        <div
+          style={{
+            position: "absolute",
+            right: 0,
+            top: "100%",
+            zIndex: 20,
+            marginTop: 4,
+            width: 220,
+            border: "1px solid var(--rule-2)",
+            background: "var(--bg)",
+            padding: 8,
+          }}
+        >
+          <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 6, paddingLeft: 4 }}>
             Save to collection
-          </p>
+          </div>
           <CollectionPicker
             onSelect={handleCollectionSelect}
             className="w-full"

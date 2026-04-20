@@ -50,50 +50,81 @@ export function CollectionList() {
 
   if (isLoading) {
     return (
-      <div className="animate-pulse space-y-2">
-        {[1, 2, 3].map((i) => (
-          <div key={i} className="h-10 rounded bg-gray-200" />
-        ))}
+      <div className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
+        Loading&hellip;
       </div>
     );
   }
 
   return (
-    <div className="space-y-3">
+    <div>
       {/* Create new collection */}
-      <div className="flex gap-2">
+      <div style={{ marginBottom: 16 }}>
         <input
           type="text"
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleCreate()}
-          placeholder="New collection name"
-          className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+          placeholder="Collection name"
+          className="mono"
+          style={{
+            width: "100%",
+            fontSize: 12,
+            padding: "7px 8px",
+            background: "transparent",
+            border: "1px solid var(--rule-2)",
+            color: "var(--ink)",
+            outline: "none",
+            boxSizing: "border-box",
+          }}
         />
-        <button
-          type="button"
-          onClick={handleCreate}
-          disabled={!newName.trim()}
-          className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-orange-600 disabled:opacity-50"
-        >
-          Create
-        </button>
+        {newName.trim() && (
+          <button
+            type="button"
+            onClick={handleCreate}
+            className="mono"
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginTop: 6,
+              color: "var(--accent-ink)",
+              background: "none",
+              border: "none",
+            }}
+          >
+            + Create "{newName.trim()}"
+          </button>
+        )}
       </div>
 
       {/* Collection list */}
       {collections.length === 0 ? (
-        <p className="py-4 text-center text-sm text-gray-500">
-          No collections yet. Create one above!
-        </p>
+        <div
+          style={{
+            padding: "20px 0",
+            textAlign: "center",
+            color: "var(--ink-3)",
+            fontSize: 13,
+          }}
+        >
+          No collections yet.
+        </div>
       ) : (
-        <ul className="space-y-1">
+        <div>
           {collections.map((collection) => (
-            <li
+            <div
               key={collection.id}
-              className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "10px 0",
+                borderBottom: "1px solid var(--rule)",
+              }}
             >
               {editingId === collection.id ? (
-                <div className="flex flex-1 items-center gap-2">
+                <div style={{ display: "flex", flex: 1, alignItems: "center", gap: 8 }}>
                   <input
                     type="text"
                     value={editName}
@@ -102,20 +133,31 @@ export function CollectionList() {
                       if (e.key === "Enter") saveEdit();
                       if (e.key === "Escape") cancelEdit();
                     }}
-                    className="flex-1 rounded border border-gray-300 px-2 py-1 text-sm focus:border-orange-500 focus:outline-none"
+                    className="mono"
+                    style={{
+                      flex: 1,
+                      fontSize: 13,
+                      padding: "4px 8px",
+                      border: "1px solid var(--rule-2)",
+                      background: "transparent",
+                      color: "var(--ink)",
+                      outline: "none",
+                    }}
                     autoFocus
                   />
                   <button
                     type="button"
                     onClick={saveEdit}
-                    className="text-sm font-medium text-orange-600 hover:text-orange-700"
+                    className="mono"
+                    style={{ fontSize: 11, color: "var(--accent-ink)" }}
                   >
                     Save
                   </button>
                   <button
                     type="button"
                     onClick={cancelEdit}
-                    className="text-sm text-gray-500 hover:text-gray-700"
+                    className="mono"
+                    style={{ fontSize: 11, color: "var(--ink-3)" }}
                   >
                     Cancel
                   </button>
@@ -124,31 +166,35 @@ export function CollectionList() {
                 <>
                   <Link
                     to={`/collection/${collection.id}`}
-                    className="text-sm font-medium text-gray-900 hover:text-orange-600"
+                    style={{ fontSize: 14, color: "var(--ink)" }}
                   >
                     {collection.name}
                     {collection.is_default === 1 && (
-                      <span className="ml-2 text-xs text-gray-400">
+                      <span className="mono" style={{ marginLeft: 8, fontSize: 11, color: "var(--ink-3)" }}>
                         (default)
                       </span>
                     )}
                   </Link>
                   {collection.is_default !== 1 && (
-                    <div className="flex items-center gap-2">
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                       {deleteConfirmId === collection.id ? (
                         <>
-                          <span className="text-xs text-red-600">Delete?</span>
+                          <span className="mono" style={{ fontSize: 11, color: "oklch(0.50 0.15 25)" }}>
+                            Delete?
+                          </span>
                           <button
                             type="button"
                             onClick={() => handleDelete(collection.id)}
-                            className="text-sm font-medium text-red-600 hover:text-red-700"
+                            className="mono"
+                            style={{ fontSize: 11, color: "oklch(0.50 0.15 25)" }}
                           >
                             Yes
                           </button>
                           <button
                             type="button"
                             onClick={() => setDeleteConfirmId(null)}
-                            className="text-sm text-gray-500 hover:text-gray-700"
+                            className="mono"
+                            style={{ fontSize: 11, color: "var(--ink-3)" }}
                           >
                             No
                           </button>
@@ -158,16 +204,16 @@ export function CollectionList() {
                           <button
                             type="button"
                             onClick={() => startEdit(collection)}
-                            className="text-sm text-gray-500 hover:text-orange-600"
+                            className="mono"
+                            style={{ fontSize: 11, color: "var(--ink-3)" }}
                           >
                             Rename
                           </button>
                           <button
                             type="button"
-                            onClick={() =>
-                              setDeleteConfirmId(collection.id)
-                            }
-                            className="text-sm text-gray-500 hover:text-red-600"
+                            onClick={() => setDeleteConfirmId(collection.id)}
+                            className="mono"
+                            style={{ fontSize: 11, color: "var(--ink-3)" }}
                           >
                             Delete
                           </button>
@@ -177,9 +223,9 @@ export function CollectionList() {
                   )}
                 </>
               )}
-            </li>
+            </div>
           ))}
-        </ul>
+        </div>
       )}
     </div>
   );

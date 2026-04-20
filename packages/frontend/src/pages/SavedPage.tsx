@@ -15,31 +15,41 @@ function BookmarkedRecipeCard({ recipeId }: { recipeId: string }) {
   });
 
   if (isLoading) {
-    return <div className="h-32 animate-pulse rounded-lg bg-gray-200" />;
+    return (
+      <div style={{ height: 80, background: "var(--bg-2)", border: "1px solid var(--rule)" }} />
+    );
   }
 
   if (!recipe) return null;
 
   return (
-    <div className="relative rounded-lg border border-gray-200 bg-white shadow-sm overflow-hidden">
-      <Link to={`/recipe/${recipeId}`} className="flex gap-4 p-3">
+    <div
+      style={{
+        position: "relative",
+        border: "1px solid var(--rule)",
+        background: "var(--bg)",
+      }}
+    >
+      <Link to={`/recipe/${recipeId}`} style={{ display: "flex", gap: 14, padding: 12, paddingRight: 40 }}>
         {recipe.image_url ? (
           <img
             src={recipe.image_url}
             alt={recipe.title}
-            className="h-20 w-20 flex-shrink-0 rounded object-cover"
+            style={{ width: 72, height: 72, flexShrink: 0, objectFit: "cover" }}
           />
         ) : (
-          <div className="h-20 w-20 flex-shrink-0 rounded bg-gray-200" />
+          <div style={{ width: 72, height: 72, flexShrink: 0, background: "var(--bg-2)" }} />
         )}
-        <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-gray-900 line-clamp-2">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 15, color: "var(--ink)", fontWeight: 500, lineHeight: 1.3 }}>
             {recipe.title}
-          </h3>
-          <p className="text-sm text-gray-500 mt-1">{recipe.domain}</p>
+          </div>
+          <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 6 }}>
+            {recipe.domain}
+          </div>
         </div>
       </Link>
-      <div className="absolute top-2 right-2">
+      <div style={{ position: "absolute", top: 12, right: 10 }}>
         <BookmarkButton recipeId={recipeId} compact />
       </div>
     </div>
@@ -59,8 +69,10 @@ export default function SavedPage() {
 
   if (authLoading) {
     return (
-      <div className="flex justify-center py-16">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-orange-500 border-t-transparent" />
+      <div className="flex justify-center py-20">
+        <div className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
+          Loading&hellip;
+        </div>
       </div>
     );
   }
@@ -68,28 +80,45 @@ export default function SavedPage() {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="mx-auto max-w-3xl py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-8">Saved Recipes</h1>
+    <main style={{ maxWidth: 720, margin: "0 auto", padding: "48px 0" }}>
+      <div className="caps" style={{ color: "var(--accent-ink)", marginBottom: 16 }}>
+        ◆ Saved Recipes
+      </div>
+      <h1 className="serif" style={{ fontSize: 40, margin: "0 0 40px", lineHeight: 1 }}>
+        Bookmarks &amp; Collections
+      </h1>
 
-      <div className="grid gap-8 md:grid-cols-[1fr,300px]">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 260px",
+          gap: 48,
+        }}
+      >
         {/* Bookmarked recipes */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 16 }}>
             Bookmarks
-          </h2>
+          </div>
           {bookmarksLoading ? (
-            <div className="space-y-3">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-28 animate-pulse rounded-lg bg-gray-200" />
-              ))}
+            <div className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
+              Loading&hellip;
             </div>
           ) : bookmarks.length === 0 ? (
-            <p className="rounded-lg border border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">
-              No bookmarks yet. Browse recipes and tap the heart icon to save
-              them here.
-            </p>
+            <div
+              style={{
+                padding: "40px 0",
+                textAlign: "center",
+                color: "var(--ink-3)",
+                fontSize: 14,
+                borderTop: "1px solid var(--rule)",
+                borderBottom: "1px solid var(--rule)",
+              }}
+            >
+              No bookmarks yet. Browse recipes and save them here.
+            </div>
           ) : (
-            <div className="space-y-3">
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               {bookmarks.map((bookmark) => (
                 <BookmarkedRecipeCard
                   key={bookmark.id}
@@ -102,14 +131,22 @@ export default function SavedPage() {
 
         {/* Collections sidebar */}
         <div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 16 }}>
             Collections
-          </h2>
-          <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+          </div>
+          <div
+            style={{
+              padding: 16,
+              border: "1px solid var(--rule)",
+              background: "var(--bg-2)",
+              minWidth: 0,
+              overflow: "hidden",
+            }}
+          >
             <CollectionList />
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
 }
