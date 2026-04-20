@@ -14,12 +14,13 @@ vi.mock('@rr/shared/utils', () => ({
 function createMockDB() {
   const mockAll = vi.fn().mockResolvedValue({ results: [] });
   const mockRun = vi.fn().mockResolvedValue({});
+  const mockBind = vi.fn().mockReturnValue({
+    all: mockAll,
+    run: mockRun,
+  });
   return {
     prepare: vi.fn().mockReturnValue({
-      bind: vi.fn().mockReturnValue({
-        all: mockAll,
-        run: mockRun,
-      }),
+      bind: mockBind,
       all: mockAll,
       run: mockRun,
     }),
@@ -95,32 +96,37 @@ describe('Hot Ranking Worker', () => {
       })),
     }));
 
-    // Mock DB: recipe age query
-    let dbCallCount = 0;
-    env.DB.prepare = vi.fn().mockImplementation((sql: string) => ({
-      bind: vi.fn().mockImplementation((...args: any[]) => ({
-        all: vi.fn().mockImplementation(async () => {
-          if (sql.includes('SELECT id, extracted_at')) {
-            return { results: [{ id: 'recipe-1', extracted_at: extractedAt }] };
-          }
-          if (sql.includes('SELECT id, title')) {
-            return {
-              results: [{
-                id: 'recipe-1',
-                title: 'Test Recipe',
-                image_url: null,
-                domain: 'example.com',
-                cuisine: 'Italian',
-                total_time: 30,
-                hot_score: 1.23,
-              }],
-            };
-          }
-          return { results: [] };
-        }),
+    // Mock DB: recipe age query and top 100 query
+    const mockAllForSql = (sql: string) => vi.fn().mockImplementation(async () => {
+      if (sql.includes('SELECT id, extracted_at')) {
+        return { results: [{ id: 'recipe-1', extracted_at: extractedAt }] };
+      }
+      if (sql.includes('SELECT id, title')) {
+        return {
+          results: [{
+            id: 'recipe-1',
+            title: 'Test Recipe',
+            image_url: null,
+            domain: 'example.com',
+            cuisine: 'Italian',
+            total_time: 30,
+            hot_score: 1.23,
+          }],
+        };
+      }
+      return { results: [] };
+    });
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      const allFn = mockAllForSql(sql);
+      return {
+        bind: vi.fn().mockImplementation(() => ({
+          all: allFn,
+          run: vi.fn().mockResolvedValue({}),
+        })),
+        all: allFn,
         run: vi.fn().mockResolvedValue({}),
-      })),
-    }));
+      };
+    });
     env.DB.batch = vi.fn(async () => []);
 
     await hotRanking.scheduled({} as ScheduledEvent, env, {} as ExecutionContext);
