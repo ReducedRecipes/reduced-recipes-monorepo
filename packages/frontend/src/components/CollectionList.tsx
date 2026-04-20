@@ -59,7 +59,7 @@ export function CollectionList() {
   return (
     <div>
       {/* Create new collection */}
-      <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 16, minWidth: 0 }}>
         <input
           type="text"
           value={newName}
@@ -69,6 +69,7 @@ export function CollectionList() {
           className="mono"
           style={{
             flex: 1,
+            minWidth: 0,
             fontSize: 13,
             padding: "8px 10px",
             background: "transparent",

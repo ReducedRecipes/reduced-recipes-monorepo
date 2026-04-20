@@ -139,6 +139,8 @@ export default function SavedPage() {
               padding: 16,
               border: "1px solid var(--rule)",
               background: "var(--bg-2)",
+              minWidth: 0,
+              overflow: "hidden",
             }}
           >
             <CollectionList />
