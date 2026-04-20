@@ -94,6 +94,12 @@ app.get('/api/v1/health', async (c) => {
     c.env.DB.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
     c.env.DB.prepare('SELECT COALESCE(SUM(words_removed), 0) as total FROM recipes'),
     c.env.DB.prepare('SELECT COALESCE(SUM(ads_detected), 0) as total FROM recipes'),
+    c.env.DB.prepare('SELECT ROUND(AVG(total_time)) as total FROM recipes WHERE total_time IS NOT NULL AND total_time > 0'),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE total_time IS NOT NULL AND total_time <= 20"),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE total_time IS NOT NULL AND total_time <= 30"),
+    c.env.DB.prepare('SELECT COUNT(DISTINCT domain) as total FROM recipes'),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE original_language IS NOT NULL AND original_language != 'en'"),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE extracted_at > datetime('now', '-7 days')"),
   ]);
 
   const getTotal = (r: D1Result | undefined): number =>
@@ -107,6 +113,12 @@ app.get('/api/v1/health', async (c) => {
     active_domains: getTotal(results[3]),
     total_words_removed: getTotal(results[4]),
     total_ads_removed: getTotal(results[5]),
+    avg_cook_time: getTotal(results[6]),
+    under_20_min: getTotal(results[7]),
+    under_30_min: getTotal(results[8]),
+    sources_count: getTotal(results[9]),
+    translated_count: getTotal(results[10]),
+    new_this_week: getTotal(results[11]),
   });
 });
 
