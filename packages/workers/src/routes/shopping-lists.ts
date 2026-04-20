@@ -774,6 +774,39 @@ shoppingLists.patch('/api/v1/shared/lists/:token/items/:itemId', async (c) => {
   return c.json({ ok: true });
 });
 
+// DELETE /api/v1/shared/lists/:token/items/:itemId — delete item via share token
+shoppingLists.delete('/api/v1/shared/lists/:token/items/:itemId', async (c) => {
+  const token = c.req.param('token');
+  const itemId = c.req.param('itemId');
+
+  const list = await c.env.USERS_DB!.prepare(
+    'SELECT id, share_token, share_expires_at FROM shopping_lists WHERE share_token = ?',
+  )
+    .bind(token)
+    .first<ShoppingList>();
+
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shared list not found' } }, 404);
+  }
+
+  if (list.share_expires_at && new Date(list.share_expires_at) < new Date()) {
+    return c.json({ error: { code: 'EXPIRED', message: 'Share link has expired' } }, 410);
+  }
+
+  const item = await c.env.USERS_DB!.prepare(
+    'SELECT id FROM shopping_list_items WHERE id = ? AND shopping_list_id = ?',
+  )
+    .bind(itemId, list.id)
+    .first();
+
+  if (!item) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Item not found' } }, 404);
+  }
+
+  await c.env.USERS_DB!.prepare('DELETE FROM shopping_list_items WHERE id = ?').bind(itemId).run();
+  return c.body(null, 204);
+});
+
 // POST /api/v1/shopping-lists/:id/uncheck-all — uncheck all items in list
 shoppingLists.post('/api/v1/shopping-lists/:id/uncheck-all', requireAuth, async (c) => {
   const userId = c.get('userId');

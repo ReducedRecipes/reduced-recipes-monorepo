@@ -33,10 +33,10 @@ function RollupItemRow({
       <div className="flex items-center gap-3">
         <button
           onClick={onToggle}
-          className="flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors"
+          className="flex-shrink-0 h-5 w-5 rounded flex items-center justify-center transition-colors"
           style={isChecked
-            ? { borderColor: "var(--accent)", background: "var(--accent)", color: "#fff" }
-            : { borderColor: "var(--ink-2)" }
+            ? { border: "2px solid #E85D26", background: "#E85D26", color: "#fff" }
+            : { border: "2px solid #555" }
           }
         >
           {isChecked && (
