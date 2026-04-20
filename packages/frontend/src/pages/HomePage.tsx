@@ -19,7 +19,13 @@ const INGREDIENT_POOL = [
 ];
 
 function pickFeatured(items: RecipeSummary[]): RecipeSummary | null {
-  return items.find((r) => r.total_time && r.total_time > 0) ?? items[0] ?? null;
+  // Prefer a recipe with both an image and a cook time
+  return (
+    items.find((r) => r.image_url && r.total_time && r.total_time > 0) ??
+    items.find((r) => r.image_url) ??
+    items[0] ??
+    null
+  );
 }
 
 export default function HomePage() {
@@ -387,6 +393,7 @@ export default function HomePage() {
                 <img
                   src={featured.image_url}
                   alt={featured.title}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
                   style={{
                     width: "100%",
                     aspectRatio: "4/3",
