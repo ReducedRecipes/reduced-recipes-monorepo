@@ -187,9 +187,9 @@ export default function HomePage() {
               borderTop: "1px solid var(--rule)",
             }}
           >
-            <Stat k="Median read" v="180" sub="words" />
-            <Stat k="Avg. cook" v="32" sub="min" />
+            <Stat k="Avg. cook" v={`${health?.avg_cook_time ?? "—"}`} sub="min" />
             <Stat k="Ads removed" v={totalAdsRemoved.toLocaleString()} />
+            <Stat k="Sources" v={`${health?.sources_count ?? "—"}`} />
           </div>
 
           <div
@@ -210,10 +210,10 @@ export default function HomePage() {
               style={{ fontSize: 12, lineHeight: 1.85, color: "var(--ink-2)" }}
             >
               {[
-                ["New this week", "+412"],
-                ["Under 20 min", "284,903"],
-                ["One-pan", "91,220"],
-                ["Vegetarian", "612,881"],
+                ["New this week", `+${(health?.new_this_week ?? 0).toLocaleString()}`],
+                ["Under 30 min", (health?.under_30_min ?? 0).toLocaleString()],
+                ["Vegetarian", (health?.vegetarian ?? 0).toLocaleString()],
+                ["Translated", (health?.translated_recipes ?? 0).toLocaleString()],
               ].map(([label, val]) => (
                 <div
                   key={label}

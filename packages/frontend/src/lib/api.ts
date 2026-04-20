@@ -72,6 +72,18 @@ export interface HealthResponse {
   active_domains: number;
   total_words_removed: number;
   total_ads_removed: number;
+  avg_cook_time: number;
+  under_20_min: number;
+  under_30_min: number;
+  sources_count: number;
+  translated_count: number;
+  new_this_week: number;
+  vegetarian: number;
+  vegan: number;
+  one_pan: number;
+  gluten_free: number;
+  keto: number;
+  translated_recipes: number;
 }
 
 export function fetchHealth(): Promise<HealthResponse> {
