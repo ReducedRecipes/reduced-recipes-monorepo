@@ -44,7 +44,7 @@ describe("RecipeShelf", () => {
   it("links to recipe detail pages", () => {
     renderShelf();
     const links = screen.getAllByRole("link");
-    expect(links[0].getAttribute("href")).toBe("/recipe/r1");
-    expect(links[1].getAttribute("href")).toBe("/recipe/r2");
+    expect(links[0]!.getAttribute("href")).toBe("/recipe/r1");
+    expect(links[1]!.getAttribute("href")).toBe("/recipe/r2");
   });
 });
