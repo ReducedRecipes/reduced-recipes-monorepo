@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useRecipes } from "../hooks/useRecipes";
+import { useHealth } from "../hooks/useHealth";
 import {
   Ticker,
   Rule,
@@ -25,11 +26,14 @@ function pickFeatured(items: RecipeSummary[]): RecipeSummary | null {
 export default function HomePage() {
   const { data, isLoading } = useRecipes({ limit: 30 });
   const { data: quickData } = useRecipes({ max_time: 20, limit: 8 });
+  const { health } = useHealth();
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const quickItems = quickData?.pages.flatMap((p) => p.items) ?? [];
   const featured = pickFeatured(items);
-  const totalCount = items.length;
+  const totalRecipes = health?.total_recipes ?? 0;
+  const totalWordsRemoved = health?.total_words_removed ?? 0;
+  const totalAdsRemoved = health?.total_ads_removed ?? 0;
 
   const trending = items.slice(0, 6);
   const seasonal = items.slice(6, 12);
@@ -158,7 +162,7 @@ export default function HomePage() {
             className="serif"
             style={{ fontSize: 82, lineHeight: 1, letterSpacing: "-0.02em" }}
           >
-            <Ticker value={totalCount > 0 ? totalCount : 2147381} />
+            <Ticker value={totalRecipes} />
           </div>
           <div
             className="mono"
@@ -170,7 +174,7 @@ export default function HomePage() {
               marginTop: 4,
             }}
           >
-            Recipes indexed &middot; 0 filler words
+            Recipes indexed &middot; {totalWordsRemoved.toLocaleString()} filler words removed
           </div>
 
           <div
@@ -185,7 +189,7 @@ export default function HomePage() {
           >
             <Stat k="Median read" v="180" sub="words" />
             <Stat k="Avg. cook" v="32" sub="min" />
-            <Stat k="Ads removed" v="14,201" />
+            <Stat k="Ads removed" v={totalAdsRemoved.toLocaleString()} />
           </div>
 
           <div
@@ -268,7 +272,7 @@ export default function HomePage() {
             className="mono"
             style={{ fontSize: 12, color: "var(--ink-2)" }}
           >
-            &rarr; <b>{totalCount > 0 ? totalCount.toLocaleString() : "142,083"}</b> recipes
+            &rarr; <b>{totalRecipes > 0 ? totalRecipes.toLocaleString() : "142,083"}</b> recipes
             match.{" "}
             <span style={{ color: "var(--ink-3)" }}>
               Sorted by: fewest extra ingredients.
@@ -455,7 +459,7 @@ export default function HomePage() {
               className="mono"
               style={{ fontSize: 12, color: "var(--ink-3)" }}
             >
-              {seasonal.length} of {totalCount} &rarr;
+              {seasonal.length} of {totalRecipes} &rarr;
             </div>
           </div>
           <div style={{ borderTop: "1px solid var(--rule-2)" }}>

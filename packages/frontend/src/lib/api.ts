@@ -62,6 +62,20 @@ export function searchRecipes(
   return apiFetch<SearchResponse>(`/search${buildQuery({ q, limit })}`);
 }
 
+export interface HealthResponse {
+  ok: boolean;
+  total_recipes: number;
+  pending_crawls: number;
+  failed_crawls: number;
+  active_domains: number;
+  total_words_removed: number;
+  total_ads_removed: number;
+}
+
+export function fetchHealth(): Promise<HealthResponse> {
+  return apiFetch<HealthResponse>("/health");
+}
+
 export function fetchTags(): Promise<{ tag: string; count: number }[]> {
   return apiFetch<{ tag: string; count: number }[]>("/tags");
 }

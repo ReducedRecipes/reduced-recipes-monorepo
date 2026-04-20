@@ -1,24 +1,40 @@
 import { useSearchParams } from "react-router-dom";
 import { useSearch } from "../hooks/useSearch";
+import { useRecipes } from "../hooks/useRecipes";
 import RecipeCard from "../components/RecipeCard";
 
 export default function SearchPage() {
   const [searchParams] = useSearchParams();
   const q = searchParams.get("q") ?? "";
-  const { data, isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } =
-    useSearch(q);
+  const isSearching = q.length >= 2;
 
-  if (q.length < 2) {
-    return (
-      <div className="p-8 text-center text-gray-500">
-        Enter at least 2 characters to search.
-      </div>
-    );
-  }
+  const {
+    data: searchData,
+    isLoading: searchLoading,
+    hasNextPage: searchHasNext,
+    fetchNextPage: searchFetchNext,
+    isFetchingNextPage: searchFetchingNext,
+  } = useSearch(isSearching ? q : "");
+
+  const {
+    data: browseData,
+    isLoading: browseLoading,
+    hasNextPage: browseHasNext,
+    fetchNextPage: browseFetchNext,
+    isFetchingNextPage: browseFetchingNext,
+  } = useRecipes({ limit: 24 });
+
+  const data = isSearching ? searchData : browseData;
+  const isLoading = isSearching ? searchLoading : browseLoading;
+  const hasNextPage = isSearching ? searchHasNext : browseHasNext;
+  const fetchNextPage = isSearching ? searchFetchNext : browseFetchNext;
+  const isFetchingNextPage = isSearching ? searchFetchingNext : browseFetchingNext;
 
   if (isLoading) {
     return (
-      <div className="p-8 text-center text-gray-500">Searching…</div>
+      <div className="p-8 text-center text-gray-500">
+        {isSearching ? "Searching…" : "Loading recipes…"}
+      </div>
     );
   }
 
@@ -27,7 +43,9 @@ export default function SearchPage() {
   return (
     <div className="p-6">
       <h1 className="text-2xl font-bold mb-6">
-        Search results for &lsquo;{q}&rsquo;
+        {isSearching
+          ? <>Search results for &lsquo;{q}&rsquo;</>
+          : "Browse recipes"}
       </h1>
 
       {recipes.length > 0 ? (
@@ -50,7 +68,9 @@ export default function SearchPage() {
           )}
         </>
       ) : (
-        <p className="text-gray-500">No results found.</p>
+        <p className="text-gray-500">
+          {isSearching ? "No results found." : "No recipes available."}
+        </p>
       )}
     </div>
   );
