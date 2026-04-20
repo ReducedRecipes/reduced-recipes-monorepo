@@ -101,9 +101,7 @@ function renderApp(initialRoute: string) {
 describe("main.tsx route definitions", () => {
   it("renders HomePage at /", () => {
     renderApp("/");
-    expect(
-      screen.getByText("Recipes, reduced to what you actually need"),
-    ).toBeDefined();
+    expect(screen.getByText(/Fig\. 001 — Manifesto/)).toBeDefined();
   });
 
   it("renders RecipePage at /recipe/:id without crashing", () => {

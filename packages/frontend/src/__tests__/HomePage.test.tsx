@@ -12,18 +12,18 @@ import HomePage from "../pages/HomePage";
 
 const mockedUseRecipes = vi.mocked(useRecipes);
 
-const MOCK_ITEMS = [
-  { id: "r1", title: "Pasta Carbonara", domain: "example.com", image_url: null, total_time: 30, tags: [] },
-  { id: "r2", title: "Chicken Tikka", domain: "food.com", image_url: null, total_time: 45, tags: [] },
-  { id: "r3", title: "Quick Salad", domain: "test.com", image_url: null, total_time: 10, tags: [] },
-  { id: "r4", title: "Beef Stew", domain: "chef.com", image_url: null, total_time: 90, tags: [] },
-  { id: "r5", title: "Fish Tacos", domain: "yum.com", image_url: null, total_time: 25, tags: [] },
-  { id: "r6", title: "Veggie Soup", domain: "healthy.com", image_url: null, total_time: 40, tags: [] },
-  { id: "r7", title: "Mushroom Risotto", domain: "cook.com", image_url: null, total_time: 50, tags: [] },
-  { id: "r8", title: "Grilled Salmon", domain: "sea.com", image_url: null, total_time: 20, tags: [] },
-  { id: "r9", title: "Caesar Salad", domain: "fresh.com", image_url: null, total_time: 15, tags: [] },
-  { id: "r10", title: "Lemon Chicken", domain: "home.com", image_url: null, total_time: 35, tags: [] },
-];
+const MOCK_ITEMS = Array.from({ length: 14 }, (_, i) => ({
+  id: `r${i + 1}`,
+  title: `Recipe ${i + 1}`,
+  domain: "example.com",
+  image_url: null,
+  total_time: 20 + i * 5,
+  cook_time: null,
+  yields: "4 servings",
+  cuisine: null,
+  category: "Dinner",
+  tags: ["easy", "quick"],
+}));
 
 function mockLoaded(items = MOCK_ITEMS) {
   mockedUseRecipes.mockReturnValue({
@@ -71,87 +71,144 @@ describe("HomePage", () => {
   });
 
   describe("Hero section", () => {
-    it("renders the manifesto headline", () => {
+    it("renders the Fig. 001 manifesto label", () => {
       mockLoaded();
       renderPage();
-      expect(
-        screen.getByText("Recipes, reduced to what you actually need"),
-      ).toBeDefined();
+      expect(screen.getByText(/Fig\. 001 — Manifesto/)).toBeDefined();
     });
 
-    it("renders stat panel with Indexed label", () => {
+    it("renders the manifesto headline with line breaks", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("Indexed")).toBeDefined();
+      expect(screen.getAllByText(/Recipes,/).length).toBeGreaterThan(0);
+      expect(screen.getAllByText(/you actually need/).length).toBeGreaterThan(0);
+    });
+
+    it("renders CTA buttons", () => {
+      mockLoaded();
+      renderPage();
+      expect(screen.getByText(/See a recipe/)).toBeDefined();
+      expect(screen.getByText("Browse the index")).toBeDefined();
+    });
+
+    it("renders stat panel with specimen label", () => {
+      mockLoaded();
+      renderPage();
+      expect(screen.getByText(/Specimen 001/)).toBeDefined();
+    });
+
+    it("renders stat panel stats", () => {
+      mockLoaded();
+      renderPage();
+      expect(screen.getByText("Median read")).toBeDefined();
+      expect(screen.getByText("Avg. cook")).toBeDefined();
+      expect(screen.getByText("Ads removed")).toBeDefined();
+    });
+
+    it("renders today's index section", () => {
+      mockLoaded();
+      renderPage();
+      expect(screen.getByText(/Today/)).toBeDefined();
+      expect(screen.getByText("New this week")).toBeDefined();
     });
   });
 
   describe("Ingredient board", () => {
-    it("renders the ingredient section header", () => {
+    it("renders Fig. 002 label", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("What's in your fridge")).toBeDefined();
+      expect(
+        screen.getByText("Fig. 002 — What's in your fridge"),
+      ).toBeDefined();
     });
 
-    it("renders ingredient input", () => {
+    it("renders Have and Exclude boards", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByPlaceholderText("Add ingredient...")).toBeDefined();
+      expect(screen.getByText(/Have/)).toBeDefined();
+      expect(screen.getByText(/Exclude/)).toBeDefined();
     });
 
-    it("adds ingredient via suggestion pill", () => {
+    it("renders match count and Run query button", () => {
       mockLoaded();
       renderPage();
-      fireEvent.click(screen.getByText("+ chicken"));
-      expect(screen.getByText(/chicken/)).toBeDefined();
+      expect(screen.getByText(/recipes match/)).toBeDefined();
+      expect(screen.getByText(/Run query/)).toBeDefined();
     });
   });
 
   describe("Featured recipe", () => {
+    it("renders Fig. 003 label", () => {
+      mockLoaded();
+      renderPage();
+      expect(screen.getByText(/Fig\. 003 — Feature of the week/)).toBeDefined();
+    });
+
     it("renders featured recipe title", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("Pasta Carbonara")).toBeDefined();
+      expect(screen.getAllByText("Recipe 1").length).toBeGreaterThan(0);
     });
 
-    it("renders Read recipe CTA", () => {
+    it("renders Open recipe CTA", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText(/Read recipe/)).toBeDefined();
+      expect(screen.getByText(/Open recipe/)).toBeDefined();
+    });
+
+    it("renders step labels grid", () => {
+      mockLoaded();
+      renderPage();
+      expect(screen.getAllByText(/01/).length).toBeGreaterThan(0);
     });
   });
 
   describe("Trending shelf", () => {
-    it("renders trending section", () => {
+    it("renders Fig. 004 trending section", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("Trending")).toBeDefined();
+      expect(screen.getByText("Trending this week")).toBeDefined();
+    });
+
+    it("renders See all link", () => {
+      mockLoaded();
+      renderPage();
+      expect(screen.getAllByText(/See all/).length).toBeGreaterThan(0);
     });
   });
 
   describe("Seasonal list", () => {
-    it("renders seasonal section with row layout", () => {
+    it("renders Fig. 005 seasonal section", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("In season")).toBeDefined();
+      expect(screen.getByText(/In season/)).toBeDefined();
     });
   });
 
   describe("Browse matrix", () => {
-    it("renders browse categories", () => {
+    it("renders Fig. 007 browse label", () => {
+      mockLoaded();
+      renderPage();
+      expect(
+        screen.getByText("Fig. 007 — Browse by axis"),
+      ).toBeDefined();
+    });
+
+    it("renders browse categories with arrows", () => {
       mockLoaded();
       renderPage();
       expect(screen.getByText("By time")).toBeDefined();
       expect(screen.getByText("By diet")).toBeDefined();
       expect(screen.getByText("By method")).toBeDefined();
-      expect(screen.getAllByText("By source").length).toBeGreaterThan(0);
     });
 
-    it("renders browse links", () => {
+    it("renders browse items matching design", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("Under 15 min")).toBeDefined();
-      expect(screen.getByText("Vegetarian")).toBeDefined();
+      expect(screen.getByText("\u2264 15 min")).toBeDefined();
+      expect(screen.getAllByText("Vegetarian").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("One-pan").length).toBeGreaterThan(0);
+      expect(screen.getAllByText("Keto").length).toBeGreaterThan(0);
     });
   });
 
@@ -159,13 +216,21 @@ describe("HomePage", () => {
     it("renders footer with brand", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("Reduced")).toBeDefined();
+      expect(screen.getByText("Reduced Recipes")).toBeDefined();
+    });
+
+    it("renders copyright", () => {
+      mockLoaded();
+      renderPage();
+      expect(screen.getByText(/2026/)).toBeDefined();
     });
 
     it("renders footer link sections", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("Manifesto")).toBeDefined();
+      expect(screen.getByText("Index")).toBeDefined();
+      expect(screen.getByText("About")).toBeDefined();
+      expect(screen.getByText("Tools")).toBeDefined();
     });
   });
 });

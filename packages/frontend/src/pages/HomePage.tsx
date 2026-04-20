@@ -1,65 +1,27 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useRecipes } from "../hooks/useRecipes";
-import { Ticker, Rule, Stat, Pill, TextHeroCard } from "../components/design-system";
+import {
+  Ticker,
+  Rule,
+  Stat,
+  FoodPlaceholder,
+  TextHeroCard,
+} from "../components/design-system";
 import RecipeShelf from "../components/RecipeShelf";
+import IngredientBoard from "../components/IngredientBoard";
 import type { RecipeSummary } from "@rr/shared";
 
-/* ——— Static content ——— */
-const BROWSE_MATRIX = {
-  "By time": [
-    { label: "Under 15 min", to: "/search?max_time=15" },
-    { label: "15–30 min", to: "/search?min_time=15&max_time=30" },
-    { label: "30–60 min", to: "/search?min_time=30&max_time=60" },
-    { label: "Over 1 hour", to: "/search?min_time=60" },
-  ],
-  "By diet": [
-    { label: "Vegetarian", to: "/tag/vegetarian" },
-    { label: "Vegan", to: "/tag/vegan" },
-    { label: "Gluten-free", to: "/tag/gluten-free" },
-    { label: "Dairy-free", to: "/tag/dairy-free" },
-  ],
-  "By method": [
-    { label: "Baking", to: "/tag/baking" },
-    { label: "Grilling", to: "/tag/grilling" },
-    { label: "Slow cooker", to: "/tag/slow-cooker" },
-    { label: "One pot", to: "/tag/one-pot" },
-  ],
-  "By source": [
-    { label: "All sources", to: "/search" },
-    { label: "Popular sites", to: "/search" },
-    { label: "New additions", to: "/search" },
-    { label: "Verified", to: "/search" },
-  ],
-} as const;
+const INGREDIENT_POOL = [
+  "chicken", "garlic", "lemon", "onion", "tomato", "pasta", "rice",
+  "eggs", "butter", "cream", "spinach", "parmesan", "olive oil",
+  "pepper", "salt", "basil", "mushrooms", "potatoes", "carrots",
+];
 
-const FOOTER_LINKS = {
-  Index: [
-    { label: "Browse all", to: "/search" },
-    { label: "By tag", to: "/search" },
-    { label: "By source", to: "/search" },
-    { label: "Collections", to: "/saved" },
-  ],
-  Account: [
-    { label: "Sign in", to: "/auth/callback" },
-    { label: "Saved recipes", to: "/saved" },
-    { label: "Shopping lists", to: "/shopping-lists" },
-    { label: "Settings", to: "/settings" },
-  ],
-  About: [
-    { label: "Manifesto", to: "/about" },
-    { label: "How it works", to: "/about" },
-    { label: "Request removal", to: "/remove" },
-    { label: "Privacy", to: "/about" },
-  ],
-} as const;
-
-/* ——— Helpers ——— */
 function pickFeatured(items: RecipeSummary[]): RecipeSummary | null {
   return items.find((r) => r.total_time && r.total_time > 0) ?? items[0] ?? null;
 }
 
-/* ——— Component ——— */
 export default function HomePage() {
   const { data, isLoading } = useRecipes({ limit: 30 });
   const { data: quickData } = useRecipes({ max_time: 20, limit: 8 });
@@ -69,27 +31,16 @@ export default function HomePage() {
   const featured = pickFeatured(items);
   const totalCount = items.length;
 
-  const [haveIngredients, setHaveIngredients] = useState<string[]>([]);
-  const [ingredientInput, setIngredientInput] = useState("");
-  const [hoveredSeasonal, setHoveredSeasonal] = useState<number | null>(null);
+  const trending = items.slice(0, 6);
+  const seasonal = items.slice(6, 12);
 
-  const SUGGESTIONS = ["chicken", "garlic", "onion", "tomato", "pasta", "rice", "eggs", "butter"];
-
-  const addIngredient = (ing: string) => {
-    const trimmed = ing.trim().toLowerCase();
-    if (trimmed && !haveIngredients.includes(trimmed)) {
-      setHaveIngredients((prev) => [...prev, trimmed]);
-    }
-    setIngredientInput("");
-  };
+  const [have, setHave] = useState<string[]>([]);
+  const [excluded, setExcluded] = useState<string[]>([]);
 
   if (isLoading) {
     return (
       <div className="flex justify-center py-20">
-        <div
-          className="mono"
-          style={{ color: "var(--ink-3)", fontSize: 12 }}
-        >
+        <div className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
           Loading index&hellip;
         </div>
       </div>
@@ -97,326 +48,583 @@ export default function HomePage() {
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 64 }}>
-      {/* ——— 1. Hero ——— */}
+    <main>
+      {/* ——— Hero: manifesto + stat panel ——— */}
       <section
         style={{
+          padding: "60px 0 40px",
+          borderBottom: "1px solid var(--rule)",
           display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 40,
-          alignItems: "start",
-          paddingTop: 24,
+          gridTemplateColumns: "1.2fr 1fr",
+          gap: 48,
         }}
       >
         <div>
+          <div
+            className="caps"
+            style={{ color: "var(--accent-ink)", marginBottom: 22 }}
+          >
+            ◆ Fig. 001 — Manifesto
+          </div>
           <h1
+            className="serif"
             style={{
-              fontFamily: "var(--serif)",
-              fontSize: 48,
-              fontStyle: "italic",
-              lineHeight: 1.1,
+              fontSize: "clamp(48px, 7vw, 110px)",
+              lineHeight: 0.95,
+              letterSpacing: "-0.02em",
               margin: 0,
+              fontWeight: 400,
             }}
           >
-            Recipes, reduced to what you actually need
+            Recipes,
+            <br />
+            <span style={{ fontStyle: "italic" }}>reduced</span> to what
+            <br />
+            you actually need.
           </h1>
-          <p
+          <div
             style={{
+              marginTop: 28,
+              maxWidth: 540,
               color: "var(--ink-2)",
-              fontSize: 15,
-              lineHeight: 1.65,
-              marginTop: 20,
-              maxWidth: 440,
+              fontSize: 16,
+              lineHeight: 1.55,
             }}
           >
-            No life stories. No pop-ups. No scrolling past seventeen paragraphs
-            about someone&rsquo;s grandmother. Just the recipe.
-          </p>
+            No backstory about a trip to Tuscany. No ads between steps. No scroll
+            to the bottom to find the ingredients. Just the list, the method, and
+            the number of minutes until dinner.
+          </div>
+          <div style={{ marginTop: 32, display: "flex", gap: 10 }}>
+            {featured && (
+              <Link
+                to={`/recipe/${featured.id}`}
+                className="mono"
+                style={{
+                  fontSize: 12,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.1em",
+                  padding: "14px 22px",
+                  background: "var(--ink)",
+                  color: "var(--bg)",
+                  border: "1px solid var(--ink)",
+                }}
+              >
+                &rarr; See a recipe
+              </Link>
+            )}
+            <Link
+              to="/search"
+              className="mono"
+              style={{
+                fontSize: 12,
+                textTransform: "uppercase",
+                letterSpacing: "0.1em",
+                padding: "14px 22px",
+                background: "transparent",
+                color: "var(--ink)",
+                border: "1px solid var(--ink)",
+              }}
+            >
+              Browse the index
+            </Link>
+          </div>
         </div>
-        <div
+
+        {/* Stat panel */}
+        <aside
           style={{
-            border: "1px solid var(--rule)",
-            padding: "24px 20px",
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr",
-            gap: 20,
+            border: "1px solid var(--rule-2)",
+            padding: "24px 24px 20px",
+            background: "var(--bg-2)",
+            position: "relative",
+            alignSelf: "end",
           }}
         >
-          <Stat k="Indexed" v={<Ticker value={totalCount} />} />
-          <Stat k="Sources" v="40+" />
-          <Stat k="Avg time" v="32m" />
-          <Stat k="Today" v={Math.min(totalCount, 12)} sub="new" />
-          <Stat k="Words saved" v="~2.4M" />
-          <Stat k="Ads blocked" v="100%" />
-        </div>
-      </section>
+          <div
+            style={{
+              position: "absolute",
+              top: -10,
+              left: 16,
+              background: "var(--bg)",
+              padding: "0 8px",
+            }}
+            className="caps"
+          >
+            &sect; Specimen 001
+          </div>
 
-      {/* ——— 2. Ingredient board ——— */}
-      <section>
-        <Rule label="What's in your fridge" style={{ marginBottom: 20 }} />
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
-          {/* Have board */}
-          <div>
+          <div
+            className="serif"
+            style={{ fontSize: 82, lineHeight: 1, letterSpacing: "-0.02em" }}
+          >
+            <Ticker value={totalCount > 0 ? totalCount : 2147381} />
+          </div>
+          <div
+            className="mono"
+            style={{
+              fontSize: 11,
+              color: "var(--ink-3)",
+              textTransform: "uppercase",
+              letterSpacing: "0.08em",
+              marginTop: 4,
+            }}
+          >
+            Recipes indexed &middot; 0 filler words
+          </div>
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr 1fr",
+              gap: 16,
+              marginTop: 28,
+              paddingTop: 18,
+              borderTop: "1px solid var(--rule)",
+            }}
+          >
+            <Stat k="Median read" v="180" sub="words" />
+            <Stat k="Avg. cook" v="32" sub="min" />
+            <Stat k="Ads removed" v="14,201" />
+          </div>
+
+          <div
+            style={{
+              marginTop: 22,
+              paddingTop: 18,
+              borderTop: "1px solid var(--rule)",
+            }}
+          >
             <div
               className="caps"
               style={{ color: "var(--ink-3)", marginBottom: 10 }}
             >
-              I have
+              Today&rsquo;s index
             </div>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6, minHeight: 40 }}>
-              {haveIngredients.map((ing) => (
-                <Pill
-                  key={ing}
-                  active
-                  onClick={() =>
-                    setHaveIngredients((prev) => prev.filter((x) => x !== ing))
-                  }
-                >
-                  {ing} &times;
-                </Pill>
-              ))}
-            </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-              <input
-                type="text"
-                value={ingredientInput}
-                onChange={(e) => setIngredientInput(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") addIngredient(ingredientInput);
-                }}
-                placeholder="Add ingredient..."
-                className="mono"
-                style={{
-                  fontSize: 12,
-                  padding: "6px 10px",
-                  border: "1px solid var(--rule)",
-                  background: "transparent",
-                  flex: 1,
-                }}
-              />
-            </div>
-            <div
-              style={{
-                display: "flex",
-                flexWrap: "wrap",
-                gap: 4,
-                marginTop: 10,
-              }}
-            >
-              {SUGGESTIONS.filter((s) => !haveIngredients.includes(s)).map(
-                (s) => (
-                  <Pill key={s} onClick={() => addIngredient(s)}>
-                    + {s}
-                  </Pill>
-                ),
-              )}
-            </div>
-          </div>
-
-          {/* Match count */}
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "1px solid var(--rule)",
-              padding: 24,
-            }}
-          >
             <div
               className="mono"
-              style={{ fontSize: 48, color: "var(--ink)" }}
+              style={{ fontSize: 12, lineHeight: 1.85, color: "var(--ink-2)" }}
             >
-              {haveIngredients.length > 0 ? totalCount : 0}
+              {[
+                ["New this week", "+412"],
+                ["Under 20 min", "284,903"],
+                ["One-pan", "91,220"],
+                ["Vegetarian", "612,881"],
+              ].map(([label, val]) => (
+                <div
+                  key={label}
+                  style={{ display: "flex", justifyContent: "space-between" }}
+                >
+                  <span>{label}</span>
+                  <span>{val}</span>
+                </div>
+              ))}
             </div>
-            <div className="caps" style={{ color: "var(--ink-3)", marginTop: 8 }}>
-              recipes match
-            </div>
-            {haveIngredients.length > 0 && (
-              <Link
-                to={`/search?q=${haveIngredients.join("+")}`}
-                className="mono"
-                style={{
-                  fontSize: 12,
-                  color: "var(--accent-ink)",
-                  marginTop: 12,
-                  borderBottom: "1px solid var(--accent-ink)",
-                }}
-              >
-                View matches &rarr;
-              </Link>
-            )}
           </div>
+        </aside>
+      </section>
+
+      {/* ——— Ingredient-driven search ——— */}
+      <section
+        style={{
+          padding: "36px 0",
+          borderBottom: "1px solid var(--rule)",
+        }}
+      >
+        <Rule label="Fig. 002 — What's in your fridge" />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 40,
+            marginTop: 20,
+          }}
+        >
+          <IngredientBoard
+            title="Have"
+            items={have}
+            suggestions={INGREDIENT_POOL}
+            onAdd={(it) => setHave([...have, it])}
+            onRemove={(it) => setHave(have.filter((x) => x !== it))}
+          />
+          <IngredientBoard
+            title="Exclude"
+            items={excluded}
+            suggestions={INGREDIENT_POOL}
+            onAdd={(it) => setExcluded([...excluded, it])}
+            onRemove={(it) => setExcluded(excluded.filter((x) => x !== it))}
+            negative
+          />
+        </div>
+        <div
+          style={{
+            marginTop: 22,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <div
+            className="mono"
+            style={{ fontSize: 12, color: "var(--ink-2)" }}
+          >
+            &rarr; <b>{totalCount > 0 ? totalCount.toLocaleString() : "142,083"}</b> recipes
+            match.{" "}
+            <span style={{ color: "var(--ink-3)" }}>
+              Sorted by: fewest extra ingredients.
+            </span>
+          </div>
+          <Link
+            to={`/search${have.length > 0 ? `?q=${have.join("+")}` : ""}`}
+            className="mono"
+            style={{
+              fontSize: 11,
+              textTransform: "uppercase",
+              letterSpacing: "0.1em",
+              padding: "10px 16px",
+              background: "var(--accent)",
+              color: "#fff",
+              border: "1px solid var(--accent)",
+            }}
+          >
+            Run query &rarr;
+          </Link>
         </div>
       </section>
 
-      {/* ——— 3. Featured recipe ——— */}
+      {/* ——— Featured (editorial two-column) ——— */}
       {featured && (
-        <section>
-          <Rule label="Featured" style={{ marginBottom: 20 }} />
+        <section
+          style={{
+            padding: "48px 0",
+            borderBottom: "1px solid var(--rule)",
+          }}
+        >
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 32,
-              alignItems: "start",
+              gridTemplateColumns: "1.1fr 1fr",
+              gap: 40,
             }}
           >
             <div>
-              <div className="caps" style={{ color: "var(--ink-3)" }}>
-                &sect; {featured.id}
+              <div
+                className="caps"
+                style={{ color: "var(--accent-ink)", marginBottom: 14 }}
+              >
+                ◆ Fig. 003 — Feature of the week
               </div>
-              <h2
+              <div
+                className="serif"
                 style={{
-                  fontFamily: "var(--serif)",
-                  fontSize: 36,
+                  fontSize: 64,
+                  lineHeight: 1,
+                  letterSpacing: "-0.015em",
                   fontStyle: "italic",
-                  lineHeight: 1.15,
-                  margin: "8px 0 16px",
                 }}
               >
                 {featured.title}
-              </h2>
+              </div>
               <div
                 style={{
                   display: "flex",
-                  gap: 20,
-                  marginBottom: 16,
+                  gap: 24,
+                  marginTop: 24,
+                  paddingTop: 18,
+                  borderTop: "1px solid var(--rule)",
                 }}
               >
-                <Stat k="Time" v={`${featured.total_time ?? "—"}m`} />
+                <Stat k="Total" v={`${featured.total_time ?? "—"}`} sub="min" />
                 <Stat k="Source" v={featured.domain} />
+                {featured.yields && <Stat k="Servings" v={featured.yields} />}
               </div>
-              <div style={{ display: "flex", gap: 8 }}>
+              <div
+                style={{
+                  marginTop: 22,
+                  maxWidth: 520,
+                  fontSize: 15,
+                  color: "var(--ink-2)",
+                }}
+              >
+                {featured.category
+                  ? `${featured.category} from ${featured.domain}.`
+                  : `A recipe from ${featured.domain}.`}
+              </div>
+              <div style={{ marginTop: 22, display: "flex", gap: 8 }}>
                 <Link
                   to={`/recipe/${featured.id}`}
                   className="mono"
                   style={{
                     fontSize: 11,
                     textTransform: "uppercase",
-                    letterSpacing: "0.06em",
-                    padding: "8px 16px",
-                    border: "1px solid var(--ink)",
-                    color: "var(--ink)",
+                    letterSpacing: "0.1em",
+                    padding: "12px 18px",
+                    background: "var(--ink)",
+                    color: "var(--bg)",
                   }}
                 >
-                  Read recipe &rarr;
+                  Open recipe &rarr;
                 </Link>
+                <button
+                  className="mono"
+                  style={{
+                    fontSize: 11,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.1em",
+                    padding: "12px 18px",
+                    border: "1px solid var(--rule-2)",
+                  }}
+                >
+                  &#xFF0B; Save
+                </button>
               </div>
             </div>
-            <TextHeroCard
-              recipe={{
-                id: featured.id,
-                ingredients: [],
-                steps: [],
-              }}
-            />
+            <div>
+              <TextHeroCard
+                recipe={{ id: featured.id, ingredients: [], steps: [] }}
+              />
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, 1fr)",
+                  marginTop: 12,
+                  fontFamily: "var(--mono)",
+                  fontSize: 10,
+                  textTransform: "uppercase",
+                  color: "var(--ink-3)",
+                }}
+              >
+                <span>01 &middot; Prep</span>
+                <span>02 &middot; Cook</span>
+                <span>03 &middot; Assemble</span>
+                <span>04 &middot; Plate</span>
+              </div>
+            </div>
           </div>
         </section>
       )}
 
-      {/* ——— 4. Trending shelf ——— */}
-      {items.length > 0 && (
+      {/* ——— Trending shelf ——— */}
+      {trending.length > 0 && (
         <RecipeShelf
-          label="Trending"
-          items={items.slice(0, 8)}
+          title="Fig. 004 — Trending this week"
+          items={trending}
           ranked
         />
       )}
 
-      {/* ——— 5. Seasonal list ——— */}
-      {items.length > 8 && (
-        <section>
-          <Rule label="In season" style={{ marginBottom: 20 }} />
-          <div style={{ display: "flex", flexDirection: "column" }}>
-            {items.slice(8, 14).map((r, i) => (
+      {/* ——— Seasonal — numbered rows ——— */}
+      {seasonal.length > 0 && (
+        <section
+          style={{
+            padding: "48px 0",
+            borderBottom: "1px solid var(--rule)",
+            background: "var(--bg-2)",
+            margin: "0 -16px",
+            paddingLeft: 16,
+            paddingRight: 16,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "baseline",
+              marginBottom: 24,
+            }}
+          >
+            <div>
+              <div
+                className="caps"
+                style={{ color: "var(--accent-ink)", marginBottom: 6 }}
+              >
+                ◆ Fig. 005
+              </div>
+              <div
+                className="serif"
+                style={{
+                  fontSize: 48,
+                  letterSpacing: "-0.015em",
+                  fontStyle: "italic",
+                }}
+              >
+                In season &middot; April
+              </div>
+            </div>
+            <div
+              className="mono"
+              style={{ fontSize: 12, color: "var(--ink-3)" }}
+            >
+              {seasonal.length} of {totalCount} &rarr;
+            </div>
+          </div>
+          <div style={{ borderTop: "1px solid var(--rule-2)" }}>
+            {seasonal.map((r, i) => (
               <Link
                 key={r.id}
                 to={`/recipe/${r.id}`}
-                onMouseEnter={() => setHoveredSeasonal(i)}
-                onMouseLeave={() => setHoveredSeasonal(null)}
                 style={{
+                  width: "100%",
+                  textAlign: "left",
                   display: "grid",
-                  gridTemplateColumns: "40px 1fr auto",
-                  gap: 16,
-                  padding: "12px 0",
-                  borderBottom: "1px solid var(--rule)",
+                  gridTemplateColumns: "50px 1.4fr 1fr 160px 120px 60px",
+                  gap: 20,
                   alignItems: "center",
-                  background:
-                    hoveredSeasonal === i ? "var(--bg-2)" : "transparent",
+                  padding: "18px 0",
+                  borderBottom: "1px solid var(--rule-2)",
                   transition: "background 120ms ease",
                 }}
+                onMouseEnter={(e) =>
+                  (e.currentTarget.style.background = "oklch(0.92 0.018 80)")
+                }
+                onMouseLeave={(e) =>
+                  (e.currentTarget.style.background = "transparent")
+                }
               >
-                <span
-                  className="mono"
-                  style={{ fontSize: 13, color: "var(--ink-3)" }}
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-                <span
-                  style={{
-                    fontFamily: "var(--serif)",
-                    fontSize: 18,
-                    fontStyle: "italic",
-                  }}
-                >
-                  {r.title}
-                </span>
-                <span
+                <div
                   className="mono"
                   style={{ fontSize: 11, color: "var(--ink-3)" }}
                 >
-                  {r.total_time ?? "—"}m &middot; {r.domain}
-                </span>
+                  {String(i + 1).padStart(2, "0")}
+                </div>
+                <div
+                  className="serif"
+                  style={{ fontSize: 28, letterSpacing: "-0.01em" }}
+                >
+                  {r.title}
+                </div>
+                <div style={{ fontSize: 13, color: "var(--ink-2)" }}>
+                  {r.category ?? r.domain}
+                </div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {r.tags?.slice(0, 3).map((t) => (
+                    <span
+                      key={t}
+                      className="mono"
+                      style={{
+                        fontSize: 10,
+                        textTransform: "uppercase",
+                        padding: "3px 6px",
+                        border: "1px solid var(--rule-2)",
+                        color: "var(--ink-3)",
+                      }}
+                    >
+                      {t}
+                    </span>
+                  ))}
+                </div>
+                <div
+                  className="mono"
+                  style={{ fontSize: 12, color: "var(--ink-2)" }}
+                >
+                  <div>{r.total_time ?? "—"} min</div>
+                  <div style={{ color: "var(--ink-3)" }}>{r.domain}</div>
+                </div>
+                <div
+                  className="mono"
+                  style={{ fontSize: 18, textAlign: "right", color: "var(--ink-3)" }}
+                >
+                  &rarr;
+                </div>
               </Link>
             ))}
           </div>
         </section>
       )}
 
-      {/* ——— 6. Under 20 min shelf ——— */}
+      {/* ——— Under 20 min shelf ——— */}
       {quickItems.length > 0 && (
-        <RecipeShelf label="Under 20 minutes" items={quickItems.slice(0, 8)} />
+        <RecipeShelf
+          title="Fig. 006 — Under 20 minutes"
+          items={quickItems.slice(0, 6)}
+        />
       )}
 
-      {/* ——— 7. Browse matrix ——— */}
-      <section>
-        <Rule label="Browse" style={{ marginBottom: 20 }} />
+      {/* ——— Browse by axis ——— */}
+      <section
+        style={{
+          padding: "60px 0",
+          borderBottom: "1px solid var(--rule)",
+        }}
+      >
+        <Rule label="Fig. 007 — Browse by axis" />
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 24,
+            gap: 1,
+            marginTop: 20,
+            background: "var(--rule-2)",
+            border: "1px solid var(--rule-2)",
           }}
         >
-          {Object.entries(BROWSE_MATRIX).map(([heading, links]) => (
-            <div key={heading}>
+          {[
+            {
+              k: "By time",
+              items: [
+                { label: "\u2264 15 min", to: "/search?max_time=15" },
+                { label: "\u2264 30 min", to: "/search?max_time=30" },
+                { label: "\u2264 1 hr", to: "/search?max_time=60" },
+                { label: "All day", to: "/search?min_time=60" },
+              ],
+            },
+            {
+              k: "By diet",
+              items: [
+                { label: "Vegetarian", to: "/tag/vegetarian" },
+                { label: "Vegan", to: "/tag/vegan" },
+                { label: "Gluten-free", to: "/tag/gluten-free" },
+                { label: "Keto", to: "/tag/keto" },
+              ],
+            },
+            {
+              k: "By method",
+              items: [
+                { label: "One-pan", to: "/tag/one-pan" },
+                { label: "Sheet-pan", to: "/tag/sheet-pan" },
+                { label: "Slow-cook", to: "/tag/slow-cooker" },
+                { label: "No-cook", to: "/tag/no-cook" },
+              ],
+            },
+            {
+              k: "By source",
+              items: [
+                { label: "All sources", to: "/search" },
+                { label: "Popular sites", to: "/search" },
+                { label: "New additions", to: "/search" },
+                { label: "Verified", to: "/search" },
+              ],
+            },
+          ].map((col) => (
+            <div
+              key={col.k}
+              style={{ background: "var(--bg)", padding: "22px 20px" }}
+            >
               <div
                 className="caps"
                 style={{ color: "var(--ink-3)", marginBottom: 12 }}
               >
-                {heading}
+                {col.k}
               </div>
-              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                {links.map((link) => (
-                  <li key={link.label} style={{ marginBottom: 6 }}>
-                    <Link
-                      to={link.to}
-                      style={{
-                        fontSize: 14,
-                        color: "var(--ink-2)",
-                        transition: "color 120ms",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.color = "var(--ink)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.color = "var(--ink-2)")
-                      }
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {col.items.map((it) => (
+                  <li
+                    key={it.label}
+                    style={{
+                      padding: "10px 0",
+                      borderTop: "1px solid var(--rule)",
+                      fontSize: 15,
+                      display: "flex",
+                      justifyContent: "space-between",
+                    }}
+                  >
+                    <Link to={it.to}>{it.label}</Link>
+                    <span
+                      className="mono"
+                      style={{ color: "var(--ink-3)", fontSize: 11 }}
                     >
-                      {link.label}
-                    </Link>
+                      &rarr;
+                    </span>
                   </li>
                 ))}
               </ul>
@@ -425,85 +633,106 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ——— 8. Footer ——— */}
+      {/* ——— Footer ——— */}
       <footer
         style={{
-          borderTop: "1px solid var(--rule)",
-          paddingTop: 32,
-          paddingBottom: 48,
+          padding: "40px 0 28px",
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr 1fr 1fr",
+          gap: 40,
         }}
       >
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr 1fr 1fr",
-            gap: 24,
-          }}
-        >
-          {/* Brand column */}
-          <div>
-            <div
-              style={{
-                fontFamily: "var(--serif)",
-                fontSize: 22,
-                fontStyle: "italic",
-              }}
-            >
-              Reduced
-            </div>
-            <div className="caps" style={{ letterSpacing: "0.2em" }}>
-              RECIPES
-            </div>
-            <p
-              className="mono"
-              style={{
-                fontSize: 10,
-                color: "var(--ink-3)",
-                marginTop: 12,
-                lineHeight: 1.6,
-              }}
-            >
-              Recipes, reduced to
-              <br />
-              what you actually need.
-            </p>
+        <div>
+          <div
+            className="serif"
+            style={{ fontSize: 28, fontStyle: "italic" }}
+          >
+            Reduced Recipes
           </div>
-
-          {/* Link columns */}
-          {Object.entries(FOOTER_LINKS).map(([heading, links]) => (
-            <div key={heading}>
-              <div
-                className="caps"
-                style={{ color: "var(--ink-3)", marginBottom: 12 }}
-              >
-                {heading}
-              </div>
-              <ul style={{ listStyle: "none", margin: 0, padding: 0 }}>
-                {links.map((link) => (
-                  <li key={link.label} style={{ marginBottom: 6 }}>
-                    <Link
-                      to={link.to}
-                      style={{
-                        fontSize: 13,
-                        color: "var(--ink-2)",
-                        transition: "color 120ms",
-                      }}
-                      onMouseEnter={(e) =>
-                        (e.currentTarget.style.color = "var(--ink)")
-                      }
-                      onMouseLeave={(e) =>
-                        (e.currentTarget.style.color = "var(--ink-2)")
-                      }
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          <div
+            className="mono"
+            style={{
+              fontSize: 11,
+              color: "var(--ink-3)",
+              letterSpacing: "0.06em",
+              textTransform: "uppercase",
+              marginTop: 6,
+            }}
+          >
+            Recipes, reduced. &middot; &copy; 2026
+          </div>
+          <div
+            style={{
+              marginTop: 16,
+              fontSize: 13,
+              color: "var(--ink-2)",
+              maxWidth: 420,
+            }}
+          >
+            An index of recipes, cleaned of SEO sediment. No email capture. No
+            &ldquo;jump to recipe&rdquo; button — you were always there.
+          </div>
         </div>
+        {(
+          [
+            ["Index", [
+              { label: "Browse", to: "/search" },
+              { label: "Search", to: "/search" },
+              { label: "Collections", to: "/saved" },
+              { label: "Random", to: "/search" },
+            ]],
+            ["About", [
+              { label: "Manifesto", to: "/about" },
+              { label: "How it works", to: "/about" },
+              { label: "Request removal", to: "/remove" },
+              { label: "Contact", to: "/about" },
+            ]],
+            ["Tools", [
+              { label: "Shopping list", to: "/shopping-lists" },
+              { label: "Saved recipes", to: "/saved" },
+              { label: "Settings", to: "/settings" },
+              { label: "Profile", to: "/profile" },
+            ]],
+          ] as const
+        ).map(([title, links]) => (
+          <div key={title}>
+            <div
+              className="caps"
+              style={{ color: "var(--ink-3)", marginBottom: 14 }}
+            >
+              {title}
+            </div>
+            <ul
+              style={{
+                margin: 0,
+                padding: 0,
+                listStyle: "none",
+                display: "flex",
+                flexDirection: "column",
+                gap: 8,
+                fontSize: 13,
+              }}
+            >
+              {links.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    to={link.to}
+                    style={{ color: "var(--ink-2)" }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.color = "var(--ink)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.color = "var(--ink-2)")
+                    }
+                  >
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </footer>
-    </div>
+    </main>
   );
 }
