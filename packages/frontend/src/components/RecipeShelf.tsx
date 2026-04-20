@@ -118,7 +118,15 @@ export default function RecipeShelf({ title, items, ranked }: RecipeShelfProps) 
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
               <div
                 className="serif"
-                style={{ fontSize: 22, letterSpacing: "-0.01em", lineHeight: 1.1 }}
+                style={{
+                  fontSize: 22,
+                  letterSpacing: "-0.01em",
+                  lineHeight: 1.1,
+                  display: "-webkit-box",
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: "vertical",
+                  overflow: "hidden",
+                }}
               >
                 {r.title}
               </div>

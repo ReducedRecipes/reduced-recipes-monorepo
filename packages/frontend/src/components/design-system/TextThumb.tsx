@@ -27,17 +27,7 @@ export function TextThumb({ recipe }: TextThumbProps) {
         justifyContent: "space-between",
       }}
     >
-      <div>
-        <div
-          style={{
-            textTransform: "uppercase",
-            letterSpacing: "0.06em",
-            color: "var(--accent-ink)",
-          }}
-        >
-          &sect; {recipe.id}
-        </div>
-      </div>
+      <div />
       <div
         style={{
           color: "var(--ink)",
