@@ -101,21 +101,9 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
     .bind(listId)
     .all();
 
-  const items = itemsResult.results ?? [];
+  const items = (itemsResult.results ?? []) as unknown as ShoppingListItem[];
 
-  // Split into unchecked/checked
-  const unchecked: Record<string, unknown>[] = [];
-  const checked: Record<string, unknown>[] = [];
-  for (const item of items) {
-    const row = item as Record<string, unknown>;
-    if (row.checked) {
-      checked.push(row);
-    } else {
-      unchecked.push(row);
-    }
-  }
-
-  return c.json({ ...list, items: { unchecked, checked } });
+  return c.json({ ...list, ...rollupItems(items) });
 });
 
 // PATCH /api/v1/shopping-lists/:id — update list name
@@ -516,19 +504,9 @@ shoppingLists.get('/api/v1/shared/lists/:token', async (c) => {
     .bind(list.id)
     .all();
 
-  const items = itemsResult.results ?? [];
-  const unchecked: Record<string, unknown>[] = [];
-  const checked: Record<string, unknown>[] = [];
-  for (const item of items) {
-    const row = item as Record<string, unknown>;
-    if (row.checked) {
-      checked.push(row);
-    } else {
-      unchecked.push(row);
-    }
-  }
+  const items = (itemsResult.results ?? []) as unknown as ShoppingListItem[];
 
-  return c.json({ ...list, items: { unchecked, checked } });
+  return c.json({ ...list, ...rollupItems(items) });
 });
 
 // PATCH /api/v1/shared/lists/:token/items/:itemId — toggle item check via share token

@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 import {
   useShoppingList,
@@ -7,74 +7,106 @@ import {
   useShareLink,
   useShoppingLists,
 } from "../hooks/useShoppingLists";
-import type { ShoppingListItem } from "@rr/shared";
+import type { SmartRollupItem } from "@rr/shared";
 
-function ItemRow({
+function RollupItemRow({
   item,
   onToggle,
   onDelete,
+  isChecked = false,
 }: {
-  item: ShoppingListItem;
+  item: SmartRollupItem;
   onToggle: () => void;
   onDelete: () => void;
+  isChecked?: boolean;
 }) {
-  const isChecked = item.checked === 1;
-  const displayName = item.item ?? item.original_text ?? "Unknown item";
-  const quantityStr =
-    item.quantity != null
-      ? `${item.quantity}${item.unit ? ` ${item.unit}` : ""}`
-      : item.unit ?? "";
+  const [expanded, setExpanded] = useState(false);
+  const sources = item.sources ?? [];
+  const uniqueRecipeIds = new Set(
+    sources.filter((s) => s.recipe_id).map((s) => s.recipe_id),
+  );
+  const recipeCount = uniqueRecipeIds.size;
+  const hasMultipleSources = recipeCount >= 2;
 
   return (
-    <div className="flex items-center gap-3 py-2 group">
-      <button
-        onClick={onToggle}
-        className={`flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
-          isChecked
-            ? "border-orange-500 bg-orange-500 text-white"
-            : "border-gray-300 hover:border-orange-400"
-        }`}
-      >
-        {isChecked && (
-          <svg
-            className="h-3 w-3"
-            viewBox="0 0 12 12"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path d="M2 6l3 3 5-5" />
-          </svg>
-        )}
-      </button>
-      <span
-        className={`flex-1 text-sm ${
-          isChecked ? "text-gray-400 line-through" : "text-gray-900"
-        }`}
-      >
-        {quantityStr && (
-          <span className="font-medium text-gray-600">{quantityStr} </span>
-        )}
-        {displayName}
-      </span>
-      <button
-        onClick={onDelete}
-        className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
-        title="Remove item"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className="h-4 w-4"
-          viewBox="0 0 20 20"
-          fill="currentColor"
+    <div className="py-2 group">
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onToggle}
+          className={`flex-shrink-0 h-5 w-5 rounded border-2 flex items-center justify-center transition-colors ${
+            isChecked
+              ? "border-orange-500 bg-orange-500 text-white"
+              : "border-gray-300 hover:border-orange-400"
+          }`}
         >
-          <path
-            fillRule="evenodd"
-            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-            clipRule="evenodd"
-          />
-        </svg>
-      </button>
+          {isChecked && (
+            <svg
+              className="h-3 w-3"
+              viewBox="0 0 12 12"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M2 6l3 3 5-5" />
+            </svg>
+          )}
+        </button>
+        <span
+          className={`flex-1 text-sm ${
+            isChecked ? "text-gray-400 line-through" : "text-gray-900"
+          }`}
+          onClick={hasMultipleSources ? () => setExpanded(!expanded) : undefined}
+          style={hasMultipleSources ? { cursor: "pointer" } : undefined}
+        >
+          {item.display_text}
+          {hasMultipleSources && (
+            <span className="ml-1 text-xs text-gray-400">
+              ({recipeCount} recipes)
+            </span>
+          )}
+        </span>
+        <button
+          onClick={onDelete}
+          className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
+          title="Remove item"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            className="h-4 w-4"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </button>
+      </div>
+      {hasMultipleSources && expanded && (
+        <div className="ml-8 mt-1 space-y-1 border-l-2 border-orange-200 pl-3">
+          {sources
+            .filter((s) => s.recipe_id)
+            .map((source) => (
+              <div
+                key={source.item_id}
+                className="flex items-center gap-2 text-xs text-gray-600"
+              >
+                <span className="truncate">
+                  {source.original_text || item.canonical_item}
+                  {source.quantity != null && ` (${source.quantity}${item.unit ? ` ${item.unit}` : ""})`}
+                </span>
+                <Link
+                  to={`/recipe/${source.recipe_id}`}
+                  className="flex-shrink-0 text-orange-600 hover:text-orange-800 hover:underline"
+                >
+                  view
+                </Link>
+              </div>
+            ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -259,13 +291,19 @@ export default function ShoppingListPage() {
             </p>
           )}
           {uncheckedItems.map((item) => (
-            <ItemRow
-              key={item.id}
+            <RollupItemRow
+              key={item.canonical_item}
               item={item}
-              onToggle={() =>
-                updateItem({ itemId: item.id, checked: 1 })
-              }
-              onDelete={() => deleteItem(item.id)}
+              onToggle={() => {
+                for (const s of item.sources ?? []) {
+                  updateItem({ itemId: s.item_id, checked: 1 });
+                }
+              }}
+              onDelete={() => {
+                for (const s of item.sources ?? []) {
+                  deleteItem(s.item_id);
+                }
+              }}
             />
           ))}
         </div>
@@ -307,13 +345,20 @@ export default function ShoppingListPage() {
             </div>
             <div className="divide-y divide-gray-100 px-4">
               {checkedItems.map((item) => (
-                <ItemRow
-                  key={item.id}
+                <RollupItemRow
+                  key={item.canonical_item}
                   item={item}
-                  onToggle={() =>
-                    updateItem({ itemId: item.id, checked: 0 })
-                  }
-                  onDelete={() => deleteItem(item.id)}
+                  isChecked
+                  onToggle={() => {
+                    for (const s of item.sources ?? []) {
+                      updateItem({ itemId: s.item_id, checked: 0 });
+                    }
+                  }}
+                  onDelete={() => {
+                    for (const s of item.sources ?? []) {
+                      deleteItem(s.item_id);
+                    }
+                  }}
                 />
               ))}
             </div>
