@@ -18,13 +18,13 @@ A time-decaying popularity system inspired by Reddit's hot ranking algorithm. Re
 ### The Score Formula
 
 ```
-hot_score = log10(max(|votes|, 1)) + (created_epoch / 45000)
+hot_score = log10(max(|votes|, 1)) + (created_epoch / HOT_DECAY_SECONDS)
 ```
 
 Where:
 - `votes` = net engagement signals (hearts, list adds) in a time window
 - `created_epoch` = seconds since a fixed epoch (e.g. 2024-01-01)
-- `45000` = decay constant (~12.5 hours). After 12.5 hours, a recipe needs 10x more votes to maintain the same rank
+- `HOT_DECAY_SECONDS` = decay constant (default 90,000 = ~25 hours). After one decay period, a recipe needs 10x more votes to maintain the same rank
 
 This means:
 - A recipe with **10 votes in the last hour** beats a recipe with **100 votes from yesterday**
@@ -206,7 +206,7 @@ async function updateHotScore(db: D1Database, recipeId: string) {
     : Date.now() / 1000;
 
   const score = Math.log10(Math.max(votes, 1)) +
-    (firstVoted - EPOCH) / 45000;
+    (firstVoted - EPOCH) / decaySeconds;
 
   await db.prepare(`
     UPDATE recipes SET vote_count = ?, hot_score = ?, first_voted_at = ?
@@ -222,7 +222,7 @@ A scheduled worker runs every 15 minutes to recompute all active scores:
 ```sql
 UPDATE recipes SET hot_score =
   LOG10(MAX(vote_count, 1)) +
-  (CAST(strftime('%s', COALESCE(first_voted_at, extracted_at)) AS REAL) - 1704067200) / 45000.0
+  (CAST(strftime('%s', COALESCE(first_voted_at, extracted_at)) AS REAL) - 1704067200) / 90000.0
 WHERE vote_count > 0;
 ```
 
@@ -274,12 +274,34 @@ If the recipes DB write fails, the vote is still recorded — the periodic refre
 
 ---
 
+## Configuration
+
+All ranking parameters are stored as Worker environment variables so they can be tuned without redeploying:
+
+```toml
+[vars]
+# Hot ranking
+HOT_DECAY_SECONDS = "90000"          # 25 hours — slower decay for early-stage growth
+HOT_MIN_VOTES_FEATURED = "3"         # Minimum votes to appear in Featured/Trending
+HOT_MIN_TOTAL_VOTES = "100"          # Minimum total votes across all recipes before hot ranking activates
+HOT_RATE_LIMIT_PER_DAY = "100"       # Max hearts per user per day
+HOT_EPOCH = "1704067200"             # 2024-01-01T00:00:00Z
+
+# Engagement weights
+WEIGHT_HEART = "1.0"
+WEIGHT_LIST_ADD = "1.5"
+WEIGHT_AUTH_VIEW = "0.1"
+```
+
+### Decisions
+
+- **Decay: 25 hours** (90,000 seconds) — slower rotation during early growth. Increase to Reddit-speed (12.5 hours / 45,000s) once we have 10k+ active users.
+- **Cold start fallback** — if total votes across all recipes < `HOT_MIN_TOTAL_VOTES` (default 100), the homepage and trending shelves fall back to `extracted_at DESC` (newest first). The featured slot shows nothing until a recipe hits the minimum.
+- **Minimum 3 votes** — a recipe needs ≥ `HOT_MIN_VOTES_FEATURED` votes to appear in Featured or Trending. Prevents a single user from putting any recipe on the homepage.
+- **All configurable** — every parameter is a Worker env var. Can be changed via `wrangler secret put` or the CF dashboard without a deploy.
+
 ## Open Questions
 
-1. **Should the decay constant be tunable?** 45,000 seconds (~12.5 hours) works for Reddit-scale. With fewer users, a longer decay (e.g. 90,000 = ~25 hours) might be better so content doesn't rotate too fast.
+1. **Should we weight votes by user reputation?** e.g. a user who has been active for 6 months and has 50 bookmarks gets a 1.2x multiplier on their votes. Adds complexity but improves quality.
 
-2. **Should we weight votes by user reputation?** e.g. a user who has been active for 6 months and has 50 bookmarks gets a 1.2x multiplier on their votes. Adds complexity but improves quality.
-
-3. **Should recipe age factor in?** Currently, a newly crawled recipe with 1 vote can briefly outrank an old recipe with 100 votes. We could add a minimum vote threshold for hot ranking (e.g. need ≥3 votes to appear in "trending").
-
-4. **How to handle the cold start?** With few users, most recipes will have 0 votes. The homepage should fall back to `extracted_at` ordering until we have enough engagement data. Threshold: switch to hot ranking when ≥100 total votes exist.
+2. **Regional trending?** If the user base becomes international, should trending be per-region or global?
