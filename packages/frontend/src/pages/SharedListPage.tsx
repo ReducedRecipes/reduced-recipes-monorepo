@@ -141,19 +141,35 @@ export default function SharedListPage() {
             {unchecked.length > 0 && (
               <div className="divide-y divide-gray-100 px-4">
                 {unchecked.map((item) => (
-                  <button
-                    key={item.canonical_item}
-                    type="button"
-                    onClick={() => {
-                      for (const s of item.sources ?? []) {
-                        toggleItem.mutate({ itemId: s.item_id, checked: 1 });
-                      }
-                    }}
-                    className="flex w-full items-center gap-3 py-3 text-left hover:bg-gray-50 transition-colors"
-                  >
-                    <div className="h-5 w-5 shrink-0 rounded" style={{ border: "2px solid #555" }} />
-                    <span className="text-sm text-gray-900">{item.display_text}</span>
-                  </button>
+                  <div key={item.canonical_item} className="flex items-center gap-3 py-3 group">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        for (const s of item.sources ?? []) {
+                          toggleItem.mutate({ itemId: s.item_id, checked: 1 });
+                        }
+                      }}
+                      className="h-5 w-5 shrink-0 rounded"
+                      style={{ border: "2px solid #555" }}
+                    />
+                    <span className="flex-1 text-sm text-gray-900">{item.display_text}</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        for (const s of item.sources ?? []) {
+                          apiFetch(`/shared/lists/${token}/items/${s.item_id}`, { method: "DELETE" }).then(() => {
+                            queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
+                          });
+                        }
+                      }}
+                      className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
+                      title="Remove item"
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                      </svg>
+                    </button>
+                  </div>
                 ))}
               </div>
             )}
@@ -193,23 +209,39 @@ export default function SharedListPage() {
             </div>
             <div className="divide-y divide-gray-100 px-4">
               {checked.map((item) => (
-                <button
-                  key={item.canonical_item}
-                  type="button"
-                  onClick={() => {
-                    for (const s of item.sources ?? []) {
-                      toggleItem.mutate({ itemId: s.item_id, checked: 0 });
-                    }
-                  }}
-                  className="flex w-full items-center gap-3 py-3 text-left hover:bg-gray-100 transition-colors"
-                >
-                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-orange-500 bg-orange-500">
+                <div key={item.canonical_item} className="flex items-center gap-3 py-3 group">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      for (const s of item.sources ?? []) {
+                        toggleItem.mutate({ itemId: s.item_id, checked: 0 });
+                      }
+                    }}
+                    className="flex h-5 w-5 shrink-0 items-center justify-center rounded"
+                    style={{ border: "2px solid #E85D26", background: "#E85D26" }}
+                  >
                     <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                     </svg>
-                  </div>
-                  <span className="text-sm text-gray-400 line-through">{item.display_text}</span>
-                </button>
+                  </button>
+                  <span className="flex-1 text-sm text-gray-400 line-through">{item.display_text}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      for (const s of item.sources ?? []) {
+                        apiFetch(`/shared/lists/${token}/items/${s.item_id}`, { method: "DELETE" }).then(() => {
+                          queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
+                        });
+                      }
+                    }}
+                    className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
+                    title="Remove item"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </button>
+                </div>
               ))}
             </div>
           </div>
