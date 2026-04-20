@@ -141,7 +141,7 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
 
 // ── List recipes ─────────────────────────────────────────────────────────
 app.get('/api/v1/recipes', optionalAuth, async (c) => {
-  const { tag, domain, cuisine, max_time, min_time, cursor, limit: limitParam } = c.req.query();
+  const { tag, tags: tagsParam, domain, cuisine, max_time, min_time, cursor, limit: limitParam, sort } = c.req.query();
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
 
   const conditions: string[] = [];
@@ -172,16 +172,31 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
   const dietaryMask = await getDietaryMask(c);
   applyDietaryFilter(conditions, params, dietaryMask);
 
+  // Multi-tag filtering: ?tags=vegetarian,one-pan (AND logic — must have ALL tags)
+  // Also supports legacy single ?tag=vegetarian
+  const tagList = tagsParam ? tagsParam.split(',').map((t) => t.trim()).filter(Boolean) : tag ? [tag] : [];
   let joinClause = '';
-  if (tag) {
-    joinClause = 'JOIN recipe_tags rt ON rt.recipe_id = r.id';
-    conditions.push('rt.tag = ?');
-    params.push(tag);
+  if (tagList.length > 0) {
+    // Join recipe_tags once per tag with AND logic
+    tagList.forEach((t, i) => {
+      const alias = `rt${i}`;
+      joinClause += ` JOIN recipe_tags ${alias} ON ${alias}.recipe_id = r.id AND ${alias}.tag = ?`;
+      params.push(t);
+    });
   }
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  const sql = `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY r.extracted_at DESC LIMIT ?`;
+  // Sort options: relevance (default/extracted_at), rating, cook_time, reviews
+  const sortMap: Record<string, string> = {
+    rating: 'r.total_time ASC',      // TODO: use avg_rating when Phase 3 lands
+    cook_time: 'r.total_time ASC',
+    time: 'r.total_time ASC',
+    newest: 'r.extracted_at DESC',
+  };
+  const orderBy = sortMap[sort ?? ''] ?? 'r.extracted_at DESC';
+
+  const sql = `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at FROM recipes r ${joinClause} ${whereClause} ORDER BY ${orderBy} LIMIT ?`;
   params.push(limit + 1);
 
   const result = await c.env.DB.prepare(sql).bind(...params).all();
