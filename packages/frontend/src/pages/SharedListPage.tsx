@@ -21,6 +21,78 @@ interface SharedListResponse {
   };
 }
 
+function SharedAisleSection({
+  category,
+  items,
+  token,
+  toggleItem,
+  queryClient,
+}: {
+  category: string;
+  items: SmartRollupItem[];
+  token: string;
+  toggleItem: { mutate: (args: { itemId: string; checked: number }) => void };
+  queryClient: ReturnType<typeof useQueryClient>;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="border-b border-gray-100 last:border-b-0">
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex w-full items-center justify-between px-4 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-sm font-semibold text-gray-700">{category}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">{items.length}</span>
+          <svg
+            className={`h-4 w-4 text-gray-400 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+          </svg>
+        </div>
+      </button>
+      {!collapsed && (
+        <div className="divide-y divide-gray-100 px-4">
+          {items.map((item) => (
+            <div key={item.canonical_item} className="flex items-center gap-3 py-3 group">
+              <button
+                type="button"
+                onClick={() => {
+                  for (const s of item.sources ?? []) {
+                    toggleItem.mutate({ itemId: s.item_id, checked: 1 });
+                  }
+                }}
+                className="h-5 w-5 shrink-0 rounded"
+                style={{ border: "2px solid #555" }}
+              />
+              <span className="flex-1 text-sm text-gray-900">{item.display_text}</span>
+              <button
+                type="button"
+                onClick={() => {
+                  for (const s of item.sources ?? []) {
+                    apiFetch(`/shared/lists/${token}/items/${s.item_id}`, { method: "DELETE" }).then(() => {
+                      queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
+                    });
+                  }
+                }}
+                className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
+                title="Remove item"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function SharedListPage() {
   const { token } = useParams<{ token: string }>();
   const queryClient = useQueryClient();
@@ -71,6 +143,31 @@ export default function SharedListPage() {
 
   const unchecked = list.items?.unchecked ?? [];
   const checked = list.items?.checked ?? [];
+
+  const AISLE_ORDER = [
+    'Produce', 'Dairy & Eggs', 'Meat & Seafood', 'Bakery',
+    'Pantry', 'Spices & Seasonings', 'Oils & Vinegars',
+    'Condiments & Sauces', 'Beverages', 'Frozen', 'Other',
+  ];
+  const uncheckedByAisle = (() => {
+    const groups = new Map<string, SmartRollupItem[]>();
+    for (const item of unchecked) {
+      const cat = item.category || 'Other';
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat)!.push(item);
+    }
+    const result: { category: string; items: SmartRollupItem[] }[] = [];
+    for (const cat of AISLE_ORDER) {
+      const items = groups.get(cat);
+      if (items && items.length > 0) result.push({ category: cat, items });
+    }
+    for (const [cat, items] of groups) {
+      if (!AISLE_ORDER.includes(cat) && items.length > 0) {
+        result.push({ category: cat, items });
+      }
+    }
+    return result;
+  })();
 
   const handleAddItem = () => {
     const name = newItemName.trim();
@@ -138,41 +235,16 @@ export default function SharedListPage() {
           <p className="text-gray-500 text-center py-8 text-sm">This list is empty.</p>
         ) : (
           <>
-            {unchecked.length > 0 && (
-              <div className="divide-y divide-gray-100 px-4">
-                {unchecked.map((item) => (
-                  <div key={item.canonical_item} className="flex items-center gap-3 py-3 group">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        for (const s of item.sources ?? []) {
-                          toggleItem.mutate({ itemId: s.item_id, checked: 1 });
-                        }
-                      }}
-                      className="h-5 w-5 shrink-0 rounded"
-                      style={{ border: "2px solid #555" }}
-                    />
-                    <span className="flex-1 text-sm text-gray-900">{item.display_text}</span>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        for (const s of item.sources ?? []) {
-                          apiFetch(`/shared/lists/${token}/items/${s.item_id}`, { method: "DELETE" }).then(() => {
-                            queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
-                          });
-                        }
-                      }}
-                      className="opacity-0 group-hover:opacity-100 rounded p-1 text-gray-400 hover:text-red-500 transition-opacity"
-                      title="Remove item"
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
-                      </svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
+            {uncheckedByAisle.map(({ category, items: aisleItems }) => (
+              <SharedAisleSection
+                key={category}
+                category={category}
+                items={aisleItems}
+                token={token!}
+                toggleItem={toggleItem}
+                queryClient={queryClient}
+              />
+            ))}
           </>
         )}
 
