@@ -176,7 +176,7 @@ sequenceDiagram
     API->>D1: Upsert user + auth provider
     API->>D1: Create default "Saved" collection
     API->>KV: Create session token
-    API-->>FE: Set-Cookie: session={token}; HttpOnly; Secure
+    API-->>FE: Set-Cookie httpOnly session token
 ```
 
 ### Shopping List Real-Time
