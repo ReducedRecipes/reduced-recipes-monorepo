@@ -21,11 +21,17 @@ export default {
         }
 
         // ── Translate non-English recipes ───────────────────────────
-        if (env.AI && doc.original_language && doc.original_language !== 'en') {
-          try {
-            doc = await translateRecipe(doc, env.AI);
-          } catch (error) {
-            console.warn('Translation failed for recipe', doc.id, error);
+        if (doc.original_language && doc.original_language !== 'en') {
+          if (env.AI) {
+            try {
+              console.log(`TRANSLATING: ${doc.id} (${doc.original_language}) "${doc.title}"`);
+              doc = await translateRecipe(doc, env.AI);
+              console.log(`TRANSLATED: ${doc.id} → "${doc.title}"`);
+            } catch (error) {
+              console.error('Translation FAILED:', doc.id, error);
+            }
+          } else {
+            console.warn('NO AI BINDING for translation:', doc.id);
           }
         }
 
