@@ -185,7 +185,7 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
 
   // Cold start check for sort=hot: if total votes < threshold, fall back to newest
-  const hotMinTotalVotes = parseInt((c.env as Record<string, string>).HOT_MIN_TOTAL_VOTES ?? '100', 10);
+  const hotMinTotalVotes = parseInt(c.env.HOT_MIN_TOTAL_VOTES ?? '100', 10);
   let effectiveSort = sort ?? '';
   if (sort === 'hot') {
     const totalsRow = await c.env.DB.prepare('SELECT COALESCE(SUM(vote_count), 0) as total FROM recipes').first() as Record<string, number> | null;
