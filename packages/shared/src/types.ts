@@ -50,6 +50,8 @@ export interface RecipeSummary {
   cuisine: string | null;
   category: string | null;
   tags: string[];
+  /** Net engagement vote count (hearts, list adds). Used for hot ranking display. */
+  vote_count?: number;
 }
 
 /** User profile stored in users DB. */

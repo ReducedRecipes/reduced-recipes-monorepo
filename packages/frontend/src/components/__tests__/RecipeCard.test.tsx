@@ -1,8 +1,13 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import RecipeCard from "../RecipeCard";
 import type { RecipeSummary } from "@rr/shared/types";
+
+vi.mock("../../lib/api", () => ({
+  heartRecipe: vi.fn().mockResolvedValue({ hearted: true, vote_count: 1 }),
+  unheartRecipe: vi.fn().mockResolvedValue({ hearted: false, vote_count: 0 }),
+}));
 
 afterEach(cleanup);
 
@@ -69,5 +74,20 @@ describe("RecipeCard", () => {
   it("formats exact hours without minutes", () => {
     renderCard({ total_time: 120 });
     expect(screen.getByText("2 hr")).toBeDefined();
+  });
+
+  it("renders heart button", () => {
+    renderCard();
+    expect(screen.getByRole("button", { name: /heart recipe/i })).toBeDefined();
+  });
+
+  it("shows vote count when vote_count is provided", () => {
+    renderCard({ vote_count: 42 });
+    expect(screen.getByText("42")).toBeDefined();
+  });
+
+  it("does not show vote count when vote_count is 0", () => {
+    renderCard({ vote_count: 0 });
+    expect(screen.queryByText("0")).toBeNull();
   });
 });

@@ -452,6 +452,22 @@ export function getSharedList(token: string): Promise<ShoppingListDetailResponse
   return apiFetch<ShoppingListDetailResponse & { member_count?: number; owner_name?: string | null }>(`/shared/lists/${encodeURIComponent(token)}`);
 }
 
+// ── Votes / Hearts ──
+
+export function heartRecipe(id: string): Promise<{ hearted: boolean; vote_count: number }> {
+  return apiFetch<{ hearted: boolean; vote_count: number }>(
+    `/recipes/${encodeURIComponent(id)}/heart`,
+    { method: "POST" },
+  );
+}
+
+export function unheartRecipe(id: string): Promise<{ hearted: boolean; vote_count: number }> {
+  return apiFetch<{ hearted: boolean; vote_count: number }>(
+    `/recipes/${encodeURIComponent(id)}/heart`,
+    { method: "DELETE" },
+  );
+}
+
 export function joinSharedList(token: string): Promise<{ success: boolean; list_id: string; list_name: string }> {
   return apiFetch<{ success: boolean; list_id: string; list_name: string }>(`/shared/lists/${encodeURIComponent(token)}/join`, {
     method: "POST",
