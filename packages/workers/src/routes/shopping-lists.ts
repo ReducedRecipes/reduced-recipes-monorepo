@@ -18,6 +18,23 @@ async function getOwnedList(db: D1Database, listId: string, userId: string) {
     .first<ShoppingList>();
 }
 
+/** Check if user owns OR is a member of the list. */
+async function getAccessibleList(db: D1Database, listId: string, userId: string) {
+  // Check ownership first
+  const owned = await db
+    .prepare('SELECT * FROM shopping_lists WHERE id = ? AND user_id = ?')
+    .bind(listId, userId)
+    .first<ShoppingList>();
+  if (owned) return owned;
+
+  // Check membership
+  const member = await db
+    .prepare('SELECT sl.* FROM shopping_lists sl JOIN shopping_list_members slm ON slm.shopping_list_id = sl.id WHERE sl.id = ? AND slm.user_id = ?')
+    .bind(listId, userId)
+    .first<ShoppingList>();
+  return member;
+}
+
 // GET /api/v1/shopping-lists — list all user's shopping lists (owned + joined)
 shoppingLists.get('/api/v1/shopping-lists', requireAuth, async (c) => {
   const userId = c.get('userId');
@@ -110,7 +127,7 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
@@ -151,7 +168,7 @@ shoppingLists.patch('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
     );
   }
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
@@ -175,7 +192,7 @@ shoppingLists.delete('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
 
   if (!list) {
     return c.json(
@@ -215,7 +232,7 @@ shoppingLists.post('/api/v1/shopping-lists/:id/recipes', requireAuth, async (c) 
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
@@ -267,7 +284,7 @@ shoppingLists.delete('/api/v1/shopping-lists/:id/recipes/:recipe_id', requireAut
   const listId = c.req.param('id');
   const recipeId = c.req.param('recipe_id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
@@ -293,7 +310,7 @@ shoppingLists.post('/api/v1/shopping-lists/:id/items', requireAuth, async (c) =>
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
@@ -340,7 +357,7 @@ shoppingLists.patch('/api/v1/shopping-lists/:id/items/:item_id', requireAuth, as
   const listId = c.req.param('id');
   const itemId = c.req.param('item_id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
@@ -398,7 +415,7 @@ shoppingLists.delete('/api/v1/shopping-lists/:id/items/:item_id', requireAuth, a
   const listId = c.req.param('id');
   const itemId = c.req.param('item_id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
@@ -443,7 +460,7 @@ shoppingLists.post('/api/v1/shopping-lists/:id/share', requireAuth, async (c) =>
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
@@ -470,7 +487,7 @@ shoppingLists.post('/api/v1/shopping-lists/:id/share/renew', requireAuth, async 
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
@@ -496,7 +513,7 @@ shoppingLists.delete('/api/v1/shopping-lists/:id/share', requireAuth, async (c) 
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
@@ -762,7 +779,7 @@ shoppingLists.post('/api/v1/shopping-lists/:id/uncheck-all', requireAuth, async 
   const userId = c.get('userId');
   const listId = c.req.param('id');
 
-  const list = await getOwnedList(c.env.USERS_DB!, listId, userId);
+  const list = await getAccessibleList(c.env.USERS_DB!, listId, userId);
   if (!list) {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Shopping list not found' } }, 404);
   }
