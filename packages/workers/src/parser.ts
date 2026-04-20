@@ -112,7 +112,7 @@ function countWords(text: string): number {
   return text.split(/\s+/).filter(Boolean).length;
 }
 
-function calculateReduction(html: string, doc: RecipeDocument): RecipeDocument['reduction'] {
+function calculateReduction(html: string, doc: RecipeDocument): NonNullable<RecipeDocument['reduction']> {
   // Count visible text words on the page (strip all HTML tags)
   const visibleText = html
     .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
