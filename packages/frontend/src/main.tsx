@@ -20,6 +20,7 @@ import CollectionPage from "./pages/CollectionPage";
 import ShoppingListsPage from "./pages/ShoppingListsPage";
 import ShoppingListPage from "./pages/ShoppingListPage";
 import SharedListPage from "./pages/SharedListPage";
+import ManifestoPage from "./pages/ManifestoPage";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -52,6 +53,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/shopping-lists" element={<ShoppingListsPage />} />
             <Route path="/shopping-lists/:id" element={<ShoppingListPage />} />
             <Route path="/shared/lists/:token" element={<SharedListPage />} />
+            <Route path="/about" element={<ManifestoPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>

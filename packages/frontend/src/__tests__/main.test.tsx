@@ -66,6 +66,7 @@ import TagPage from "../pages/TagPage";
 import CuisinePage from "../pages/CuisinePage";
 import DomainPage from "../pages/DomainPage";
 import RemovePage from "../pages/RemovePage";
+import ManifestoPage from "../pages/ManifestoPage";
 
 afterEach(() => {
   cleanup();
@@ -89,6 +90,7 @@ function renderApp(initialRoute: string) {
             <Route path="/cuisine/:cuisine" element={<CuisinePage />} />
             <Route path="/site/:domain" element={<DomainPage />} />
             <Route path="/remove" element={<RemovePage />} />
+            <Route path="/about" element={<ManifestoPage />} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -135,6 +137,14 @@ describe("main.tsx route definitions", () => {
   it("renders RemovePage at /remove", () => {
     renderApp("/remove");
     expect(screen.getByText("Request Recipe Removal")).toBeDefined();
+  });
+
+  it("renders ManifestoPage at /about", () => {
+    renderApp("/about");
+    expect(screen.getByText("We cut the bullshit.")).toBeDefined();
+    expect(screen.getByText("Words removed")).toBeDefined();
+    expect(screen.getByText("184M")).toBeDefined();
+    expect(screen.getByText("Stories per recipe")).toBeDefined();
   });
 
   it("wraps all routes in Layout with header", () => {
