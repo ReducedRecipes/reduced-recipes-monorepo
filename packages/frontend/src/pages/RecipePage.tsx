@@ -49,6 +49,26 @@ function parseBaseServings(yields: string | null): number {
   return m ? parseInt(m[1]!) : 4;
 }
 
+function RecipeImage({ url, title }: { url: string | null; title: string }) {
+  const [failed, setFailed] = useState(false);
+  if (!url || failed) {
+    return (
+      <div className="mb-8">
+        <FoodPlaceholder label={title} ratio="16/9" />
+      </div>
+    );
+  }
+  return (
+    <img
+      src={url}
+      alt={title}
+      loading="lazy"
+      onError={() => setFailed(true)}
+      className="mb-8 aspect-[16/9] w-full object-cover"
+    />
+  );
+}
+
 export default function RecipePage() {
   const { id } = useParams<{ id: string }>();
   const { data: recipe, isLoading, error } = useRecipe(id ?? "");
@@ -422,18 +442,7 @@ export default function RecipePage() {
           {/* Right: image + steps */}
           <div>
             {/* Hero image */}
-            {recipe.image_url ? (
-              <img
-                src={recipe.image_url}
-                alt={recipe.title}
-                loading="lazy"
-                className="mb-8 aspect-[16/9] w-full object-cover"
-              />
-            ) : (
-              <div className="mb-8">
-                <FoodPlaceholder label={recipe.title} ratio="16/9" />
-              </div>
-            )}
+            <RecipeImage url={recipe.image_url} title={recipe.title} />
 
             {/* Timeline + Steps */}
             {recipe.instructions.length > 0 && (
