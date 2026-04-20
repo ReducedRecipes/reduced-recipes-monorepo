@@ -89,8 +89,20 @@ function canonicalise(raw: string): string {
   return words.join(' ') || s; // fallback to original if all words stripped
 }
 
+function normaliseFormUnit(unit: string | null): string | null {
+  if (!unit) return null;
+  const norm = normaliseUnit(unit);
+  // Singularise and check if it's a form/count word (not a real unit)
+  let singular = norm.toLowerCase();
+  if (singular.length > 2 && singular.endsWith('s') && !singular.endsWith('ss')) {
+    singular = singular.slice(0, -1);
+  }
+  if (FORM_WORDS.has(singular)) return null;
+  return norm;
+}
+
 function addToBucket(group: BucketGroup, item: ShoppingListItem): void {
-  const normUnit = item.unit ? normaliseUnit(item.unit) : null;
+  const normUnit = normaliseFormUnit(item.unit);
   const source: SmartRollupSource = {
     item_id: item.id,
     recipe_id: item.recipe_id,
