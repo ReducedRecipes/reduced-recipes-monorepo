@@ -24,22 +24,18 @@ function ShelfCard({ r, index, ranked }: { r: RecipeSummary; index: number; rank
         {imgStatus === "error" ? (
           <RecipePlaceholder ratio="1/1" />
         ) : (
-          <>
-            <img
-              src={r.image_url!}
-              alt={r.title}
-              loading="lazy"
-              onLoad={() => setImgStatus("loaded")}
-              onError={() => setImgStatus("error")}
-              style={{
-                width: "100%",
-                aspectRatio: "1/1",
-                objectFit: "cover",
-                display: imgStatus === "loaded" ? "block" : "none",
-              }}
-            />
-            {imgStatus === "loading" && <RecipePlaceholder ratio="1/1" />}
-          </>
+          <img
+            src={r.image_url!}
+            alt={r.title}
+            onLoad={() => setImgStatus("loaded")}
+            onError={() => setImgStatus("error")}
+            style={{
+              width: "100%",
+              aspectRatio: "1/1",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
         )}
         {ranked && (
           <div

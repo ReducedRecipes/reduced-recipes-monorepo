@@ -44,22 +44,18 @@ export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
         {imgStatus === "error" ? (
           <RecipePlaceholder />
         ) : (
-          <>
-            <img
-              src={recipe.image_url!}
-              alt={recipe.title}
-              loading="lazy"
-              onLoad={() => setImgStatus("loaded")}
-              onError={() => setImgStatus("error")}
-              style={{
-                width: "100%",
-                aspectRatio: "3/2",
-                objectFit: "cover",
-                display: imgStatus === "loaded" ? "block" : "none",
-              }}
-            />
-            {imgStatus === "loading" && <RecipePlaceholder />}
-          </>
+          <img
+            src={recipe.image_url!}
+            alt={recipe.title}
+            onLoad={() => setImgStatus("loaded")}
+            onError={() => setImgStatus("error")}
+            style={{
+              width: "100%",
+              aspectRatio: "3/2",
+              objectFit: "cover",
+              display: "block",
+            }}
+          />
         )}
         {recipe.total_time != null && (
           <div
