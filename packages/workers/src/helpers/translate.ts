@@ -46,18 +46,26 @@ async function translateWithLlama(
 
   const langName = LANG_NAMES[sourceLang] ?? sourceLang;
 
+  const isTitle = context === 'title';
+  const maxTokens = isTitle ? 50 : 2048;
+  const systemPrompt = isTitle
+    ? `Translate this ${langName} recipe title to English. Output ONLY the translated title (a few words), nothing else. Keep well-known dish names (Tiramisu, Carbonara, Risotto, Focaccia, Panettone, Panna Cotta) in their original form.`
+    : `You are a culinary translator. Translate ${langName} recipe ${context} to natural English. Keep well-known dish names in their original form. Keep quantities and units as-is. Remove any footnote reference numbers (standalone digits after ingredient names). Output ONLY the translation, no explanations.`;
+
   const result = (await ai.run('@cf/meta/llama-3.1-8b-instruct', {
     messages: [
-      {
-        role: 'system',
-        content: `You are a culinary translator. Translate ${langName} recipe ${context} to natural English. Keep well-known dish names (like Tiramisu, Carbonara, Risotto, Focaccia) in their original form. Keep quantities and units as-is. Remove any footnote reference numbers (like standalone digits that appear after ingredient names in instructions, e.g. "onion 1, celery 2" should become "onion, celery"). Output ONLY the translation, no explanations.`,
-      },
+      { role: 'system', content: systemPrompt },
       { role: 'user', content: text },
     ],
-    max_tokens: 2048,
+    max_tokens: maxTokens,
   })) as { response?: string };
 
   let translated = result?.response?.trim() ?? text;
+
+  // Safety: if title translation is way longer than original, Llama hallucinated — keep original
+  if (isTitle && translated.length > text.length * 3) {
+    return text;
+  }
 
   // Strip footnote reference numbers (e.g. "onion 1, celery 2" → "onion, celery")
   if (context === 'cooking instruction') {
