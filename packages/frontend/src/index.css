@@ -12,33 +12,6 @@ input, select, textarea {
   font-size: 16px !important;
 }
 
-/* ——— Cook mode swipe animations ——— */
-@keyframes slideInFromRight {
-  from { transform: translateX(100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-@keyframes slideInFromLeft {
-  from { transform: translateX(-100%); opacity: 0; }
-  to { transform: translateX(0); opacity: 1; }
-}
-@keyframes slideOutLeft {
-  from { transform: translateX(0); opacity: 1; }
-  to { transform: translateX(-100%); opacity: 0; }
-}
-@keyframes slideOutRight {
-  from { transform: translateX(0); opacity: 1; }
-  to { transform: translateX(100%); opacity: 0; }
-}
-.cook-slide-in {
-  animation: slideInFromRight 0.25s ease-out;
-}
-.cook-slide-out-left {
-  animation: slideOutLeft 0.25s ease-in;
-}
-.cook-slide-out-right {
-  animation: slideOutRight 0.25s ease-in;
-}
-
 /* ——— Search page responsive ——— */
 @media (max-width: 640px) {
   .search-grid {
