@@ -152,7 +152,7 @@ ingredientSearch.get('/api/v1/ingredients/suggest', async (c) => {
   }
 
   const result = await c.env.DB.prepare(
-    'SELECT name, count FROM ingredients WHERE name LIKE ? AND count > 0 ORDER BY count DESC LIMIT ?',
+    'SELECT name, count FROM ingredients WHERE name LIKE ?1 AND count > 0 ORDER BY count DESC LIMIT ?2',
   ).bind(`${q}%`, limit).all();
 
   const items = (result.results ?? []).map((r) => ({
@@ -160,9 +160,8 @@ ingredientSearch.get('/api/v1/ingredients/suggest', async (c) => {
     count: (r as Record<string, unknown>).count as number,
   }));
 
-  return c.json({ items }, 200, {
-    'Cache-Control': 'public, max-age=300',
-  });
+  c.header('Cache-Control', 'public, max-age=300');
+  return c.json({ items });
 });
 
 export default ingredientSearch;
