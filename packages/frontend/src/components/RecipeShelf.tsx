@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { RecipePlaceholder } from "./RecipeCard";
 import type { RecipeSummary } from "@rr/shared";
 
 interface RecipeShelfProps {
@@ -10,8 +11,9 @@ interface RecipeShelfProps {
 }
 
 function ShelfCard({ r, index, ranked }: { r: RecipeSummary; index: number; ranked?: boolean }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const showImage = r.image_url && !imgFailed;
+  const [imgStatus, setImgStatus] = useState<"loading" | "loaded" | "error">(
+    r.image_url ? "loading" : "error"
+  );
 
   return (
     <Link
@@ -19,36 +21,25 @@ function ShelfCard({ r, index, ranked }: { r: RecipeSummary; index: number; rank
       style={{ textAlign: "left", display: "flex", flexDirection: "column", gap: 10 }}
     >
       <div style={{ position: "relative" }}>
-        {showImage ? (
-          <img
-            src={r.image_url ?? undefined}
-            alt={r.title}
-            loading="lazy"
-            onError={() => setImgFailed(true)}
-            style={{
-              width: "100%",
-              aspectRatio: "1/1",
-              objectFit: "cover",
-              display: "block",
-            }}
-          />
+        {imgStatus === "error" ? (
+          <RecipePlaceholder ratio="1/1" />
         ) : (
-          <div
-            style={{
-              width: "100%",
-              aspectRatio: "1/1",
-              background: "oklch(0.82 0.03 200)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
+          <>
             <img
-              src="/placeholder-recipe.png"
-              alt=""
-              style={{ width: "40%", opacity: 0.9, filter: "brightness(10)" }}
+              src={r.image_url!}
+              alt={r.title}
+              loading="lazy"
+              onLoad={() => setImgStatus("loaded")}
+              onError={() => setImgStatus("error")}
+              style={{
+                width: "100%",
+                aspectRatio: "1/1",
+                objectFit: "cover",
+                display: imgStatus === "loaded" ? "block" : "none",
+              }}
             />
-          </div>
+            {imgStatus === "loading" && <RecipePlaceholder ratio="1/1" />}
+          </>
         )}
         {ranked && (
           <div

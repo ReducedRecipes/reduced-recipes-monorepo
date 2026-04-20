@@ -2,9 +2,31 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import type { RecipeSummary } from "@rr/shared/types";
 
+function RecipePlaceholder({ ratio = "3/2" }: { ratio?: string }) {
+  return (
+    <div
+      style={{
+        width: "100%",
+        aspectRatio: ratio,
+        background: "oklch(0.82 0.03 200)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      <img
+        src="/placeholder-recipe.png"
+        alt=""
+        style={{ width: "40%", opacity: 0.9, filter: "brightness(10)" }}
+      />
+    </div>
+  );
+}
+
 export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
-  const [imgFailed, setImgFailed] = useState(false);
-  const showImage = recipe.image_url && !imgFailed;
+  const [imgStatus, setImgStatus] = useState<"loading" | "loaded" | "error">(
+    recipe.image_url ? "loading" : "error"
+  );
 
   return (
     <Link
@@ -18,36 +40,25 @@ export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
       }}
     >
       <div style={{ position: "relative" }}>
-        {showImage ? (
-          <img
-            src={recipe.image_url ?? undefined}
-            alt={recipe.title}
-            loading="lazy"
-            onError={() => setImgFailed(true)}
-            style={{
-              width: "100%",
-              aspectRatio: "3/2",
-              objectFit: "cover",
-              display: "block",
-            }}
-          />
+        {imgStatus === "error" ? (
+          <RecipePlaceholder />
         ) : (
-          <div
-            style={{
-              width: "100%",
-              aspectRatio: "3/2",
-              background: "oklch(0.82 0.03 200)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
+          <>
             <img
-              src="/placeholder-recipe.png"
-              alt=""
-              style={{ width: "40%", opacity: 0.9, filter: "brightness(10)" }}
+              src={recipe.image_url!}
+              alt={recipe.title}
+              loading="lazy"
+              onLoad={() => setImgStatus("loaded")}
+              onError={() => setImgStatus("error")}
+              style={{
+                width: "100%",
+                aspectRatio: "3/2",
+                objectFit: "cover",
+                display: imgStatus === "loaded" ? "block" : "none",
+              }}
             />
-          </div>
+            {imgStatus === "loading" && <RecipePlaceholder />}
+          </>
         )}
         {recipe.total_time != null && (
           <div
@@ -97,3 +108,5 @@ export default function RecipeCard({ recipe }: { recipe: RecipeSummary }) {
     </Link>
   );
 }
+
+export { RecipePlaceholder };
