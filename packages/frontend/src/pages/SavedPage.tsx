@@ -30,7 +30,7 @@ function BookmarkedRecipeCard({ recipeId }: { recipeId: string }) {
         background: "var(--bg)",
       }}
     >
-      <Link to={`/recipe/${recipeId}`} style={{ display: "flex", gap: 14, padding: 12 }}>
+      <Link to={`/recipe/${recipeId}`} style={{ display: "flex", gap: 14, padding: 12, paddingRight: 40 }}>
         {recipe.image_url ? (
           <img
             src={recipe.image_url}
@@ -49,7 +49,7 @@ function BookmarkedRecipeCard({ recipeId }: { recipeId: string }) {
           </div>
         </div>
       </Link>
-      <div style={{ position: "absolute", top: 8, right: 8 }}>
+      <div style={{ position: "absolute", top: 12, right: 10 }}>
         <BookmarkButton recipeId={recipeId} compact />
       </div>
     </div>
