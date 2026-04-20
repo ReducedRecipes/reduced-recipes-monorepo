@@ -54,11 +54,18 @@ function createMockUsersDB(overrides: {
           first: vi.fn().mockResolvedValue(TEST_USER),
         };
       }
-      // SELECT shopping_lists with subqueries (GET list)
+      // SELECT owned shopping_lists with subqueries (GET /shopping-lists)
       if (sql.includes('FROM shopping_lists sl') && sql.includes('ORDER BY')) {
         return {
           bind: vi.fn().mockReturnThis(),
           all: vi.fn().mockResolvedValue(makeD1Result(lists)),
+        };
+      }
+      // SELECT joined (shared) shopping lists via shopping_list_members (GET /shopping-lists)
+      if (sql.includes('FROM shopping_list_members') && sql.includes('JOIN shopping_lists') && sql.includes('ORDER BY')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockResolvedValue(makeD1Result([])),
         };
       }
       // COUNT existing lists
