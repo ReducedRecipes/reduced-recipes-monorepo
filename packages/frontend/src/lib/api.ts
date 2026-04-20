@@ -329,6 +329,10 @@ export function syncBookmarks(actions: BookmarkSyncAction[]): Promise<BookmarkSy
 export interface ShoppingListSummary extends ShoppingList {
   item_count: number;
   recipe_count: number;
+  member_count?: number;
+  role?: 'owner' | 'member';
+  is_shared?: number;
+  owner_name?: string | null;
 }
 
 export interface ShoppingListListResponse {
@@ -421,6 +425,34 @@ export function renewShareLink(listId: string): Promise<ShareLinkResponse> {
   return apiFetch<ShareLinkResponse>(`/shopping-lists/${encodeURIComponent(listId)}/share/renew`, { method: "POST" });
 }
 
-export function getSharedList(token: string): Promise<ShoppingListDetailResponse> {
-  return apiFetch<ShoppingListDetailResponse>(`/shared/lists/${encodeURIComponent(token)}`);
+export function getSharedList(token: string): Promise<ShoppingListDetailResponse & { member_count?: number; owner_name?: string | null }> {
+  return apiFetch<ShoppingListDetailResponse & { member_count?: number; owner_name?: string | null }>(`/shared/lists/${encodeURIComponent(token)}`);
+}
+
+export function joinSharedList(token: string): Promise<{ success: boolean; list_id: string; list_name: string }> {
+  return apiFetch<{ success: boolean; list_id: string; list_name: string }>(`/shared/lists/${encodeURIComponent(token)}/join`, {
+    method: "POST",
+  });
+}
+
+export function leaveSharedList(token: string): Promise<void> {
+  return apiFetch<void>(`/shared/lists/${encodeURIComponent(token)}/leave`, { method: "DELETE" });
+}
+
+export function addSharedListItem(token: string, data: { name: string; quantity?: number; unit?: string }): Promise<ShoppingListItem> {
+  return apiFetch<ShoppingListItem>(`/shared/lists/${encodeURIComponent(token)}/items`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+}
+
+export interface SharedListMembership {
+  is_member: boolean;
+  is_owner: boolean;
+  is_authenticated: boolean;
+}
+
+export function getSharedListMembership(token: string): Promise<SharedListMembership> {
+  return apiFetch<SharedListMembership>(`/shared/lists/${encodeURIComponent(token)}/membership`);
 }

@@ -12,11 +12,16 @@ import {
   createShareLink,
   revokeShareLink,
   renewShareLink,
+  joinSharedList,
+  leaveSharedList,
+  addSharedListItem,
+  getSharedListMembership,
 } from "../lib/api";
 import type {
   ShoppingListSummary,
   ShoppingListDetailResponse,
   ShareLinkResponse,
+  SharedListMembership,
 } from "../lib/api";
 import { useAuth } from "./useAuth";
 import type { ShoppingList } from "@rr/shared";
@@ -190,6 +195,61 @@ export function useShoppingListItems(listId: string | undefined) {
     isAdding: addItemMutation.isPending,
     isUpdating: updateItemMutation.isPending,
     isDeleting: deleteItemMutation.isPending,
+  };
+}
+
+export function useSharedListMembership(token: string | undefined) {
+  const { isAuthenticated } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["shared-list-membership", token],
+    queryFn: () => getSharedListMembership(token!),
+    enabled: isAuthenticated && !!token,
+    staleTime: 30 * 1000,
+  });
+
+  const joinMutation = useMutation({
+    mutationFn: () => joinSharedList(token!),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["shared-list-membership", token] });
+      queryClient.invalidateQueries({ queryKey: ["shopping-lists"] });
+    },
+  });
+
+  const leaveMutation = useMutation({
+    mutationFn: () => leaveSharedList(token!),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["shared-list-membership", token] });
+      queryClient.invalidateQueries({ queryKey: ["shopping-lists"] });
+    },
+  });
+
+  return {
+    membership: data,
+    isLoading,
+    joinList: joinMutation.mutate,
+    joinListAsync: joinMutation.mutateAsync,
+    leaveList: leaveMutation.mutate,
+    isJoining: joinMutation.isPending,
+    isLeaving: leaveMutation.isPending,
+  };
+}
+
+export function useSharedListItems(token: string | undefined) {
+  const queryClient = useQueryClient();
+
+  const addItemMutation = useMutation({
+    mutationFn: (data: { name: string; quantity?: number; unit?: string }) =>
+      addSharedListItem(token!, data),
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
+    },
+  });
+
+  return {
+    addItem: addItemMutation.mutate,
+    isAdding: addItemMutation.isPending,
   };
 }
 

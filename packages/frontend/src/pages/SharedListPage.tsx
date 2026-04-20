@@ -1,11 +1,20 @@
+import { useState } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
+import { useAuth } from "../hooks/useAuth";
+import {
+  useSharedListMembership,
+  useSharedListItems,
+} from "../hooks/useShoppingLists";
 import type { SmartRollupItem } from "@rr/shared";
 
 interface SharedListResponse {
   id: string;
   name: string;
+  user_id: string;
+  member_count?: number;
+  owner_name?: string | null;
   items: {
     unchecked: SmartRollupItem[];
     checked: SmartRollupItem[];
@@ -15,12 +24,19 @@ interface SharedListResponse {
 export default function SharedListPage() {
   const { token } = useParams<{ token: string }>();
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
 
   const { data: list, isLoading, error } = useQuery({
     queryKey: ["shared-list", token],
     queryFn: () => apiFetch<SharedListResponse>(`/shared/lists/${token}`),
     enabled: !!token,
   });
+
+  const { membership, joinList, leaveList, isJoining, isLeaving } =
+    useSharedListMembership(token);
+
+  const { addItem, isAdding } = useSharedListItems(token);
+  const [newItemName, setNewItemName] = useState("");
 
   const toggleItem = useMutation({
     mutationFn: ({ itemId, checked }: { itemId: string; checked: number }) =>
@@ -56,65 +72,149 @@ export default function SharedListPage() {
   const unchecked = list.items?.unchecked ?? [];
   const checked = list.items?.checked ?? [];
 
+  const handleAddItem = () => {
+    const name = newItemName.trim();
+    if (!name) return;
+    addItem({ name });
+    setNewItemName("");
+  };
+
+  const canAddItems =
+    membership?.is_owner || membership?.is_member || !isAuthenticated;
+
   return (
     <div className="mx-auto max-w-2xl py-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">{list.name}</h1>
-      <p className="text-sm text-gray-500 mb-6">Shared shopping list</p>
-
-      {unchecked.length === 0 && checked.length === 0 ? (
-        <p className="text-gray-500 text-center py-8">This list is empty.</p>
-      ) : (
-        <>
-          {unchecked.length > 0 && (
-            <div className="space-y-1 mb-6">
-              {unchecked.map((item) => (
-                <button
-                  key={item.canonical_item}
-                  type="button"
-                  onClick={() => {
-                    for (const s of item.sources ?? []) {
-                      toggleItem.mutate({ itemId: s.item_id, checked: 1 });
-                    }
-                  }}
-                  className="flex w-full items-center gap-3 rounded-lg border border-gray-200 bg-white px-4 py-3 text-left hover:bg-gray-50 transition-colors"
-                >
-                  <div className="h-5 w-5 shrink-0 rounded" style={{ border: "2px solid var(--ink-2)" }} />
-                  <span className="text-sm text-gray-900">{item.display_text}</span>
-                </button>
-              ))}
-            </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-1">{list.name}</h1>
+      <div className="flex items-center gap-2 mb-4">
+        <p className="text-sm text-gray-500">
+          Shared shopping list
+          {list.owner_name && (
+            <span> by {list.owner_name}</span>
           )}
+        </p>
+        {(list.member_count ?? 0) > 0 && (
+          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+              <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+            </svg>
+            {list.member_count} {list.member_count === 1 ? "member" : "members"}
+          </span>
+        )}
+      </div>
 
-          {checked.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-gray-500 mb-2">
-                Checked off ({checked.length})
-              </h3>
-              <div className="space-y-1">
-                {checked.map((item) => (
+      {/* Membership actions */}
+      {isAuthenticated && !membership?.is_owner && (
+        <div className="mb-6">
+          {membership?.is_member ? (
+            <div className="flex items-center justify-between rounded-lg border border-green-200 bg-green-50 px-4 py-3">
+              <span className="text-sm text-green-800">You're a member of this list</span>
+              <button
+                onClick={() => {
+                  if (confirm("Leave this shared list?")) {
+                    leaveList();
+                  }
+                }}
+                disabled={isLeaving}
+                className="text-sm font-medium text-red-600 hover:text-red-700 disabled:opacity-50"
+              >
+                {isLeaving ? "Leaving..." : "Leave"}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => joinList()}
+              disabled={isJoining}
+              className="w-full rounded-lg bg-orange-500 px-4 py-3 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+            >
+              {isJoining ? "Joining..." : "Add to my shopping lists"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Items list */}
+      <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+        {unchecked.length === 0 && checked.length === 0 ? (
+          <p className="text-gray-500 text-center py-8 text-sm">This list is empty.</p>
+        ) : (
+          <>
+            {unchecked.length > 0 && (
+              <div className="divide-y divide-gray-100 px-4">
+                {unchecked.map((item) => (
                   <button
                     key={item.canonical_item}
                     type="button"
                     onClick={() => {
                       for (const s of item.sources ?? []) {
-                        toggleItem.mutate({ itemId: s.item_id, checked: 0 });
+                        toggleItem.mutate({ itemId: s.item_id, checked: 1 });
                       }
                     }}
-                    className="flex w-full items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 px-4 py-3 text-left hover:bg-gray-100 transition-colors"
+                    className="flex w-full items-center gap-3 py-3 text-left hover:bg-gray-50 transition-colors"
                   >
-                    <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-orange-500 bg-orange-500">
-                      <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                      </svg>
-                    </div>
-                    <span className="text-sm text-gray-400 line-through">{item.display_text}</span>
+                    <div className="h-5 w-5 shrink-0 rounded" style={{ border: "2px solid var(--ink-2)" }} />
+                    <span className="text-sm text-gray-900">{item.display_text}</span>
                   </button>
                 ))}
               </div>
+            )}
+          </>
+        )}
+
+        {/* Add item input */}
+        {canAddItems && (
+          <div className="border-t border-gray-200 px-4 py-3">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Add an item..."
+                value={newItemName}
+                onChange={(e) => setNewItemName(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddItem()}
+                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-orange-500 focus:outline-none focus:ring-1 focus:ring-orange-500"
+              />
+              <button
+                onClick={handleAddItem}
+                disabled={isAdding || !newItemName.trim()}
+                className="rounded-lg bg-orange-500 px-4 py-2 text-sm font-medium text-white hover:bg-orange-600 disabled:opacity-50"
+              >
+                Add
+              </button>
             </div>
-          )}
-        </>
-      )}
+          </div>
+        )}
+
+        {/* Checked items */}
+        {checked.length > 0 && (
+          <div className="border-t border-gray-200">
+            <div className="px-4 py-2 bg-gray-50">
+              <span className="text-sm font-medium text-gray-500">
+                Checked off ({checked.length})
+              </span>
+            </div>
+            <div className="divide-y divide-gray-100 px-4">
+              {checked.map((item) => (
+                <button
+                  key={item.canonical_item}
+                  type="button"
+                  onClick={() => {
+                    for (const s of item.sources ?? []) {
+                      toggleItem.mutate({ itemId: s.item_id, checked: 0 });
+                    }
+                  }}
+                  className="flex w-full items-center gap-3 py-3 text-left hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 border-orange-500 bg-orange-500">
+                    <svg className="h-3 w-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <span className="text-sm text-gray-400 line-through">{item.display_text}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

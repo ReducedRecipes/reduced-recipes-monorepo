@@ -370,7 +370,19 @@ export default function ShoppingListPage() {
       {list.share_token && (
         <div className="mt-4 rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-800">
           <div className="flex items-center justify-between">
-            <span>This list is shared via link.</span>
+            <div className="flex items-center gap-2">
+              <span>This list is shared via link.</span>
+              {(list as unknown as { member_count?: number }).member_count != null &&
+                (list as unknown as { member_count: number }).member_count > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-orange-100 px-2 py-0.5 text-xs font-medium text-orange-700">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3zM6 8a2 2 0 11-4 0 2 2 0 014 0zM16 18v-3a5.972 5.972 0 00-.75-2.906A3.005 3.005 0 0119 15v3h-3zM4.75 12.094A5.973 5.973 0 004 15v3H1v-3a3 3 0 013.75-2.906z" />
+                  </svg>
+                  Shared with {(list as unknown as { member_count: number }).member_count}{" "}
+                  {(list as unknown as { member_count: number }).member_count === 1 ? "person" : "people"}
+                </span>
+              )}
+            </div>
             <button
               onClick={() => {
                 if (confirm("Revoke the share link?")) {

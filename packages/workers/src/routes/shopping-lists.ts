@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { getCookie } from 'hono/cookie';
 import type { Env } from '@rr/shared/env';
 import type { ShoppingList, ShoppingListItem, IngredientParseJob } from '@rr/shared';
-import { requireAuth } from '../middleware/auth';
+import { requireAuth, optionalAuth } from '../middleware/auth';
 import { parseIngredient } from '../helpers/ingredient-parser';
 import { rollupItems } from '../helpers/smart-rollup';
 
@@ -18,15 +18,20 @@ async function getOwnedList(db: D1Database, listId: string, userId: string) {
     .first<ShoppingList>();
 }
 
-// GET /api/v1/shopping-lists — list all user's shopping lists
+// GET /api/v1/shopping-lists — list all user's shopping lists (owned + joined)
 shoppingLists.get('/api/v1/shopping-lists', requireAuth, async (c) => {
   const userId = c.get('userId');
 
-  const result = await c.env.USERS_DB!.prepare(
+  // Owned lists
+  const ownedResult = await c.env.USERS_DB!.prepare(
     `SELECT sl.id, sl.user_id, sl.name, sl.is_default, sl.collection_id,
             sl.share_token, sl.share_expires_at, sl.created_at, sl.updated_at,
             (SELECT COUNT(*) FROM shopping_list_items WHERE shopping_list_id = sl.id) AS item_count,
-            (SELECT COUNT(DISTINCT recipe_id) FROM shopping_list_recipes WHERE shopping_list_id = sl.id) AS recipe_count
+            (SELECT COUNT(DISTINCT recipe_id) FROM shopping_list_recipes WHERE shopping_list_id = sl.id) AS recipe_count,
+            (SELECT COUNT(*) FROM shopping_list_members WHERE shopping_list_id = sl.id) AS member_count,
+            'owner' AS role,
+            0 AS is_shared,
+            NULL AS owner_name
      FROM shopping_lists sl
      WHERE sl.user_id = ?
      ORDER BY sl.created_at DESC`,
@@ -34,9 +39,29 @@ shoppingLists.get('/api/v1/shopping-lists', requireAuth, async (c) => {
     .bind(userId)
     .all();
 
-  const items = (result.results ?? []) as unknown as (ShoppingList & { item_count: number; recipe_count: number })[];
+  // Joined shared lists
+  const joinedResult = await c.env.USERS_DB!.prepare(
+    `SELECT sl.id, sl.user_id, sl.name, sl.is_default, sl.collection_id,
+            sl.share_token, sl.share_expires_at, sl.created_at, sl.updated_at,
+            (SELECT COUNT(*) FROM shopping_list_items WHERE shopping_list_id = sl.id) AS item_count,
+            (SELECT COUNT(DISTINCT recipe_id) FROM shopping_list_recipes WHERE shopping_list_id = sl.id) AS recipe_count,
+            0 AS member_count,
+            'member' AS role,
+            1 AS is_shared,
+            u.name AS owner_name
+     FROM shopping_list_members slm
+     JOIN shopping_lists sl ON sl.id = slm.shopping_list_id
+     LEFT JOIN users u ON u.id = sl.user_id
+     WHERE slm.user_id = ?
+     ORDER BY slm.added_at DESC`,
+  )
+    .bind(userId)
+    .all();
 
-  return c.json({ items });
+  const owned = (ownedResult.results ?? []) as unknown as (ShoppingList & { item_count: number; recipe_count: number; member_count: number; role: string; is_shared: number; owner_name: string | null })[];
+  const joined = (joinedResult.results ?? []) as unknown as (ShoppingList & { item_count: number; recipe_count: number; member_count: number; role: string; is_shared: number; owner_name: string | null })[];
+
+  return c.json({ items: [...owned, ...joined] });
 });
 
 // POST /api/v1/shopping-lists — create a new shopping list
@@ -103,7 +128,14 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
 
   const items = (itemsResult.results ?? []) as unknown as ShoppingListItem[];
 
-  return c.json({ ...list, ...rollupItems(items) });
+  // Get member count
+  const memberRow = await c.env.USERS_DB!.prepare(
+    'SELECT COUNT(*) as count FROM shopping_list_members WHERE shopping_list_id = ?',
+  )
+    .bind(listId)
+    .first<{ count: number }>();
+
+  return c.json({ ...list, ...rollupItems(items), member_count: memberRow?.count ?? 0 });
 });
 
 // PATCH /api/v1/shopping-lists/:id — update list name
@@ -506,7 +538,180 @@ shoppingLists.get('/api/v1/shared/lists/:token', async (c) => {
 
   const items = (itemsResult.results ?? []) as unknown as ShoppingListItem[];
 
-  return c.json({ ...list, ...rollupItems(items) });
+  // Get member count
+  const memberRow = await c.env.USERS_DB!.prepare(
+    'SELECT COUNT(*) as count FROM shopping_list_members WHERE shopping_list_id = ?',
+  )
+    .bind(list.id)
+    .first<{ count: number }>();
+
+  // Get owner name
+  const owner = await c.env.USERS_DB!.prepare(
+    'SELECT name FROM users WHERE id = ?',
+  )
+    .bind(list.user_id)
+    .first<{ name: string }>();
+
+  return c.json({
+    ...list,
+    ...rollupItems(items),
+    member_count: memberRow?.count ?? 0,
+    owner_name: owner?.name ?? null,
+  });
+});
+
+// POST /api/v1/shared/lists/:token/join — authenticated user joins a shared list
+shoppingLists.post('/api/v1/shared/lists/:token/join', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const token = c.req.param('token');
+
+  const list = await c.env.USERS_DB!.prepare(
+    'SELECT * FROM shopping_lists WHERE share_token = ?',
+  )
+    .bind(token)
+    .first<ShoppingList>();
+
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shared list not found' } }, 404);
+  }
+
+  if (list.share_expires_at && new Date(list.share_expires_at) < new Date()) {
+    return c.json({ error: { code: 'EXPIRED', message: 'Share link has expired' } }, 410);
+  }
+
+  // Don't allow owner to join their own list
+  if (list.user_id === userId) {
+    return c.json({ error: { code: 'ALREADY_OWNER', message: 'You already own this list' } }, 400);
+  }
+
+  // Check if already a member
+  const existing = await c.env.USERS_DB!.prepare(
+    'SELECT 1 FROM shopping_list_members WHERE shopping_list_id = ? AND user_id = ?',
+  )
+    .bind(list.id, userId)
+    .first();
+
+  if (existing) {
+    return c.json({ success: true, list_id: list.id, list_name: list.name });
+  }
+
+  await c.env.USERS_DB!.prepare(
+    'INSERT INTO shopping_list_members (shopping_list_id, user_id) VALUES (?, ?)',
+  )
+    .bind(list.id, userId)
+    .run();
+
+  return c.json({ success: true, list_id: list.id, list_name: list.name });
+});
+
+// DELETE /api/v1/shared/lists/:token/leave — user leaves a shared list
+shoppingLists.delete('/api/v1/shared/lists/:token/leave', requireAuth, async (c) => {
+  const userId = c.get('userId');
+  const token = c.req.param('token');
+
+  const list = await c.env.USERS_DB!.prepare(
+    'SELECT id FROM shopping_lists WHERE share_token = ?',
+  )
+    .bind(token)
+    .first<{ id: string }>();
+
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shared list not found' } }, 404);
+  }
+
+  await c.env.USERS_DB!.prepare(
+    'DELETE FROM shopping_list_members WHERE shopping_list_id = ? AND user_id = ?',
+  )
+    .bind(list.id, userId)
+    .run();
+
+  return c.body(null, 204);
+});
+
+// POST /api/v1/shared/lists/:token/items — member adds item to shared list
+shoppingLists.post('/api/v1/shared/lists/:token/items', async (c) => {
+  const token = c.req.param('token');
+
+  const list = await c.env.USERS_DB!.prepare(
+    'SELECT * FROM shopping_lists WHERE share_token = ?',
+  )
+    .bind(token)
+    .first<ShoppingList>();
+
+  if (!list) {
+    return c.json({ error: { code: 'NOT_FOUND', message: 'Shared list not found' } }, 404);
+  }
+
+  if (list.share_expires_at && new Date(list.share_expires_at) < new Date()) {
+    return c.json({ error: { code: 'EXPIRED', message: 'Share link has expired' } }, 410);
+  }
+
+  const body = await c.req.json<{ name: string; quantity?: number; unit?: string }>();
+  if (!body.name || typeof body.name !== 'string' || body.name.trim() === '') {
+    return c.json({ error: { code: 'INVALID_INPUT', message: 'name is required' } }, 400);
+  }
+
+  const parsed = parseIngredient(body.name);
+  const id = crypto.randomUUID();
+  const now = new Date().toISOString();
+
+  const item: ShoppingListItem = {
+    id,
+    shopping_list_id: list.id,
+    recipe_id: null,
+    original_text: body.name.trim(),
+    quantity: body.quantity ?? parsed.quantity,
+    unit: body.unit ?? (parsed.unit || null),
+    item: parsed.canonical_name || body.name.trim().toLowerCase(),
+    checked: 0,
+    parse_failed: 0,
+    parsing: 0,
+    source: 'manual',
+    position: 0,
+    created_at: now,
+    updated_at: now,
+  };
+
+  await c.env.USERS_DB!.prepare(
+    `INSERT INTO shopping_list_items (id, shopping_list_id, recipe_id, original_text, quantity, unit, item, checked, parse_failed, parsing, source, position, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 'manual', 0, ?, ?)`,
+  )
+    .bind(id, list.id, null, item.original_text, item.quantity, item.unit, item.item, now, now)
+    .run();
+
+  return c.json(item, 201);
+});
+
+// GET /api/v1/shared/lists/:token/membership — check if current user is a member
+shoppingLists.get('/api/v1/shared/lists/:token/membership', optionalAuth, async (c) => {
+  const token = c.req.param('token');
+  const userId = c.get('userId');
+
+  if (!userId) {
+    return c.json({ is_member: false, is_owner: false, is_authenticated: false });
+  }
+
+  const list = await c.env.USERS_DB!.prepare(
+    'SELECT id, user_id FROM shopping_lists WHERE share_token = ?',
+  )
+    .bind(token)
+    .first<{ id: string; user_id: string }>();
+
+  if (!list) {
+    return c.json({ is_member: false, is_owner: false, is_authenticated: true });
+  }
+
+  if (list.user_id === userId) {
+    return c.json({ is_member: false, is_owner: true, is_authenticated: true });
+  }
+
+  const membership = await c.env.USERS_DB!.prepare(
+    'SELECT 1 FROM shopping_list_members WHERE shopping_list_id = ? AND user_id = ?',
+  )
+    .bind(list.id, userId)
+    .first();
+
+  return c.json({ is_member: !!membership, is_owner: false, is_authenticated: true });
 });
 
 // PATCH /api/v1/shared/lists/:token/items/:itemId — toggle item check via share token
