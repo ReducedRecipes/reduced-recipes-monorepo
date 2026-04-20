@@ -120,6 +120,7 @@ export default function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const q = searchParams.get("q") ?? "";
   const inputRef = useRef<HTMLInputElement>(null);
+  const [showFilters, setShowFilters] = useState(false);
   const { health } = useHealth();
 
   // Derive filter state from URL params (single source of truth)
@@ -201,6 +202,7 @@ export default function SearchPage() {
   };
 
   const activeFilterCount = [filters.maxTime, ...filters.diet, ...filters.method].filter(Boolean).length;
+  const hasActiveFilters = activeFilterCount > 0;
   const totalRecipes = health?.total_recipes ?? 0;
 
   return (
@@ -264,10 +266,26 @@ export default function SearchPage() {
         </div>
       </section>
 
+      {/* Mobile filter toggle */}
+      <div className="sm:hidden" style={{ padding: "12px 0" }}>
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="mono"
+          style={{
+            fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em",
+            padding: "10px 16px", border: "1px solid var(--rule-2)", width: "100%",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}
+        >
+          <span>Filters {hasActiveFilters ? `(${activeFilterCount})` : ""}</span>
+          <span>{showFilters ? "▲" : "▼"}</span>
+        </button>
+      </div>
+
       {/* Filters + Results */}
-      <section style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 32, padding: "40px 0", alignItems: "start" }}>
-        {/* Filter sidebar */}
-        <aside style={{ position: "sticky", top: 170, alignSelf: "start", zIndex: 5 }}>
+      <section style={{ display: "grid", gridTemplateColumns: "220px 1fr", gap: 32, padding: "40px 0", alignItems: "start" }} className="search-grid">
+        {/* Filter sidebar — hidden on mobile unless toggled */}
+        <aside style={{ position: "sticky", top: 170, alignSelf: "start", zIndex: 5 }} className={`filter-sidebar ${showFilters ? "" : "hidden-mobile"}`}>
           <div className="caps" style={{ marginBottom: 18, color: "var(--ink-3)" }}>— Refine by</div>
 
           <FilterGroup title="Maximum time">
