@@ -32,7 +32,7 @@ export default function TopBar({ recipeCount = 0 }: TopBarProps) {
     <header className="sticky top-0 z-10 border-b border-rule bg-bg" data-no-print>
       {/* Row 1: Utility strip */}
       <div className="border-b border-rule">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-1.5">
+        <div className="utility-strip mx-auto flex max-w-7xl items-center justify-between px-4 py-1.5">
           <span className="text-caps font-mono text-ink-3">EST. 2024</span>
           <span className="text-caps font-mono text-ink-3">
             <Ticker value={recipeCount} className="text-ink-2" /> recipes indexed
@@ -40,15 +40,15 @@ export default function TopBar({ recipeCount = 0 }: TopBarProps) {
           <span className="hidden text-caps font-mono text-ink-3 sm:block">
             Recipes, reduced to what matters.
           </span>
-          <span className="text-caps font-mono text-ink-3">v1.0 / Issue 01</span>
+          <span className="hidden text-caps font-mono text-ink-3 sm:block">v1.0 / Issue 01</span>
         </div>
       </div>
 
       {/* Row 2: Masthead */}
       <div className="border-b border-rule">
-        <div className="mx-auto grid max-w-7xl grid-cols-3 items-center px-4 py-3">
-          {/* Left nav */}
-          <nav className="flex gap-5 text-sm text-ink-2">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-3 md:grid md:grid-cols-3">
+          {/* Left nav — hidden on mobile */}
+          <nav className="hidden gap-5 text-sm text-ink-2 md:flex">
             <Link to="/search" className="transition-colors hover:text-ink">
               Browse
             </Link>
@@ -77,7 +77,7 @@ export default function TopBar({ recipeCount = 0 }: TopBarProps) {
               className="flex items-center gap-1.5 rounded border border-rule px-3 py-1.5 text-sm text-ink-3 transition-colors hover:border-ink-3 hover:text-ink-2"
             >
               Search
-              <kbd className="ml-1 rounded border border-rule bg-bg-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-3">
+              <kbd className="ml-1 hidden rounded border border-rule bg-bg-2 px-1.5 py-0.5 font-mono text-[10px] text-ink-3 sm:inline">
                 ⌘K
               </kbd>
             </button>
@@ -88,12 +88,12 @@ export default function TopBar({ recipeCount = 0 }: TopBarProps) {
 
       {/* Row 3: Section nav */}
       <div className="mx-auto max-w-7xl px-4">
-        <nav className="flex gap-0">
+        <nav className="section-nav flex gap-0">
           {SECTIONS.map((section) => (
             <Link
               key={section.path}
               to={section.path}
-              className={`border-b-2 px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-colors ${
+              className={`whitespace-nowrap border-b-2 px-4 py-2.5 font-mono text-xs uppercase tracking-wider transition-colors ${
                 activeSection(section.path)
                   ? "border-accent text-ink"
                   : "border-transparent text-ink-3 hover:text-ink-2"
