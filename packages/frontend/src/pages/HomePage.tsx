@@ -12,11 +12,7 @@ import { RecipePlaceholder } from "../components/RecipeCard";
 import IngredientBoard from "../components/IngredientBoard";
 import type { RecipeSummary } from "@rr/shared";
 
-const INGREDIENT_POOL = [
-  "chicken", "garlic", "lemon", "onion", "tomato", "pasta", "rice",
-  "eggs", "butter", "cream", "spinach", "parmesan", "olive oil",
-  "pepper", "salt", "basil", "mushrooms", "potatoes", "carrots",
-];
+// INGREDIENT_POOL removed — IngredientBoard now uses live autocomplete
 
 function pickFeatured(items: RecipeSummary[]): RecipeSummary | null {
   // Prefer a recipe with both an image and a cook time
@@ -252,14 +248,12 @@ export default function HomePage() {
           <IngredientBoard
             title="Have"
             items={have}
-            suggestions={INGREDIENT_POOL}
             onAdd={(it) => setHave([...have, it])}
             onRemove={(it) => setHave(have.filter((x) => x !== it))}
           />
           <IngredientBoard
             title="Exclude"
             items={excluded}
-            suggestions={INGREDIENT_POOL}
             onAdd={(it) => setExcluded([...excluded, it])}
             onRemove={(it) => setExcluded(excluded.filter((x) => x !== it))}
             negative
@@ -284,7 +278,7 @@ export default function HomePage() {
             </span>
           </div>
           <Link
-            to={`/search${have.length > 0 ? `?q=${have.join("+")}` : ""}`}
+            to={`/ingredients${have.length > 0 ? `?have=${have.join(",")}${excluded.length > 0 ? `&exclude=${excluded.join(",")}` : ""}` : ""}`}
             className="mono"
             style={{
               fontSize: 11,

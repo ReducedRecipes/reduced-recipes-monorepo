@@ -21,6 +21,7 @@ import ShoppingListsPage from "./pages/ShoppingListsPage";
 import ShoppingListPage from "./pages/ShoppingListPage";
 import SharedListPage from "./pages/SharedListPage";
 import ManifestoPage from "./pages/ManifestoPage";
+import IngredientsPage from "./pages/IngredientsPage";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -41,6 +42,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/" element={<HomePage />} />
             <Route path="/recipe/:id" element={<RecipePage />} />
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/ingredients" element={<IngredientsPage />} />
             <Route path="/tag/:tag" element={<TagPage />} />
             <Route path="/cuisine/:cuisine" element={<CuisinePage />} />
             <Route path="/site/:domain" element={<DomainPage />} />

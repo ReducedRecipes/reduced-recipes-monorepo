@@ -90,6 +90,29 @@ export function fetchHealth(): Promise<HealthResponse> {
   return apiFetch<HealthResponse>("/health");
 }
 
+export function suggestIngredients(q: string, limit = 10): Promise<{ items: { name: string; count: number }[] }> {
+  return apiFetch<{ items: { name: string; count: number }[] }>(`/ingredients/suggest${buildQuery({ q, limit })}`);
+}
+
+export interface IngredientSearchResult {
+  id: string;
+  title: string;
+  domain: string;
+  image_url: string | null;
+  total_time: number | null;
+  cook_time: number | null;
+  yields: string | null;
+  cuisine: string | null;
+  category: string | null;
+  match: { have: number; total: number; missing: string[] };
+}
+
+export function searchByIngredients(have: string[], exclude: string[], limit = 24, offset = 0): Promise<{ items: IngredientSearchResult[]; has_more: boolean }> {
+  const params: Record<string, string | number> = { have: have.join(","), limit, offset };
+  if (exclude.length > 0) params.exclude = exclude.join(",");
+  return apiFetch<{ items: IngredientSearchResult[]; has_more: boolean }>(`/search/by-ingredients${buildQuery(params)}`);
+}
+
 export function fetchTags(): Promise<{ tag: string; count: number }[]> {
   return apiFetch<{ tag: string; count: number }[]>("/tags");
 }

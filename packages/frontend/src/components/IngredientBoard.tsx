@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { suggestIngredients } from "../lib/api";
 
 interface IngredientBoardProps {
   title: string;
@@ -6,7 +7,6 @@ interface IngredientBoardProps {
   onAdd: (item: string) => void;
   onRemove: (item: string) => void;
   negative?: boolean;
-  suggestions?: string[];
 }
 
 export default function IngredientBoard({
@@ -15,13 +15,30 @@ export default function IngredientBoard({
   onAdd,
   onRemove,
   negative,
-  suggestions = [],
 }: IngredientBoardProps) {
   const [q, setQ] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
-  const filtered = suggestions
-    .filter((s) => !items.includes(s) && s.includes(q.toLowerCase()))
-    .slice(0, 6);
+  // Live autocomplete from the API
+  useEffect(() => {
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        const result = await suggestIngredients(q, 8);
+        setSuggestions(
+          result.items
+            .map((s) => s.name)
+            .filter((s) => !items.includes(s)),
+        );
+      } catch {
+        setSuggestions([]);
+      }
+    }, 200);
+    return () => clearTimeout(timeout);
+  }, [q, items]);
 
   return (
     <div>
@@ -94,7 +111,7 @@ export default function IngredientBoard({
           }}
         />
       </div>
-      {q && filtered.length > 0 && (
+      {q.length >= 2 && suggestions.length > 0 && (
         <div
           style={{
             marginTop: 6,
@@ -103,7 +120,7 @@ export default function IngredientBoard({
             gap: 6,
           }}
         >
-          {filtered.map((s) => (
+          {suggestions.map((s) => (
             <button
               key={s}
               onClick={() => {
