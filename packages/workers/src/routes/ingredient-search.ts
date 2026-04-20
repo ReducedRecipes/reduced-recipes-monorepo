@@ -42,16 +42,11 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
         SELECT DISTINCT recipe_id
         FROM recipe_ingredients
         WHERE ${excludeConditions}
-      ),
-      totals AS (
-        SELECT recipe_id, COUNT(*) as total_count
-        FROM recipe_ingredients
-        GROUP BY recipe_id
       )
-      SELECT m.recipe_id, m.match_count, t.total_count,
-             (t.total_count - m.match_count) as missing_count
+      SELECT m.recipe_id, m.match_count,
+             (SELECT COUNT(*) FROM recipe_ingredients ri WHERE ri.recipe_id = m.recipe_id) as total_count,
+             (SELECT COUNT(*) FROM recipe_ingredients ri WHERE ri.recipe_id = m.recipe_id) - m.match_count as missing_count
       FROM matched m
-      JOIN totals t ON t.recipe_id = m.recipe_id
       WHERE m.recipe_id NOT IN (SELECT recipe_id FROM excluded)
       ORDER BY missing_count ASC, m.match_count DESC
       LIMIT ? OFFSET ?
@@ -64,16 +59,11 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
         FROM recipe_ingredients
         WHERE ${haveConditions}
         GROUP BY recipe_id
-      ),
-      totals AS (
-        SELECT recipe_id, COUNT(*) as total_count
-        FROM recipe_ingredients
-        GROUP BY recipe_id
       )
-      SELECT m.recipe_id, m.match_count, t.total_count,
-             (t.total_count - m.match_count) as missing_count
+      SELECT m.recipe_id, m.match_count,
+             (SELECT COUNT(*) FROM recipe_ingredients ri WHERE ri.recipe_id = m.recipe_id) as total_count,
+             (SELECT COUNT(*) FROM recipe_ingredients ri WHERE ri.recipe_id = m.recipe_id) - m.match_count as missing_count
       FROM matched m
-      JOIN totals t ON t.recipe_id = m.recipe_id
       ORDER BY missing_count ASC, m.match_count DESC
       LIMIT ? OFFSET ?
     `;
