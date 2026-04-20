@@ -100,6 +100,12 @@ app.get('/api/v1/health', async (c) => {
     c.env.DB.prepare('SELECT COUNT(DISTINCT domain) as total FROM recipes'),
     c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE original_language IS NOT NULL AND original_language != 'en'"),
     c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE extracted_at > datetime('now', '-7 days')"),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag = 'vegetarian'"),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag = 'vegan'"),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('one-pan','one pan','skillet','one-pot','one pot')"),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('gluten-free','gluten free')"),
+    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('keto','low-carb','low carb')"),
+    c.env.DB.prepare("SELECT COUNT(DISTINCT recipe_id) as total FROM recipe_tags WHERE tag = 'translated'"),
   ]);
 
   const getTotal = (r: D1Result | undefined): number =>
@@ -119,6 +125,12 @@ app.get('/api/v1/health', async (c) => {
     sources_count: getTotal(results[9]),
     translated_count: getTotal(results[10]),
     new_this_week: getTotal(results[11]),
+    vegetarian: getTotal(results[12]),
+    vegan: getTotal(results[13]),
+    one_pan: getTotal(results[14]),
+    gluten_free: getTotal(results[15]),
+    keto: getTotal(results[16]),
+    translated_recipes: getTotal(results[17]),
   });
 });
 
