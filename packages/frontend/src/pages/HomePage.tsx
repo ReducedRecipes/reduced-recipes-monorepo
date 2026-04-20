@@ -6,10 +6,9 @@ import {
   Ticker,
   Rule,
   Stat,
-  FoodPlaceholder,
-  TextHeroCard,
 } from "../components/design-system";
 import RecipeShelf from "../components/RecipeShelf";
+import { RecipePlaceholder } from "../components/RecipeCard";
 import IngredientBoard from "../components/IngredientBoard";
 import type { RecipeSummary } from "@rr/shared";
 
@@ -384,9 +383,20 @@ export default function HomePage() {
               </div>
             </div>
             <div>
-              <TextHeroCard
-                recipe={{ id: featured.id, ingredients: [], steps: [] }}
-              />
+              {featured.image_url ? (
+                <img
+                  src={featured.image_url}
+                  alt={featured.title}
+                  style={{
+                    width: "100%",
+                    aspectRatio: "4/3",
+                    objectFit: "cover",
+                    display: "block",
+                  }}
+                />
+              ) : (
+                <RecipePlaceholder ratio="4/3" />
+              )}
               <div
                 style={{
                   display: "grid",
