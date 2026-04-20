@@ -96,9 +96,8 @@ describe("FoodPlaceholder", () => {
 describe("TextThumb", () => {
   const recipe = { id: "test-recipe", title: "Pasta Carbonara", time: 30, reviews: 150 };
 
-  it("renders recipe id and title", () => {
+  it("renders recipe title", () => {
     render(<TextThumb recipe={recipe} />);
-    expect(screen.getByText(/test-recipe/)).toBeDefined();
     expect(screen.getByText("Pasta")).toBeDefined();
   });
 

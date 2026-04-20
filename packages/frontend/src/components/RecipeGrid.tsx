@@ -1,5 +1,6 @@
 import type { RecipeSummary } from "@rr/shared/types";
 import RecipeCard from "./RecipeCard";
+import { Pill } from "./design-system";
 
 interface RecipeGridProps {
   items: RecipeSummary[];
@@ -28,14 +29,13 @@ export default function RecipeGrid({
         ))}
       </div>
       {hasNextPage && (
-        <div className="flex justify-center py-8">
-          <button
+        <div style={{ display: "flex", justifyContent: "center", padding: "32px 0" }}>
+          <Pill
             onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            style={{ opacity: isFetchingNextPage ? 0.5 : 1, pointerEvents: isFetchingNextPage ? "none" : undefined }}
           >
             {isFetchingNextPage ? "Loading..." : "Load More"}
-          </button>
+          </Pill>
         </div>
       )}
     </div>
