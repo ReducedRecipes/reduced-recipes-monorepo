@@ -388,6 +388,101 @@ describe('POST /api/v1/remove', () => {
 
 // ── Error handler tests ─────────────────────────────────────────────────
 
+describe('GET /api/v1/recipes?sort=hot', () => {
+  it('uses hot_score DESC ordering', async () => {
+    const env = createEnv();
+    const listStmt = makeStmt([]);
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
+      return listStmt;
+    });
+
+    await req('/api/v1/recipes?sort=hot', env);
+
+    const prepareCalls = env.DB.prepare.mock.calls as string[][];
+    const mainQuery = prepareCalls.find((c) => c[0]!.includes('FROM recipes'));
+    expect(mainQuery![0]).toContain('ORDER BY r.hot_score DESC');
+  });
+});
+
+describe('GET /api/v1/recipes/hot', () => {
+  it('returns items from KV cache when available', async () => {
+    const kvItems = [
+      { id: 'r1', title: 'Hot Pasta', domain: 'example.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: 'Italian', category: 'Main', extracted_at: '2024-01-02T00:00:00Z' },
+      { id: 'r2', title: 'Hot Soup', domain: 'example.com', image_url: null, total_time: 45, cook_time: 30, yields: '6', cuisine: 'French', category: 'Starter', extracted_at: '2024-01-01T00:00:00Z' },
+    ];
+    const env = createEnv();
+    env.CACHE_KV.get = vi.fn().mockResolvedValue(JSON.stringify({ items: kvItems, updated_at: '2024-01-02T12:00:00Z' }));
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation(() => tagStmt);
+
+    const res = await req('/api/v1/recipes/hot', env);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=1800, s-maxage=1800');
+    const body = await res.json() as { items: unknown[]; updated_at: string };
+    expect(body.items).toHaveLength(2);
+    expect(body.updated_at).toBe('2024-01-02T12:00:00Z');
+  });
+
+  it('falls back to D1 when KV cache is empty', async () => {
+    const env = createEnv();
+    env.CACHE_KV.get = vi.fn().mockResolvedValue(null);
+    const recipes = [
+      { id: 'r1', title: 'Hot Pasta', domain: 'example.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: 'Italian', category: 'Main', extracted_at: '2024-01-02T00:00:00Z' },
+    ];
+    const listStmt = makeStmt(recipes);
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
+      return listStmt;
+    });
+
+    const res = await req('/api/v1/recipes/hot', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { items: unknown[]; updated_at: string };
+    expect(body.items).toHaveLength(1);
+    expect(body.updated_at).toBeDefined();
+  });
+
+  it('respects limit parameter', async () => {
+    const kvItems = Array.from({ length: 10 }, (_, i) => ({
+      id: `r${i}`, title: `Recipe ${i}`, domain: 'example.com', image_url: null,
+      total_time: 30, cook_time: 20, yields: '4', cuisine: null, category: null,
+      extracted_at: '2024-01-01T00:00:00Z',
+    }));
+    const env = createEnv();
+    env.CACHE_KV.get = vi.fn().mockResolvedValue(JSON.stringify({ items: kvItems, updated_at: '2024-01-02T12:00:00Z' }));
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation(() => tagStmt);
+
+    const res = await req('/api/v1/recipes/hot?limit=3', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as { items: unknown[]; updated_at: string };
+    expect(body.items).toHaveLength(3);
+  });
+
+  it('clamps limit to max 100', async () => {
+    const env = createEnv();
+    env.CACHE_KV.get = vi.fn().mockResolvedValue(null);
+    const listStmt = makeStmt([]);
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
+      return listStmt;
+    });
+
+    await req('/api/v1/recipes/hot?limit=999', env);
+
+    const prepareCalls = env.DB.prepare.mock.calls as string[][];
+    const mainQuery = prepareCalls.find((c) => c[0]!.includes('hot_score'));
+    expect(mainQuery).toBeDefined();
+    const bindCalls = listStmt.bind.mock.calls;
+    // The limit should be clamped to 100
+    expect(bindCalls[0][0]).toBe(100);
+  });
+});
+
 describe('Global error handler', () => {
   it('does not leak error message in response', async () => {
     const env = createEnv();

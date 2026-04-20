@@ -134,6 +134,38 @@ app.get('/api/v1/health', async (c) => {
   });
 });
 
+// ── Hot recipes (KV fast path + D1 fallback) ────────────────────────────
+app.get('/api/v1/recipes/hot', async (c) => {
+  const limitParam = c.req.query('limit');
+  const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
+
+  // Try KV fast path first
+  const cached = await c.env.CACHE_KV.get('hot:top100', 'text');
+  if (cached) {
+    const data = JSON.parse(cached) as { items: Record<string, unknown>[]; updated_at: string };
+    const items = await toRecipeSummaries(c.env.DB, data.items.slice(0, limit));
+    return c.json({ items, updated_at: data.updated_at }, 200, {
+      'Cache-Control': 'public, max-age=1800, s-maxage=1800',
+    });
+  }
+
+  // D1 fallback
+  const result = await c.env.DB.prepare(
+    `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time, r.yields, r.cuisine, r.category, r.extracted_at
+     FROM recipes r
+     WHERE r.hot_score > 0
+     ORDER BY r.hot_score DESC
+     LIMIT ?`,
+  ).bind(limit).all();
+
+  const rows = result.results || [];
+  const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
+
+  return c.json({ items, updated_at: new Date().toISOString() }, 200, {
+    'Cache-Control': 'public, max-age=1800, s-maxage=1800',
+  });
+});
+
 // ── Recipe detail ───────────────────────────────────────────────────────
 app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
   const id = c.req.param('id');
@@ -212,12 +244,13 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
 
   const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : '';
 
-  // Sort options: relevance (default/extracted_at), rating, cook_time, reviews
+  // Sort options: relevance (default/extracted_at), rating, cook_time, reviews, hot
   const sortMap: Record<string, string> = {
     rating: 'r.total_time ASC',      // TODO: use avg_rating when Phase 3 lands
     cook_time: 'r.total_time ASC',
     time: 'r.total_time ASC',
     newest: 'r.extracted_at DESC',
+    hot: 'r.hot_score DESC',
   };
   const orderBy = sortMap[sort ?? ''] ?? 'r.extracted_at DESC';
 
