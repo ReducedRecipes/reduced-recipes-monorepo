@@ -1,0 +1,32 @@
+name = "rr-hot-ranking"
+main = "src/hot-ranking.ts"
+compatibility_date = "2024-05-01"
+
+[triggers]
+crons = ["*/30 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+migrations_dir = "../../migrations"
+
+[[d1_databases]]
+binding = "USERS_DB"
+database_id = "3bb2302a-7f7a-43c9-b3e7-de5870824869"
+database_name = "reduced-recipes-users"
+migrations_dir = "../../migrations-users"
+
+[[kv_namespaces]]
+binding = "RECIPES_KV"
+id = "1ca521a6b82b499b802318ee8bf747db"
+
+[vars]
+HOT_DECAY_SECONDS = "90000"
+HOT_EPOCH = "1704067200"
+WEIGHT_VIEW = "1.0"
+WEIGHT_BOOKMARK = "3.0"
+ENVIRONMENT = "production"
+
+[env.preview]
+name = "rr-hot-ranking-preview"

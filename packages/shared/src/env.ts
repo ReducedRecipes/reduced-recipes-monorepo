@@ -31,6 +31,12 @@ export interface Env {
   SESSION_SECRET?: string;
   AI?: Ai;
 
+  /** Hot ranking config vars. */
+  HOT_DECAY_SECONDS?: string;
+  HOT_EPOCH?: string;
+  WEIGHT_VIEW?: string;
+  WEIGHT_BOOKMARK?: string;
+
   /** Phase 2 bindings — shopping lists. */
   SHOPPING_LIST_DO?: DurableObjectNamespace;
   INGREDIENT_PARSE_QUEUE?: Queue;
