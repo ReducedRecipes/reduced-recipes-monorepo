@@ -105,6 +105,11 @@ export default function NotificationBell({ className }: { className?: string }) 
                         <p className="text-sm font-medium text-gray-800">
                           {formatNotification(n)}
                         </p>
+                        {typeof n.payload === "string" && (() => {
+                          try { JSON.parse(n.payload); return null; } catch {
+                            return <p className="mt-0.5 text-xs text-gray-600">{n.payload}</p>;
+                          }
+                        })()}
                         <p className="mt-0.5 text-[10px] text-gray-400">
                           {timeAgo(n.created_at)}
                         </p>
