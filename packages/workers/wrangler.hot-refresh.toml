@@ -1,0 +1,19 @@
+name = "rr-hot-refresh"
+main = "src/hot-refresh.ts"
+compatibility_date = "2024-05-01"
+
+[triggers]
+crons = ["*/15 * * * *"]
+
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+
+[vars]
+ENVIRONMENT = "production"
+HOT_DECAY_SECONDS = "90000"
+HOT_EPOCH = "1704067200"
+
+[env.preview]
+name = "rr-hot-refresh-preview"

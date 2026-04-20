@@ -34,4 +34,8 @@ export interface Env {
   /** Phase 2 bindings — shopping lists. */
   SHOPPING_LIST_DO?: DurableObjectNamespace;
   INGREDIENT_PARSE_QUEUE?: Queue;
+
+  /** Hot ranking config — optional so non-hot-refresh workers aren't broken. */
+  HOT_DECAY_SECONDS?: string;
+  HOT_EPOCH?: string;
 }
