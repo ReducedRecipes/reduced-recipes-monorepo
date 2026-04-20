@@ -34,4 +34,15 @@ export interface Env {
   /** Phase 2 bindings — shopping lists. */
   SHOPPING_LIST_DO?: DurableObjectNamespace;
   INGREDIENT_PARSE_QUEUE?: Queue;
+
+  /** Phase 3 bindings — hot ranking. */
+  VOTES_KV?: KVNamespace;
+  HOT_DECAY_SECONDS?: string;
+  HOT_MIN_VOTES_FEATURED?: string;
+  HOT_MIN_TOTAL_VOTES?: string;
+  HOT_RATE_LIMIT_PER_DAY?: string;
+  HOT_EPOCH?: string;
+  WEIGHT_HEART?: string;
+  WEIGHT_LIST_ADD?: string;
+  WEIGHT_AUTH_VIEW?: string;
 }
