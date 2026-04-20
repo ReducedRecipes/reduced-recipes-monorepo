@@ -23,6 +23,19 @@ export interface RecipeDocument {
   original_language?: string;
   /** Title in the original language before translation. */
   original_title?: string;
+  /** Content reduction stats — how much bloat we removed. */
+  reduction?: {
+    /** Total visible words on the original page. */
+    original_words: number;
+    /** Words in the extracted recipe (ingredients + instructions). */
+    recipe_words: number;
+    /** Words removed (original - recipe). */
+    words_removed: number;
+    /** Percentage of content that was bloat. */
+    bloat_percent: number;
+    /** Number of ad/tracking scripts detected. */
+    ads_detected: number;
+  };
 }
 
 /** Lean recipe summary used for list/search views (projected into D1). */

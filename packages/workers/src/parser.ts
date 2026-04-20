@@ -38,6 +38,9 @@ export default {
           doc.original_language = sourceLang;
         }
 
+        // ── Calculate content reduction stats ─────────────────────
+        doc.reduction = calculateReduction(html, doc);
+
         // ── Validate required fields ────────────────────────────────
         if (!doc.title || doc.ingredients.length === 0) {
           await updateCrawlStatus(env, url, 'no_schema');
@@ -93,6 +96,57 @@ export default {
     }
   },
 };
+
+// Ad/tracking network patterns to detect
+const AD_PATTERNS = [
+  'googlesyndication', 'doubleclick', 'google-analytics', 'googletagmanager',
+  'facebook.net/en_US/fbevents', 'connect.facebook', 'adsbygoogle',
+  'amazon-adsystem', 'media.net', 'outbrain', 'taboola', 'criteo',
+  'pubmatic', 'rubiconproject', 'openx', 'adnxs', 'casalemedia',
+  'mediavine', 'adthrive', 'ezoic', 'raptive', 'gourmetads',
+  'bidvertiser', 'infolinks', 'revcontent', 'mgid', 'adroll',
+  'shareasale', 'commission-junction', 'skimlinks', 'viglink',
+];
+
+function countWords(text: string): number {
+  return text.split(/\s+/).filter(Boolean).length;
+}
+
+function calculateReduction(html: string, doc: RecipeDocument): RecipeDocument['reduction'] {
+  // Count visible text words on the page (strip all HTML tags)
+  const visibleText = html
+    .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const originalWords = countWords(visibleText);
+
+  // Count recipe words (ingredients + instructions)
+  const recipeText = [
+    doc.title,
+    ...doc.ingredients,
+    ...doc.instructions,
+  ].join(' ');
+  const recipeWords = countWords(recipeText);
+
+  const wordsRemoved = Math.max(0, originalWords - recipeWords);
+  const bloatPercent = originalWords > 0
+    ? Math.round((wordsRemoved / originalWords) * 100)
+    : 0;
+
+  // Count ad scripts
+  const htmlLower = html.toLowerCase();
+  const adsDetected = AD_PATTERNS.filter((p) => htmlLower.includes(p)).length;
+
+  return {
+    original_words: originalWords,
+    recipe_words: recipeWords,
+    words_removed: wordsRemoved,
+    bloat_percent: bloatPercent,
+    ads_detected: adsDetected,
+  };
+}
 
 async function updateCrawlStatus(
   env: Env,
