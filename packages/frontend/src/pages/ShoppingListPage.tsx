@@ -111,6 +111,57 @@ function RollupItemRow({
   );
 }
 
+function AisleSection({
+  category,
+  items,
+  onToggle,
+  onDelete,
+}: {
+  category: string;
+  items: SmartRollupItem[];
+  onToggle: (item: SmartRollupItem) => void;
+  onDelete: (item: SmartRollupItem) => void;
+}) {
+  const [collapsed, setCollapsed] = useState(false);
+
+  return (
+    <div className="border-b border-gray-100 last:border-b-0">
+      <button
+        onClick={() => setCollapsed(!collapsed)}
+        className="flex w-full items-center justify-between px-4 py-2 bg-gray-50 hover:bg-gray-100 transition-colors"
+      >
+        <span className="text-sm font-semibold text-gray-700">{category}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-gray-400">{items.length}</span>
+          <svg
+            className={`h-4 w-4 text-gray-400 transition-transform ${collapsed ? "-rotate-90" : ""}`}
+            viewBox="0 0 20 20"
+            fill="currentColor"
+          >
+            <path
+              fillRule="evenodd"
+              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+              clipRule="evenodd"
+            />
+          </svg>
+        </div>
+      </button>
+      {!collapsed && (
+        <div className="divide-y divide-gray-100 px-4">
+          {items.map((item) => (
+            <RollupItemRow
+              key={item.canonical_item}
+              item={item}
+              onToggle={() => onToggle(item)}
+              onDelete={() => onDelete(item)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ShoppingListPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -185,6 +236,33 @@ export default function ShoppingListPage() {
 
   const uncheckedItems = list.items.unchecked;
   const checkedItems = list.items.checked;
+
+  // Group unchecked items by aisle category
+  const AISLE_ORDER = [
+    'Produce', 'Dairy & Eggs', 'Meat & Seafood', 'Bakery',
+    'Pantry', 'Spices & Seasonings', 'Oils & Vinegars',
+    'Condiments & Sauces', 'Beverages', 'Frozen', 'Other',
+  ];
+  const uncheckedByAisle = (() => {
+    const groups = new Map<string, SmartRollupItem[]>();
+    for (const item of uncheckedItems) {
+      const cat = item.category || 'Other';
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat)!.push(item);
+    }
+    const result: { category: string; items: SmartRollupItem[] }[] = [];
+    for (const cat of AISLE_ORDER) {
+      const items = groups.get(cat);
+      if (items && items.length > 0) result.push({ category: cat, items });
+    }
+    // Any remaining categories not in AISLE_ORDER
+    for (const [cat, items] of groups) {
+      if (!AISLE_ORDER.includes(cat) && items.length > 0) {
+        result.push({ category: cat, items });
+      }
+    }
+    return result;
+  })();
 
   return (
     <div className="mx-auto max-w-2xl py-8">
@@ -283,23 +361,24 @@ export default function ShoppingListPage() {
 
       {/* Items */}
       <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
-        {/* Unchecked items */}
-        <div className="divide-y divide-gray-100 px-4">
+        {/* Unchecked items grouped by aisle */}
+        <div>
           {uncheckedItems.length === 0 && checkedItems.length === 0 && (
             <p className="py-8 text-center text-sm text-gray-500">
               No items yet. Add some below.
             </p>
           )}
-          {uncheckedItems.map((item) => (
-            <RollupItemRow
-              key={item.canonical_item}
-              item={item}
-              onToggle={() => {
+          {uncheckedByAisle.map(({ category, items }) => (
+            <AisleSection
+              key={category}
+              category={category}
+              items={items}
+              onToggle={(item) => {
                 for (const s of item.sources ?? []) {
                   updateItem({ itemId: s.item_id, checked: 1 });
                 }
               }}
-              onDelete={() => {
+              onDelete={(item) => {
                 for (const s of item.sources ?? []) {
                   deleteItem(s.item_id);
                 }

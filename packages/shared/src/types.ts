@@ -246,6 +246,7 @@ export interface SmartRollupItem {
   display_text: string;
   total_quantity: number | null;
   unit: string | null;
+  category?: string;
   sources: SmartRollupSource[];
   parsing?: boolean;
 }

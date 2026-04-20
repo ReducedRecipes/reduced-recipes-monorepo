@@ -1,6 +1,7 @@
 import type { ShoppingListItem, SmartRollupItem, SmartRollupResponse, SmartRollupSource } from '@rr/shared/types';
 import { normaliseUnit, convertQuantity } from './unit-normalisation';
 import { parseIngredient } from './ingredient-parser';
+import { classifyIngredient } from './ingredient-category';
 
 /**
  * Groups shopping list items by canonical name, sums compatible quantities,
@@ -170,6 +171,7 @@ function flattenGroups(groups: Map<string, BucketGroup>): SmartRollupItem[] {
         display_text: buildDisplayText(group.displayName, bucket.totalQty, bucket.unit),
         total_quantity: bucket.totalQty,
         unit: bucket.unit,
+        category: classifyIngredient(group.displayName),
         sources: bucket.sources,
         ...(bucket.parsing ? { parsing: true } : {}),
       });
