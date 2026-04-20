@@ -122,18 +122,17 @@ export default function SearchPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { health } = useHealth();
 
-  // Initialize filters from URL params (for deep links from homepage)
-  const initMaxTime = searchParams.get("max_time");
-  const initDiet = searchParams.get("diet");
-  const initMethod = searchParams.get("method");
-  const initSort = searchParams.get("sort");
+  // Derive filter state from URL params (single source of truth)
+  const maxTimeParam = searchParams.get("max_time");
+  const dietParam = searchParams.get("diet");
+  const methodParam = searchParams.get("method");
+  const sortBy = searchParams.get("sort") || "newest";
 
-  const [filters, setFilters] = useState({
-    maxTime: initMaxTime ? parseInt(initMaxTime, 10) : null as number | null,
-    diet: initDiet ? [initDiet] : [] as string[],
-    method: initMethod ? [initMethod] : [] as string[],
-  });
-  const [sortBy, setSortBy] = useState(initSort || "newest");
+  const filters = {
+    maxTime: maxTimeParam ? parseInt(maxTimeParam, 10) : null as number | null,
+    diet: dietParam ? dietParam.split(",").filter(Boolean) : [] as string[],
+    method: methodParam ? methodParam.split(",").filter(Boolean) : [] as string[],
+  };
 
   const isSearching = q.length >= 2;
 
@@ -170,25 +169,35 @@ export default function SearchPage() {
 
   const recipes = data?.pages.flatMap((p) => p.items) ?? [];
 
+  // Helper: update URL params to reflect filter changes
+  const updateParams = (updates: Record<string, string | null>) => {
+    const next = new URLSearchParams(searchParams);
+    for (const [k, v] of Object.entries(updates)) {
+      if (v) next.set(k, v);
+      else next.delete(k);
+    }
+    setSearchParams(next, { replace: true });
+  };
+
   const toggleFilter = (category: "maxTime" | "diet" | "method", value: string | number) => {
-    const current = filters[category];
-    if (Array.isArray(current)) {
-      setFilters({
-        ...filters,
-        [category]: (current as string[]).includes(value as string)
-          ? (current as string[]).filter((x) => x !== value)
-          : [...(current as string[]), value as string],
-      });
+    if (category === "maxTime") {
+      updateParams({ max_time: filters.maxTime === value ? null : String(value) });
     } else {
-      setFilters({
-        ...filters,
-        [category]: filters[category] === value ? null : value,
-      });
+      const current = filters[category];
+      const strVal = String(value);
+      const updated = current.includes(strVal)
+        ? current.filter((x) => x !== strVal)
+        : [...current, strVal];
+      updateParams({ [category]: updated.length > 0 ? updated.join(",") : null });
     }
   };
 
+  const setSortByParam = (val: string) => {
+    updateParams({ sort: val === "newest" ? null : val });
+  };
+
   const clearFilters = () => {
-    setFilters({ maxTime: null, diet: [], method: [] });
+    updateParams({ max_time: null, diet: null, method: null, sort: null });
   };
 
   const activeFilterCount = [filters.maxTime, ...filters.diet, ...filters.method].filter(Boolean).length;
@@ -297,7 +306,7 @@ export default function SearchPage() {
               <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Sort by</span>
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
+                onChange={(e) => setSortByParam(e.target.value)}
                 className="mono"
                 style={{
                   fontSize: 11, padding: "6px 10px", border: "1px solid var(--rule-2)",
