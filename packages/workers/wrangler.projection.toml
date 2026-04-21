@@ -37,12 +37,12 @@ queue = "parse-jobs"
 binding = "PROJECTION_QUEUE"
 queue = "projection-jobs"
 
-[ai]
-binding = "AI"
-
 [[vectorize]]
 binding = "VECTORIZE"
 index_name = "rr-recipes"
+
+[ai]
+binding = "AI"
 
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"

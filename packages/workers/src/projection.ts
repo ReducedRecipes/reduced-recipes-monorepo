@@ -4,6 +4,7 @@ import { chunk } from '@rr/shared/utils';
 import { inferDietaryBitmask } from './helpers/dietary-inference';
 import { translateRecipe } from './helpers/translate';
 import { extractIngredientNames } from './helpers/ingredient-extract';
+import { embedRecipe } from './helpers/embed';
 
 export default {
   async queue(batch: MessageBatch<ProjectionJob>, env: Env) {
@@ -173,7 +174,30 @@ export default {
           }
         }
 
-        // 8. Best-effort ingredient index
+        // 8. Best-effort vector embedding — index in Vectorize for semantic search
+        if (env.AI && env.VECTORIZE) {
+          try {
+            const vector = await embedRecipe(doc, env.AI);
+            if (vector) {
+              const metadata: Record<string, string | number | boolean> = {
+                recipe_id: doc.id,
+                domain: doc.domain,
+              };
+              if (doc.total_time !== null && doc.total_time !== undefined) {
+                metadata.total_time = doc.total_time;
+              }
+              await env.VECTORIZE.insert([{
+                id: doc.id,
+                values: vector,
+                metadata,
+              }]);
+            }
+          } catch (error) {
+            console.warn('Vector embedding failed for recipe', doc.id, error);
+          }
+        }
+
+        // 9. Best-effort ingredient index
         try {
           const ingredientNames = extractIngredientNames(doc.ingredients);
           if (ingredientNames.length > 0) {
