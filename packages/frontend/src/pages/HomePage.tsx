@@ -435,12 +435,10 @@ export default function HomePage() {
       {seasonal.length > 0 && (
         <section
           style={{
-            padding: "48px 0",
+            padding: "48px 32px",
             borderBottom: "1px solid var(--rule)",
             background: "var(--bg-2)",
             margin: "0 -16px",
-            paddingLeft: 16,
-            paddingRight: 16,
           }}
         >
           <div
