@@ -63,7 +63,7 @@ id = "41828007810046b2bc6feab80aece86a"
 
 [[kv_namespaces]]
 binding = "VOTES_KV"
-id = "votes-kv-placeholder"
+id = "d155678de4864fda86916dbd2b03a29d"
 
 [durable_objects]
 bindings = [

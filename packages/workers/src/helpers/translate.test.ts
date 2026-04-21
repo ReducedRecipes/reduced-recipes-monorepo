@@ -2,12 +2,23 @@ import { describe, it, expect, vi } from 'vitest';
 import { translateRecipe } from './translate';
 import type { RecipeDocument } from '@rr/shared';
 
-function createMockAi(translations: Record<string, string> = {}) {
+/**
+ * The current translateRecipe uses Llama 3.1 (messages API) for all translations.
+ * ai.run('@cf/meta/llama-3.1-8b-instruct', { messages, max_tokens }) → { response }
+ */
+
+function createMockAi(responseMap: Record<string, string> = {}) {
   return {
-    run: vi.fn(async (_model: string, opts: { text: string; source_lang: string; target_lang: string }) => {
-      if (translations[opts.text] !== undefined) {
-        return { translated_text: translations[opts.text] };
+    run: vi.fn(async (_model: string, opts: any) => {
+      // Llama-based calls have opts.messages
+      if (opts.messages) {
+        const userMsg = opts.messages.find((m: any) => m.role === 'user')?.content ?? '';
+        if (responseMap[userMsg] !== undefined) {
+          return { response: responseMap[userMsg] };
+        }
+        return { response: `[translated] ${userMsg}` };
       }
+      // m2m100 fallback (not used currently but kept for safety)
       return { translated_text: `[translated] ${opts.text}` };
     }),
   } as unknown as Ai;
@@ -64,18 +75,20 @@ describe('translateRecipe', () => {
     expect(result.original_title).toBe('Soupe à l\'oignon');
   });
 
-  it('calls AI with correct source_lang and target_lang', async () => {
+  it('calls AI with Llama model and messages format', async () => {
     const doc = createRecipeDoc({ original_language: 'fr' });
     const ai = createMockAi();
     await translateRecipe(doc, ai);
 
-    expect(ai.run).toHaveBeenCalledWith('@cf/meta/m2m100-1.2b', expect.objectContaining({
-      source_lang: 'fr',
-      target_lang: 'en',
+    expect(ai.run).toHaveBeenCalledWith('@cf/meta/llama-3.1-8b-instruct', expect.objectContaining({
+      messages: expect.arrayContaining([
+        expect.objectContaining({ role: 'system' }),
+        expect.objectContaining({ role: 'user', content: doc.title }),
+      ]),
     }));
   });
 
-  it('translates ingredients as newline-joined batch', async () => {
+  it('translates ingredients as newline-joined block via Llama', async () => {
     const doc = createRecipeDoc({
       ingredients: ['Mehl', 'Zucker'],
     });
@@ -87,30 +100,31 @@ describe('translateRecipe', () => {
     expect(result.ingredients).toEqual(['Flour', 'Sugar']);
   });
 
-  it('translates instructions as newline-joined batch', async () => {
+  it('translates instructions one at a time', async () => {
     const doc = createRecipeDoc({
       instructions: ['Mischen', 'Backen'],
     });
     const ai = createMockAi({
-      'Mischen\nBacken': 'Mix\nBake',
+      'Mischen': 'Mix',
+      'Backen': 'Bake',
     });
     const result = await translateRecipe(doc, ai);
 
     expect(result.instructions).toEqual(['Mix', 'Bake']);
   });
 
-  it('falls back to per-item translation when bulk split count mismatches', async () => {
+  it('keeps ingredients when Llama returns too few lines', async () => {
     const doc = createRecipeDoc({
-      ingredients: ['Mehl', 'Zucker'],
+      ingredients: ['Mehl', 'Zucker', 'Eier', 'Butter'],
     });
-    // Bulk returns wrong number of lines
+    // Returns only 1 line — below 50% threshold (4 * 0.5 = 2)
     const ai = createMockAi({
-      'Mehl\nZucker': 'Flour and Sugar combined',
+      'Mehl\nZucker\nEier\nButter': 'Everything combined',
     });
     const result = await translateRecipe(doc, ai);
 
-    // Falls back to per-item, so each gets [translated] prefix
-    expect(result.ingredients).toEqual(['[translated] Mehl', '[translated] Zucker']);
+    // Should keep original since 1 < 2 (50% threshold)
+    expect(result.ingredients).toEqual(['Mehl', 'Zucker', 'Eier', 'Butter']);
   });
 
   it('keeps original title on title translation failure', async () => {
@@ -131,7 +145,7 @@ describe('translateRecipe', () => {
         callCount++;
         if (callCount === 1) {
           // title succeeds
-          return { translated_text: 'Potato Soup' };
+          return { response: 'Potato Soup' };
         }
         // ingredients fail
         throw new Error('AI error');
@@ -150,7 +164,7 @@ describe('translateRecipe', () => {
         callCount++;
         if (callCount <= 2) {
           // title and ingredients succeed
-          return { translated_text: '[ok]' };
+          return { response: '[ok]' };
         }
         // instructions fail
         throw new Error('AI error');

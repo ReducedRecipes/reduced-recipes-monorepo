@@ -90,7 +90,7 @@ describe("SavedPage", () => {
 
   it("shows loading spinner during auth check", () => {
     expect(src).toContain("authLoading");
-    expect(src).toContain("animate-spin");
+    expect(src).toContain("Loading");
   });
 
   it("returns null when not authenticated after loading", () => {
@@ -112,13 +112,13 @@ describe("SavedPage", () => {
 
   it("shows empty bookmarks message", () => {
     expect(src).toContain(
-      "No bookmarks yet. Browse recipes and tap the heart icon to save"
+      "No bookmarks yet. Browse recipes and save them here."
     );
   });
 
   it("shows loading skeleton for bookmarks", () => {
     expect(src).toContain("bookmarksLoading");
-    expect(src).toContain("animate-pulse");
+    expect(src).toContain("Loading");
   });
 
   it("renders BookmarkedRecipeCard for each bookmark", () => {
@@ -127,7 +127,8 @@ describe("SavedPage", () => {
   });
 
   it("uses grid layout with sidebar", () => {
-    expect(src).toContain("md:grid-cols-[1fr,300px]");
+    expect(src).toContain("gridTemplateColumns");
+    expect(src).toContain("260px");
   });
 
   // BookmarkedRecipeCard sub-component tests
@@ -141,7 +142,8 @@ describe("SavedPage", () => {
   });
 
   it("BookmarkedRecipeCard shows loading skeleton", () => {
-    expect(src).toContain("h-32 animate-pulse");
+    expect(src).toContain("height: 80");
+    expect(src).toContain("isLoading");
   });
 
   it("BookmarkedRecipeCard displays recipe image and title", () => {
