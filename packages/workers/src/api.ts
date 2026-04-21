@@ -16,6 +16,7 @@ import shoppingListRoutes from './routes/shopping-lists';
 import ingredientSearchRoutes from './routes/ingredient-search';
 import heartRoutes from './routes/hearts';
 import fundingRoutes from './routes/funding';
+import searchSimilarRoutes from './routes/search-similar';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -813,6 +814,7 @@ app.route('/', shoppingListRoutes);
 app.route('/', ingredientSearchRoutes);
 app.route('/', heartRoutes);
 app.route('/', fundingRoutes);
+app.route('/', searchSimilarRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {

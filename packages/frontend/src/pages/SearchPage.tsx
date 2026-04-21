@@ -7,6 +7,12 @@ import { useHealth } from "../hooks/useHealth";
 import { Ticker } from "../components/design-system";
 import type { RecipeSummary } from "@rr/shared";
 
+const SEARCH_MODES: { value: SearchMode; label: string }[] = [
+  { value: "keyword", label: "Keyword" },
+  { value: "semantic", label: "Semantic" },
+  { value: "hybrid", label: "Hybrid" },
+];
+
 const TIME_OPTIONS = [
   { value: 15, label: "≤ 15 Min" },
   { value: 30, label: "≤ 30 Min" },
@@ -131,7 +137,8 @@ export default function SearchPage() {
   const dietParam = searchParams.get("diet");
   const methodParam = searchParams.get("method");
   const sortBy = searchParams.get("sort") || "newest";
-  const searchMode = (searchParams.get("mode") ?? "hybrid") as SearchMode;
+  const modeParam = searchParams.get("mode");
+  const searchMode: SearchMode = (modeParam === "keyword" || modeParam === "semantic" || modeParam === "hybrid") ? modeParam : "hybrid";
 
   const filters = {
     maxTime: maxTimeParam ? parseInt(maxTimeParam, 10) : null as number | null,
@@ -202,7 +209,7 @@ export default function SearchPage() {
   };
 
   const clearFilters = () => {
-    updateParams({ max_time: null, diet: null, method: null, sort: null });
+    updateParams({ max_time: null, diet: null, method: null, sort: null, mode: null });
   };
 
   const setSearchModeParam = (val: SearchMode) => {
@@ -254,7 +261,29 @@ export default function SearchPage() {
             )}
           </form>
 
-          <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Search mode toggle */}
+          <div style={{ marginTop: 14, display: "flex", gap: 6, alignItems: "center" }}>
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", marginRight: 4 }}>Mode</span>
+            {SEARCH_MODES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => updateParams({ mode: value === "hybrid" ? null : value })}
+                className="mono"
+                style={{
+                  fontSize: 11, padding: "5px 12px", letterSpacing: "0.06em",
+                  textTransform: "uppercase", border: "1px solid",
+                  borderColor: searchMode === value ? "var(--ink)" : "var(--rule-2)",
+                  background: searchMode === value ? "var(--ink)" : "transparent",
+                  color: searchMode === value ? "var(--bg)" : "var(--ink-3)",
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="mono" style={{ fontSize: 12, color: "var(--ink-2)" }}>
               <span style={{ color: "var(--ink)" }}>
                 <Ticker value={recipes.length} />

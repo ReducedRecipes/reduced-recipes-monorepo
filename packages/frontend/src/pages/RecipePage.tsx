@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useRecipe } from "../hooks/useRecipe";
+import { useRecipes } from "../hooks/useRecipes";
 import { useAuth } from "../hooks/useAuth";
 import { useShoppingLists } from "../hooks/useShoppingLists";
 import { BookmarkButton } from "../components/BookmarkButton";
@@ -51,6 +52,33 @@ function parseBaseServings(yields: string | null): number {
   return m ? parseInt(m[1]!) : 4;
 }
 
+function SimilarShelfCard({ r }: { r: RecipeSummary }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  return (
+    <Link
+      to={`/recipe/${r.id}`}
+      style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 160, maxWidth: 200, flexShrink: 0, textDecoration: "none", color: "inherit" }}
+    >
+      {r.image_url && !imgFailed ? (
+        <img
+          src={r.image_url}
+          alt={r.title}
+          onError={() => setImgFailed(true)}
+          style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", display: "block", border: "1px solid var(--rule-2)" }}
+        />
+      ) : (
+        <div style={{ aspectRatio: "1/1", background: "var(--bg-2)", border: "1px solid var(--rule-2)", display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
+          <span className="serif" style={{ fontSize: 13, fontStyle: "italic", color: "var(--ink-3)", textAlign: "center", lineHeight: 1.2 }}>{r.title}</span>
+        </div>
+      )}
+      <div>
+        <div className="serif" style={{ fontSize: 14, lineHeight: 1.2, letterSpacing: "-0.01em", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{r.title}</div>
+        {r.total_time && <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 3, textTransform: "uppercase", letterSpacing: "0.04em" }}>{r.total_time}m</div>}
+      </div>
+    </Link>
+  );
+}
+
 function RecipeImage({ url, title }: { url: string | null; title: string }) {
   const [failed, setFailed] = useState(false);
   if (!url || failed) {
@@ -77,6 +105,16 @@ export default function RecipePage() {
   const { data: similarData } = useSimilarRecipes(id ?? "");
   const { isAuthenticated } = useAuth();
   const { lists, createListAsync } = useShoppingLists();
+
+  const similarParams = recipe?.cuisine
+    ? { cuisine: recipe.cuisine, limit: 7 }
+    : recipe?.tags?.[0]
+    ? { tag: recipe.tags[0], limit: 7 }
+    : undefined;
+  const { data: similarData } = useRecipes(similarParams);
+  const similarRecipes = (similarData?.pages[0]?.items ?? [])
+    .filter((r) => r.id !== id)
+    .slice(0, 6);
 
   const baseServings = useMemo(
     () => parseBaseServings(recipe?.yields ?? null),
@@ -518,6 +556,21 @@ export default function RecipePage() {
             Indexed {new Date(recipe.extracted_at).toLocaleDateString()}
           </span>
         </div>
+
+        {/* ── Similar recipes shelf ── */}
+        {similarRecipes.length > 0 && (
+          <section style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid var(--rule)" }}>
+            <div className="caps" style={{ color: "var(--accent-ink)", marginBottom: 6 }}>◆ More like this</div>
+            <div className="serif" style={{ fontSize: 28, fontStyle: "italic", letterSpacing: "-0.015em", marginBottom: 20 }}>
+              {recipe.cuisine ? `More ${recipe.cuisine} recipes` : `More ${recipe.tags[0]} recipes`}
+            </div>
+            <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 8 }}>
+              {similarRecipes.map((r) => (
+                <SimilarShelfCard key={r.id} r={r} />
+              ))}
+            </div>
+          </section>
+        )}
       </article>
 
       {/* ── Similar recipes shelf ── */}
