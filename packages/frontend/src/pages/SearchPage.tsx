@@ -212,6 +212,10 @@ export default function SearchPage() {
     updateParams({ max_time: null, diet: null, method: null, sort: null, mode: null });
   };
 
+  const setSearchModeParam = (val: SearchMode) => {
+    updateParams({ mode: val === "hybrid" ? null : val });
+  };
+
   const activeFilterCount = [filters.maxTime, ...filters.diet, ...filters.method].filter(Boolean).length;
   const hasActiveFilters = activeFilterCount > 0;
   const totalRecipes = health?.total_recipes ?? 0;
@@ -353,7 +357,26 @@ export default function SearchPage() {
             marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--rule)",
           }}>
             <div className="caps" style={{ color: "var(--ink-3)" }}>Results</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+              {isSearching && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid var(--rule-2)" }}>
+                  {(["keyword", "hybrid", "semantic"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setSearchModeParam(m)}
+                      className="mono"
+                      style={{
+                        fontSize: 10, padding: "5px 9px", textTransform: "uppercase",
+                        letterSpacing: "0.08em", border: "none",
+                        background: searchMode === m ? "var(--ink)" : "var(--bg)",
+                        color: searchMode === m ? "var(--bg)" : "var(--ink-3)",
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Sort by</span>
               <select
                 value={sortBy}

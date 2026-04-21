@@ -694,3 +694,63 @@ describe('Global error handler', () => {
     consoleSpy.mockRestore();
   });
 });
+
+// ── Similar recipes ─────────────────────────────────────────────────────
+
+describe('GET /api/v1/search/similar/:id', () => {
+  it('returns empty items when VECTORIZE is not bound', async () => {
+    const env = createEnv({ VECTORIZE: undefined });
+    const res = await req('/api/v1/search/similar/recipe-1', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.items).toEqual([]);
+  });
+
+  it('returns empty items when recipe vector not found', async () => {
+    const env = createEnv();
+    env.VECTORIZE.getByIds = vi.fn().mockResolvedValue([]);
+    const res = await req('/api/v1/search/similar/recipe-1', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.items).toEqual([]);
+  });
+
+  it('returns similar recipes from VECTORIZE, excluding source id', async () => {
+    const env = createEnv();
+    env.VECTORIZE.getByIds = vi.fn().mockResolvedValue([
+      { id: 'recipe-1', values: [0.1, 0.2, 0.3] },
+    ]);
+    env.VECTORIZE.query = vi.fn().mockResolvedValue({
+      matches: [
+        { id: 'recipe-1', score: 1.0 },  // source — should be excluded
+        { id: 'recipe-2', score: 0.9 },
+        { id: 'recipe-3', score: 0.8 },
+      ],
+    });
+    env.DB.prepare = vi.fn().mockReturnValue(
+      makeStmt([
+        { id: 'recipe-2', title: 'Pasta', domain: 'a.com', image_url: null, total_time: 20, cook_time: 15, yields: null, cuisine: null, category: null },
+        { id: 'recipe-3', title: 'Pizza', domain: 'b.com', image_url: null, total_time: 30, cook_time: 25, yields: null, cuisine: null, category: null },
+      ]),
+    );
+
+    const res = await req('/api/v1/search/similar/recipe-1', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.items.map((i: any) => i.id)).not.toContain('recipe-1');
+    expect(body.items.length).toBeGreaterThan(0);
+  });
+
+  it('respects limit parameter', async () => {
+    const env = createEnv();
+    env.VECTORIZE.getByIds = vi.fn().mockResolvedValue([
+      { id: 'recipe-1', values: [0.1, 0.2, 0.3] },
+    ]);
+    env.VECTORIZE.query = vi.fn().mockResolvedValue({ matches: [] });
+    await req('/api/v1/search/similar/recipe-1?limit=4', env);
+    expect(env.VECTORIZE.query).toHaveBeenCalledWith(
+      expect.any(Array),
+      { topK: 5 },  // limit + 1
+    );
+  });
+});

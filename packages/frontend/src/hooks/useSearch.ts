@@ -6,6 +6,7 @@ import { buildQuery } from "@rr/shared/build-query";
 interface SearchPage {
   items: RecipeSummary[];
   has_more: boolean;
+  search_mode?: string;
 }
 
 const PAGE_SIZE = 24;
