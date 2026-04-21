@@ -138,7 +138,7 @@ export default function SearchPage() {
   const methodParam = searchParams.get("method");
   const sortBy = searchParams.get("sort") || "newest";
   const modeParam = searchParams.get("mode");
-  const searchMode: SearchMode = (modeParam === "keyword" || modeParam === "semantic" || modeParam === "hybrid") ? modeParam : "hybrid";
+  const searchMode: SearchMode = (modeParam === "keyword" || modeParam === "semantic" || modeParam === "hybrid") ? modeParam : "keyword";
 
   const filters = {
     maxTime: maxTimeParam ? parseInt(maxTimeParam, 10) : null as number | null,
@@ -213,7 +213,7 @@ export default function SearchPage() {
   };
 
   const setSearchModeParam = (val: SearchMode) => {
-    updateParams({ mode: val === "hybrid" ? null : val });
+    updateParams({ mode: val === "keyword" ? null : val });
   };
 
   const activeFilterCount = [filters.maxTime, ...filters.diet, ...filters.method].filter(Boolean).length;
@@ -237,7 +237,7 @@ export default function SearchPage() {
             <input
               ref={inputRef}
               value={q}
-              onChange={(e) => setSearchParams(e.target.value ? { q: e.target.value } : {})}
+              onChange={(e) => updateParams({ q: e.target.value || null })}
               placeholder="Recipe name, ingredient, cuisine, or tag..."
               autoFocus
               style={{
@@ -248,7 +248,7 @@ export default function SearchPage() {
             />
             {q && (
               <button
-                onClick={() => { setSearchParams({}); inputRef.current?.focus(); }}
+                onClick={() => { updateParams({ q: null }); inputRef.current?.focus(); }}
                 className="mono"
                 style={{
                   position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
@@ -267,7 +267,7 @@ export default function SearchPage() {
             {SEARCH_MODES.map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => updateParams({ mode: value === "hybrid" ? null : value })}
+                onClick={() => updateParams({ mode: value === "keyword" ? null : value })}
                 className="mono"
                 style={{
                   fontSize: 11, padding: "5px 12px", letterSpacing: "0.06em",
