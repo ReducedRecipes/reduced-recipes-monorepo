@@ -49,4 +49,7 @@ export interface Env {
   WEIGHT_HEART?: string;
   WEIGHT_LIST_ADD?: string;
   WEIGHT_AUTH_VIEW?: string;
+
+  /** Vectorize — semantic search index. */
+  VECTORIZE?: VectorizeIndex;
 }
