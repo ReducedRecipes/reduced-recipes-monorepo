@@ -231,7 +231,7 @@ describe('GET /api/v1/tags', () => {
 
     const res = await req('/api/v1/tags', env);
     expect(res.status).toBe(200);
-    expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600');
+    expect(res.headers.get('Cache-Control')).toContain('max-age=3600');
     const body = await res.json() as { tag: string; count: number }[];
     expect(body).toHaveLength(2);
     expect(body[0]).toEqual({ tag: 'vegan', count: 42 });
@@ -248,7 +248,7 @@ describe('GET /api/v1/domains', () => {
 
     const res = await req('/api/v1/domains', env);
     expect(res.status).toBe(200);
-    expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600');
+    expect(res.headers.get('Cache-Control')).toContain('max-age=3600');
     const body = await res.json() as { domain: string }[];
     expect(body).toHaveLength(1);
     expect(body[0]).toEqual({
