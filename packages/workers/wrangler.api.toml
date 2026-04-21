@@ -61,6 +61,12 @@ id = "b780ce4935dd4cd6834defdb30c2137f"
 binding = "USER_CACHE_KV"
 id = "41828007810046b2bc6feab80aece86a"
 
+[[d1_databases]]
+binding = "FUNDING_DB"
+database_id = "dc6d2bd6-e3cd-490a-ad86-45ffe7f819b4"
+database_name = "reduced-recipes-funding"
+migrations_dir = "../../migrations-funding"
+
 [[kv_namespaces]]
 binding = "VOTES_KV"
 id = "d155678de4864fda86916dbd2b03a29d"
