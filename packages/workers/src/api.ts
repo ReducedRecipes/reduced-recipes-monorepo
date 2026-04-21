@@ -599,6 +599,43 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
   });
 });
 
+// ── Similar recipes ───────────────────────────────────────────────────
+app.get('/api/v1/search/similar/:id', optionalAuth, async (c) => {
+  const id = c.req.param('id');
+  const limitParam = c.req.query('limit');
+  const limit = Math.min(Math.max(parseInt(limitParam ?? '8', 10) || 8, 1), 24);
+
+  if (!c.env.VECTORIZE || !c.env.AI) {
+    return c.json({ items: [] }, 200);
+  }
+
+  // Fetch the source recipe's vector
+  const sourceVectors = await c.env.VECTORIZE.getByIds([id]);
+  if (!sourceVectors || sourceVectors.length === 0) {
+    return c.json({ items: [] }, 200);
+  }
+
+  const sourceVector = sourceVectors[0]!.values;
+
+  // Query nearest neighbours, fetching extra to exclude the source
+  const matches = await c.env.VECTORIZE.query(sourceVector, { topK: limit + 1 });
+  const similarIds = (matches.matches ?? [])
+    .filter((m) => m.id !== id && m.score >= MIN_SIMILARITY)
+    .slice(0, limit)
+    .map((m) => m.id);
+
+  if (similarIds.length === 0) {
+    return c.json({ items: [] }, 200);
+  }
+
+  const dietaryMask = await getDietaryMask(c);
+  const items = await fetchRecipesByIds(c.env.DB, similarIds, dietaryMask);
+
+  return c.json({ items }, 200, {
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+  });
+});
+
 // ── Admin: Seed domain ────────────────────────────────────────────────
 app.post('/api/v1/admin/seed', async (c) => {
   const authHeader = c.req.header('Authorization') ?? '';

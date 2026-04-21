@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useSearch } from "../hooks/useSearch";
+import type { SearchMode } from "../hooks/useSearch";
 import { useRecipes } from "../hooks/useRecipes";
 import { useHealth } from "../hooks/useHealth";
 import { Ticker } from "../components/design-system";
@@ -130,6 +131,7 @@ export default function SearchPage() {
   const dietParam = searchParams.get("diet");
   const methodParam = searchParams.get("method");
   const sortBy = searchParams.get("sort") || "newest";
+  const searchMode = (searchParams.get("mode") ?? "hybrid") as SearchMode;
 
   const filters = {
     maxTime: maxTimeParam ? parseInt(maxTimeParam, 10) : null as number | null,
@@ -148,7 +150,7 @@ export default function SearchPage() {
     hasNextPage: searchHasNext,
     fetchNextPage: searchFetchNext,
     isFetchingNextPage: searchFetchingNext,
-  } = useSearch(isSearching ? q : "");
+  } = useSearch(isSearching ? q : "", searchMode);
 
   const {
     data: browseData,
@@ -201,6 +203,10 @@ export default function SearchPage() {
 
   const clearFilters = () => {
     updateParams({ max_time: null, diet: null, method: null, sort: null });
+  };
+
+  const setSearchModeParam = (val: SearchMode) => {
+    updateParams({ mode: val === "hybrid" ? null : val });
   };
 
   const activeFilterCount = [filters.maxTime, ...filters.diet, ...filters.method].filter(Boolean).length;
@@ -322,7 +328,26 @@ export default function SearchPage() {
             marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--rule)",
           }}>
             <div className="caps" style={{ color: "var(--ink-3)" }}>Results</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+              {isSearching && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid var(--rule-2)" }}>
+                  {(["keyword", "hybrid", "semantic"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setSearchModeParam(m)}
+                      className="mono"
+                      style={{
+                        fontSize: 10, padding: "5px 9px", textTransform: "uppercase",
+                        letterSpacing: "0.08em", border: "none",
+                        background: searchMode === m ? "var(--ink)" : "var(--bg)",
+                        color: searchMode === m ? "var(--bg)" : "var(--ink-3)",
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Sort by</span>
               <select
                 value={sortBy}
