@@ -95,7 +95,8 @@ describe('Projection Worker', () => {
     await projection.queue(batch, env);
 
     // prepare calls: 1 dupe check + 1 upsert + 1 delete tags + 2 tag inserts + 2 FTS (delete+insert) + 1 domain = 8
-    expect(env.DB.prepare).toHaveBeenCalledTimes(8);
+    //   + ingredient index: 1 delete + 2*2 (upsert+link per ingredient) = 5 → total 13
+    expect(env.DB.prepare).toHaveBeenCalledTimes(13);
 
     // Verify dupe check SQL
     const dupeCall = env.DB.prepare.mock.calls[0]![0] as string;
@@ -113,8 +114,8 @@ describe('Projection Worker', () => {
     const tagCall = env.DB.prepare.mock.calls[3]![0] as string;
     expect(tagCall).toContain('INSERT OR IGNORE INTO recipe_tags');
 
-    // batch() should be called once (all statements < 100 chunk size)
-    expect(env.DB.batch).toHaveBeenCalledOnce();
+    // batch() called twice: once for recipe statements, once for ingredient index
+    expect(env.DB.batch).toHaveBeenCalledTimes(2);
 
     expect(msg.ack).toHaveBeenCalledOnce();
     expect(msg.retry).not.toHaveBeenCalled();
@@ -130,7 +131,8 @@ describe('Projection Worker', () => {
     await projection.queue(batch, env);
 
     // 1 dupe check + 1 upsert + 1 delete + 20 tag inserts + 2 FTS + 1 domain = 26
-    expect(env.DB.prepare).toHaveBeenCalledTimes(26);
+    //   + ingredient index: 5 → total 31
+    expect(env.DB.prepare).toHaveBeenCalledTimes(31);
     expect(msg.ack).toHaveBeenCalledOnce();
   });
 
@@ -143,7 +145,8 @@ describe('Projection Worker', () => {
     await projection.queue(batch, env);
 
     // 1 dupe check + 1 upsert + 1 delete + 0 tag inserts + 2 FTS + 1 domain = 6
-    expect(env.DB.prepare).toHaveBeenCalledTimes(6);
+    //   + ingredient index: 5 → total 11
+    expect(env.DB.prepare).toHaveBeenCalledTimes(11);
     expect(msg.ack).toHaveBeenCalledOnce();
   });
 
@@ -191,6 +194,7 @@ describe('Projection Worker', () => {
       doc.cuisine, doc.category,
       0, // schema_valid = false → 0
       doc.extracted_at,
+      null, // original_language
     );
   });
 
@@ -228,9 +232,9 @@ describe('Projection Worker', () => {
 
       expect(inferDietaryBitmask).toHaveBeenCalledWith(doc, env.AI);
 
-      // The last prepare call should be the bitmask UPDATE
-      const lastCall = env.DB.prepare.mock.calls[env.DB.prepare.mock.calls.length - 1]![0] as string;
-      expect(lastCall).toContain('UPDATE recipes SET dietary_bitmask');
+      // Bitmask UPDATE should appear among the prepare calls (before ingredient index calls)
+      const allCalls = env.DB.prepare.mock.calls.map((c: any[]) => c[0] as string);
+      expect(allCalls.some((sql: string) => sql.includes('UPDATE recipes SET dietary_bitmask'))).toBe(true);
 
       expect(msg.ack).toHaveBeenCalledOnce();
     });

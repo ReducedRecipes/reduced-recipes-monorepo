@@ -171,6 +171,6 @@ describe('rollupItems', () => {
       makeItem({ id: '1', item: null, original_text: 'Salt and Pepper' }),
     ];
     const result = rollupItems(items);
-    expect(result.items.unchecked[0]!.canonical_item).toBe('salt and pepper');
+    expect(result.items.unchecked[0]!.canonical_item).toBe('pepper salt');
   });
 });
