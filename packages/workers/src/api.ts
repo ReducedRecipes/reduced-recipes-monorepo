@@ -4,6 +4,7 @@ import type { Env } from '@rr/shared/env';
 import type { RecipeDocument, RecipeSummary, User } from '@rr/shared';
 import { optionalAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
+import { castVote } from './helpers/hot-score';
 import authRoutes from './routes/auth';
 import bookmarkRoutes from './routes/bookmarks';
 import notificationRoutes from './routes/notifications';
@@ -12,6 +13,7 @@ import collectionsRoutes from './routes/collections';
 import syncRoutes from './routes/sync';
 import shoppingListRoutes from './routes/shopping-lists';
 import ingredientSearchRoutes from './routes/ingredient-search';
+import heartRoutes from './routes/hearts';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -143,19 +145,32 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
     return c.json({ error: { code: 'NOT_FOUND', message: 'Recipe not found' } }, 404);
   }
 
-  // Fire-and-forget recipe view tracking for authenticated users
+  // Fire-and-forget recipe view tracking + implicit vote for authenticated users
   const userId = c.get('userId');
   if (userId && c.env.USERS_DB) {
-    c.executionCtx.waitUntil(
-      c.env.USERS_DB
-        .prepare(
-          `INSERT OR IGNORE INTO recipe_views (user_id, recipe_id, source, viewed_date, viewed_at)
-           VALUES (?, ?, 'view', date('now'), datetime('now'))`,
-        )
-        .bind(userId, id)
-        .run()
-        .catch(() => {}),
-    );
+    const usersDb = c.env.USERS_DB;
+    const recipesDb = c.env.DB;
+    const decaySeconds = parseInt(c.env.HOT_DECAY_SECONDS ?? '90000', 10) || 90000;
+    const epoch = parseInt(c.env.HOT_EPOCH ?? '1704067200', 10) || 1704067200;
+    const viewWeight = parseFloat(c.env.WEIGHT_AUTH_VIEW ?? '0.1') || 0.1;
+    try {
+      c.executionCtx.waitUntil(
+        Promise.all([
+          usersDb
+            .prepare(
+              `INSERT OR IGNORE INTO recipe_views (user_id, recipe_id, source, viewed_date, viewed_at)
+               VALUES (?, ?, 'view', date('now'), datetime('now'))`,
+            )
+            .bind(userId, id)
+            .run()
+            .catch(() => {}),
+          castVote(usersDb, recipesDb, userId, id, 'auth_view', viewWeight, decaySeconds, epoch)
+            .catch(() => {}),
+        ]),
+      );
+    } catch {
+      // No execution context (e.g. tests) — skip fire-and-forget
+    }
   }
 
   const doc: RecipeDocument = JSON.parse(value);
@@ -553,6 +568,7 @@ app.route('/', collectionsRoutes);
 app.route('/', syncRoutes);
 app.route('/', shoppingListRoutes);
 app.route('/', ingredientSearchRoutes);
+app.route('/', heartRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {

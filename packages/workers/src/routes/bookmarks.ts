@@ -4,6 +4,7 @@ import type { Bookmark } from '@rr/shared';
 import { requireAuth } from '../middleware/auth';
 import { parseLimit, paginateRows } from '../helpers/pagination';
 import { validateCollectionOwnership } from '../helpers/collection-ownership';
+import { castVote } from '../helpers/hot-score';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string } };
 
@@ -81,6 +82,24 @@ bookmarks.post('/api/v1/bookmarks', requireAuth, async (c) => {
       );
     }
     throw err;
+  }
+
+  // Fire-and-forget implicit vote (weight 1.0 bookmark signal) for hot score
+  try {
+    c.executionCtx.waitUntil(
+      castVote(
+        c.env.USERS_DB!,
+        c.env.DB,
+        userId,
+        body.recipe_id,
+        'bookmark',
+        parseFloat(c.env.WEIGHT_HEART ?? '1.0') || 1.0,
+        parseInt(c.env.HOT_DECAY_SECONDS ?? '90000', 10) || 90000,
+        parseInt(c.env.HOT_EPOCH ?? '1704067200', 10) || 1704067200,
+      ).catch(() => {}),
+    );
+  } catch {
+    // No execution context (e.g. tests) — skip fire-and-forget
   }
 
   return c.json(

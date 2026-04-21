@@ -67,7 +67,7 @@ describe('migrations-users/0007_recipe_votes.sql', () => {
   });
 
   it('creates idx_rv_recipe index on recipe_id', () => {
-    expect(usersSql).toContain('CREATE INDEX IF NOT EXISTS idx_rv_recipe  ON recipe_votes(recipe_id)');
+    expect(usersSql).toContain('CREATE INDEX IF NOT EXISTS idx_rv_recipe ON recipe_votes(recipe_id)');
   });
 
   it('creates idx_rv_created index on created_at DESC', () => {
