@@ -186,6 +186,6 @@ describe('GET /api/v1/ingredients/suggest', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { items: { name: string; count: number }[] };
     expect(body.items).toHaveLength(1);
-    expect(body.items[0].name).toBe('beef');
+    expect(body.items[0]!.name).toBe('beef');
   });
 });
