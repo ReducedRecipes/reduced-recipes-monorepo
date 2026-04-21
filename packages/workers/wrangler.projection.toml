@@ -37,6 +37,10 @@ queue = "parse-jobs"
 binding = "PROJECTION_QUEUE"
 queue = "projection-jobs"
 
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "recipe-embeddings"
+
 [ai]
 binding = "AI"
 
