@@ -17,6 +17,8 @@ const DIET_OPTIONS = ["vegetarian", "vegan", "keto", "gluten-free"];
 const METHOD_OPTIONS = ["one-pan", "one-pot", "sheet-pan", "slow-cook", "no-cook"];
 const SORT_OPTIONS = [
   { value: "newest", label: "Newest" },
+  { value: "hot", label: "Hot" },
+  { value: "top", label: "Top" },
   { value: "quickest", label: "Time (low to high)" },
   { value: "slowest", label: "Time (high to low)" },
   { value: "a-z", label: "A → Z" },
