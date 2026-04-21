@@ -67,7 +67,7 @@ describe('buildEmbeddingText', () => {
 
 describe('embedRecipe', () => {
   it('calls AI with the embedding model and returns the first vector', async () => {
-    const mockVector = Array.from({ length: 384 }, (_, i) => i / 384);
+    const mockVector = Array.from({ length: 768 }, (_, i) => i / 768);
     const mockAi = {
       run: vi.fn().mockResolvedValue({ data: [mockVector] }),
     } as unknown as Ai;
@@ -75,11 +75,11 @@ describe('embedRecipe', () => {
     const doc = makeDoc();
     const result = await embedRecipe(doc, mockAi);
 
-    expect(mockAi.run).toHaveBeenCalledWith('@cf/baai/bge-small-en-v1.5', {
+    expect(mockAi.run).toHaveBeenCalledWith('@cf/google/embeddinggemma-300m', {
       text: [buildEmbeddingText(doc)],
     });
     expect(result).toEqual(mockVector);
-    expect(result).toHaveLength(384);
+    expect(result).toHaveLength(768);
   });
 
   it('returns null when AI returns no data', async () => {

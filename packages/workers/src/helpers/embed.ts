@@ -2,12 +2,12 @@
  * Recipe embedding helper for Cloudflare Vectorize + Workers AI.
  *
  * Builds a compact text representation of a recipe and generates
- * a 384-dimensional embedding using bge-small-en-v1.5.
+ * a 768-dimensional embedding using EmbeddingGemma-300M.
  */
 
 import type { RecipeDocument } from '@rr/shared';
 
-const EMBEDDING_MODEL = '@cf/baai/bge-small-en-v1.5';
+const EMBEDDING_MODEL = '@cf/google/embeddinggemma-300m';
 
 /**
  * Build the embedding text for a recipe.
@@ -28,7 +28,7 @@ export function buildEmbeddingText(doc: RecipeDocument): string {
 /**
  * Generate an embedding vector for a recipe using Workers AI.
  *
- * Returns the 384-dimensional float array, or null if the model
+ * Returns the 768-dimensional float array, or null if the model
  * returns an unexpected response shape.
  */
 export async function embedRecipe(

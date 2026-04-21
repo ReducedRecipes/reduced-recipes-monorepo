@@ -413,7 +413,7 @@ describe('GET /api/v1/search - semantic mode', () => {
     const env = createEnv();
 
     await reqWithInit('/api/v1/search?q=pasta&mode=semantic', env);
-    expect(env.AI.run).toHaveBeenCalledWith('@cf/baai/bge-small-en-v1.5', { text: ['pasta'] });
+    expect(env.AI.run).toHaveBeenCalledWith('@cf/google/embeddinggemma-300m', { text: ['pasta'] });
   });
 
   it('returns search_mode=semantic in response', async () => {

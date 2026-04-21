@@ -3,7 +3,7 @@
  *
  * Reads all recipe IDs from D1, fetches the full RecipeDocument from
  * RECIPES_KV via the Cloudflare REST API, generates an embedding via
- * Workers AI (@cf/baai/bge-small-en-v1.5), and upserts it to the
+ * Workers AI (@cf/google/embeddinggemma-300m), and upserts it to the
  * Vectorize index in batches.
  *
  * Usage:
@@ -92,10 +92,10 @@ export function batchChunks<T>(items: T[], size: number): T[][] {
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? "";
 const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN ?? "";
 const KV_NAMESPACE_ID = process.env.KV_NAMESPACE_ID ?? "1ca521a6b82b499b802318ee8bf747db";
-const VECTORIZE_INDEX = process.env.VECTORIZE_INDEX ?? "recipe-embeddings";
+const VECTORIZE_INDEX = process.env.VECTORIZE_INDEX ?? "rr-recipes";
 const D1_DATABASE = process.env.D1_DATABASE ?? "reduced-recipes-prod";
 
-const AI_MODEL = "@cf/baai/bge-small-en-v1.5";
+const AI_MODEL = "@cf/google/embeddinggemma-300m";
 const CF_BASE = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}`;
 
 // ── API helpers ───────────────────────────────────────────────────────────────
@@ -227,7 +227,7 @@ async function main(): Promise<void> {
     let embeddings: number[][];
     if (dryRun) {
       console.log(`  [dry-run] Would embed ${docs.length} texts.`);
-      embeddings = docs.map(() => new Array(384).fill(0) as number[]);
+      embeddings = docs.map(() => new Array(768).fill(0) as number[]);
     } else {
       embeddings = await generateEmbeddings(texts);
     }
