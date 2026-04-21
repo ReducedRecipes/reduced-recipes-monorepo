@@ -233,11 +233,12 @@ export default function SearchPage() {
             {q.trim() ? `"${q}"` : `Search ${totalRecipes > 0 ? totalRecipes.toLocaleString() : ""} recipes`}
           </h1>
 
-          <form onSubmit={(e) => e.preventDefault()} style={{ position: "relative" }}>
+          <div style={{ position: "relative" }}>
             <input
               ref={inputRef}
               value={q}
               onChange={(e) => updateParams({ q: e.target.value || null })}
+              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
               placeholder="Recipe name, ingredient, cuisine, or tag..."
               autoFocus
               style={{
@@ -259,7 +260,7 @@ export default function SearchPage() {
                 Clear
               </button>
             )}
-          </form>
+          </div>
 
           {/* Search mode toggle */}
           <div style={{ marginTop: 14, display: "flex", gap: 6, alignItems: "center" }}>

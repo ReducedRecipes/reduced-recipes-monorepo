@@ -420,7 +420,7 @@ app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
 // ── Search helpers ────────────────────────────────────────────────────
 
 const EMBEDDING_MODEL = '@cf/google/embeddinggemma-300m' as const;
-const MIN_SIMILARITY = 0.65;
+const MIN_SIMILARITY = 0.40;
 
 /** Fetch recipe summaries from D1 by ID list, respecting dietary mask. */
 async function fetchRecipesByIds(
@@ -533,12 +533,29 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
 
   // ── Semantic / Hybrid modes ───────────────────────────────────────
   if (mode === 'semantic' || mode === 'hybrid') {
+    if (!c.env.AI || !c.env.VECTORIZE) {
+      // Fall through to keyword if bindings unavailable
+      return c.json({ items: [], has_more: false, search_mode: mode, error: 'AI or Vectorize not configured' }, 200);
+    }
+
     const { cleanQuery, exclusions } = parseExclusions(q);
     const queryText = cleanQuery || q;
 
-    const vector = await embedQuery(c.env.AI!, queryText);
+    let vector: number[];
+    try {
+      vector = await embedQuery(c.env.AI, queryText);
+    } catch (err) {
+      console.error('embedQuery failed:', err);
+      return c.json({ items: [], has_more: false, search_mode: mode }, 200);
+    }
 
-    const vectorMatches = await c.env.VECTORIZE!.query(vector, { topK: 50 });
+    if (vector.length === 0) {
+      console.error('embedQuery returned empty vector for:', queryText);
+      return c.json({ items: [], has_more: false, search_mode: mode }, 200);
+    }
+
+    const vectorMatches = await c.env.VECTORIZE.query(vector, { topK: 50 });
+    console.log(`Semantic search: query="${queryText}", matches=${vectorMatches.matches?.length ?? 0}, top_score=${vectorMatches.matches?.[0]?.score ?? 'n/a'}`);
     const semanticIds = (vectorMatches.matches ?? [])
       .filter((m) => m.score >= MIN_SIMILARITY)
       .map((m) => m.id);
