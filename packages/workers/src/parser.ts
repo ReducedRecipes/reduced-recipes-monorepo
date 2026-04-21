@@ -33,7 +33,7 @@ export default {
         const doc: RecipeDocument = normaliseRecipe(schema, url);
 
         // ── Detect source language ─────────────────────────────────
-        const sourceLang = detectLanguage(html);
+        const sourceLang = detectLanguage(html, doc.title, url);
         if (sourceLang) {
           doc.original_language = sourceLang;
         }
