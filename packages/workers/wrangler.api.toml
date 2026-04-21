@@ -82,7 +82,7 @@ new_classes = ["ShoppingListDO"]
 
 [[vectorize]]
 binding = "VECTORIZE"
-index_name = "rr-recipe-embeddings"
+index_name = "rr-recipes"
 
 [ai]
 binding = "AI"
