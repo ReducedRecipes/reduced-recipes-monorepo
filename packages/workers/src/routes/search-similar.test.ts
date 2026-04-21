@@ -171,8 +171,9 @@ describe('GET /api/v1/search/similar/:id', () => {
     const res = await searchSimilar.request('/api/v1/search/similar/recipe-1?limit=1', {}, env);
     expect(res.status).toBe(200);
 
-    const vectorize = env.VECTORIZE as ReturnType<typeof makeVectorize>;
-    const queryCall = vectorize.query.mock.calls[0];
+    const vectorize = env.VECTORIZE as unknown as ReturnType<typeof makeVectorize>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const queryCall = (vectorize.query as any).mock.calls[0];
     // topK should be limit + 1 = 2
     expect(queryCall[1].topK).toBe(2);
   });

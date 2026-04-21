@@ -32,7 +32,12 @@ searchSimilar.get('/api/v1/search/similar/:id', async (c) => {
     });
   }
 
-  const recipeVector = vectors[0].values;
+  const recipeVector = vectors[0]?.values;
+  if (!recipeVector) {
+    return c.json({ items: [] }, 200, {
+      'Cache-Control': 'public, max-age=60, s-maxage=60, stale-while-revalidate=300',
+    });
+  }
 
   // Query Vectorize for similar recipes (fetch one extra to account for excluding the source)
   const queryResult = await c.env.VECTORIZE.query(recipeVector, {
