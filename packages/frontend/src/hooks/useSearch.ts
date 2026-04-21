@@ -10,12 +10,14 @@ interface SearchPage {
 
 const PAGE_SIZE = 24;
 
-export function useSearch(query: string) {
+export type SearchMode = "keyword" | "semantic" | "hybrid";
+
+export function useSearch(query: string, mode: SearchMode = "hybrid") {
   return useInfiniteQuery({
-    queryKey: ["search", query],
+    queryKey: ["search", query, mode],
     queryFn: ({ pageParam = 0 }) =>
       apiFetch<SearchPage>(
-        `/search${buildQuery({ q: query, limit: PAGE_SIZE, offset: pageParam as number })}`,
+        `/search${buildQuery({ q: query, limit: PAGE_SIZE, offset: pageParam as number, mode })}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
