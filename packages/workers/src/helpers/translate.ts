@@ -63,7 +63,8 @@ async function translateWithLlama(
   let translated = result?.response?.trim() ?? text;
 
   // Safety: if title translation is way longer than original, Llama hallucinated — keep original
-  if (isTitle && translated.length > text.length * 3) {
+  if (isTitle && (translated.length > text.length * 2.5 || translated.includes('\n'))) {
+    console.warn(`Title hallucination detected: "${translated.slice(0, 80)}..." — keeping original`);
     return text;
   }
 
@@ -119,15 +120,22 @@ export async function translateRecipe(
   // Translate instructions with m2m100 (longer text translates well, 2.4x cheaper)
   try {
     const translatedSteps: string[] = [];
-    for (const step of doc.instructions) {
-      let result = await translateCheap(step, lang, ai);
-      // Strip footnote reference numbers
-      result = result.replace(/\s+\d+\s*([,.\s])/g, '$1');
-      result = result.replace(/\s+\d+\s*$/g, '');
-      translatedSteps.push(result);
+    for (let i = 0; i < doc.instructions.length; i++) {
+      const step = doc.instructions[i]!;
+      try {
+        let result = await translateCheap(step, lang, ai);
+        // Strip footnote reference numbers
+        result = result.replace(/\s+\d+\s*([,.\s])/g, '$1');
+        result = result.replace(/\s+\d+\s*$/g, '');
+        translatedSteps.push(result);
+      } catch (stepErr) {
+        console.warn(`m2m100 failed on step ${i}:`, stepErr);
+        translatedSteps.push(step); // Keep original step
+      }
     }
     translated.instructions = translatedSteps;
-  } catch {
+  } catch (err) {
+    console.error('Instruction translation failed entirely:', err);
     // Keep original on failure
   }
 
