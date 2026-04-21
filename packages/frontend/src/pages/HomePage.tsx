@@ -170,7 +170,7 @@ export default function HomePage() {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <a
-                    href="https://ko-fi.com/reducedrecipes"
+                    href="https://ko-fi.com/B0B51JEVN"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="mono"
