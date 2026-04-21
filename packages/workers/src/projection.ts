@@ -179,14 +179,17 @@ export default {
           try {
             const vector = await embedRecipe(doc, env.AI);
             if (vector) {
+              const metadata: Record<string, string | number | boolean> = {
+                recipe_id: doc.id,
+                domain: doc.domain,
+              };
+              if (doc.total_time !== null && doc.total_time !== undefined) {
+                metadata.total_time = doc.total_time;
+              }
               await env.VECTORIZE.insert([{
                 id: doc.id,
                 values: vector,
-                metadata: {
-                  recipe_id: doc.id,
-                  domain: doc.domain,
-                  total_time: doc.total_time ?? null,
-                },
+                metadata,
               }]);
             }
           } catch (error) {
