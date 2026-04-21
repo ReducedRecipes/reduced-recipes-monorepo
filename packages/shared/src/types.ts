@@ -23,6 +23,8 @@ export interface RecipeDocument {
   original_language?: string;
   /** Title in the original language before translation. */
   original_title?: string;
+  /** Net engagement vote count (hearts). Used for social proof on detail page. */
+  vote_count?: number;
   /** Content reduction stats — how much bloat we removed. */
   reduction?: {
     /** Total visible words on the original page. */
