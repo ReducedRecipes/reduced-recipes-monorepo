@@ -67,6 +67,7 @@ app.use(
     origin: (origin) => {
       const allowed = [
         'https://reducedrecipes.com',
+        'https://reduced.recipes',
         'https://reduced-recipes.pages.dev',
         'http://localhost:5173',
       ];
