@@ -22,7 +22,7 @@
 import { execSync } from "node:child_process";
 import type { RecipeDocument } from "@rr/shared";
 
-/** Embedding model — 768 dimensions, best multilingual retrieval quality. */
+/** Embedding model — 768 dimensions. Must match the model used by the search endpoint. */
 export const EMBEDDING_MODEL = "@cf/google/embeddinggemma-300m";
 
 /** Vectorize supports up to 1000 vectors per insert call. */

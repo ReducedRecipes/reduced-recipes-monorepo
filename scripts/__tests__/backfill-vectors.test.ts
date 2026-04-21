@@ -59,7 +59,7 @@ const fullRow: RecipeRow = {
 // ── Constants ─────────────────────────────────────────────────────────────────
 
 describe("constants", () => {
-  it("EMBEDDING_MODEL is the embeddinggemma model", () => {
+  it("EMBEDDING_MODEL is the embeddinggemma model (768 dims)", () => {
     expect(EMBEDDING_MODEL).toBe("@cf/google/embeddinggemma-300m");
   });
 
