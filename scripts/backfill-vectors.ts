@@ -24,6 +24,11 @@
  */
 
 import { execSync } from "node:child_process";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
+const WORKERS_DIR = resolve(SCRIPT_DIR, "../packages/workers");
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -89,11 +94,24 @@ export function batchChunks<T>(items: T[], size: number): T[][] {
 
 // ── Config ────────────────────────────────────────────────────────────────────
 
+import { readFileSync } from "node:fs";
+
 const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID ?? "";
-const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN ?? "";
 const KV_NAMESPACE_ID = process.env.KV_NAMESPACE_ID ?? "1ca521a6b82b499b802318ee8bf747db";
 const VECTORIZE_INDEX = process.env.VECTORIZE_INDEX ?? "rr-recipes";
 const D1_DATABASE = process.env.D1_DATABASE ?? "reduced-recipes-prod";
+
+// Use explicit API token if provided, otherwise read wrangler's OAuth token
+function resolveApiToken(): string {
+  if (process.env.CLOUDFLARE_API_TOKEN) return process.env.CLOUDFLARE_API_TOKEN;
+  try {
+    const toml = readFileSync(resolve(process.env.HOME ?? "", "Library/Preferences/.wrangler/config/default.toml"), "utf-8");
+    const match = toml.match(/oauth_token\s*=\s*"([^"]+)"/);
+    if (match?.[1]) return match[1];
+  } catch { /* ignore */ }
+  return "";
+}
+const API_TOKEN = resolveApiToken();
 
 const AI_MODEL = "@cf/google/embeddinggemma-300m";
 const CF_BASE = `https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}`;
@@ -187,10 +205,27 @@ async function main(): Promise<void> {
 
   // ── Step 1: fetch all recipe IDs from D1 ───────────────────────────────────
   console.log("Fetching recipe IDs from D1...");
-  const d1Raw = execSync(
-    `npx wrangler d1 execute ${D1_DATABASE} --json --command="SELECT id FROM recipes ORDER BY id"`,
-    { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
-  );
+  let d1Raw: string;
+  try {
+    // wrangler --json writes to stdout on success; stderr has warnings we ignore
+    // Remove CLOUDFLARE_API_TOKEN so wrangler uses OAuth login (the API token may lack D1 scope)
+    const wranglerEnv = { ...process.env };
+    delete wranglerEnv.CLOUDFLARE_API_TOKEN;
+    d1Raw = execSync(
+      `npx wrangler d1 execute ${D1_DATABASE} --remote --json --config wrangler.api.toml --command "SELECT id FROM recipes ORDER BY id"`,
+      { encoding: "utf-8", cwd: WORKERS_DIR, maxBuffer: 100 * 1024 * 1024, timeout: 120_000, env: wranglerEnv },
+    );
+  } catch (err: unknown) {
+    const e = err as { stdout?: string; stderr?: string; status?: number };
+    // wrangler exits non-zero due to npm warnings on stderr, but stdout has valid JSON
+    if (e.stdout && e.stdout.trim().startsWith("[")) {
+      d1Raw = e.stdout;
+    } else {
+      console.error("stderr:", e.stderr?.slice(0, 500));
+      console.error("stdout:", e.stdout?.slice(0, 500));
+      throw new Error(`D1 query failed (exit ${e.status})`);
+    }
+  }
   const allIds = parseD1Result(d1Raw);
   const ids = isFinite(limit) ? allIds.slice(0, limit) : allIds;
   console.log(`  Found ${allIds.length} recipes, processing ${ids.length}.`);
