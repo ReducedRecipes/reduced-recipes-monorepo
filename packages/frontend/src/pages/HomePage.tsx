@@ -142,7 +142,7 @@ export default function HomePage() {
         </div>
 
         {/* Right column: funding tracker + stat panel */}
-        <div style={{ display: "flex", flexDirection: "column", gap: 16, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, justifyContent: "flex-start", alignSelf: "start", marginTop: 32 }}>
 
           {/* Funding tracker */}
           {funding && funding.monthly_cost > 0 && (() => {
@@ -204,7 +204,6 @@ export default function HomePage() {
             padding: "24px 24px 20px",
             background: "var(--bg-2)",
             position: "relative",
-            alignSelf: "end",
           }}
         >
           <div
