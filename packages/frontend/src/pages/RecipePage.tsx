@@ -102,19 +102,21 @@ function RecipeImage({ url, title }: { url: string | null; title: string }) {
 export default function RecipePage() {
   const { id } = useParams<{ id: string }>();
   const { data: recipe, isLoading, error } = useRecipe(id ?? "");
-  const { data: similarData } = useSimilarRecipes(id ?? "");
+  const { data: vectorSimilar } = useSimilarRecipes(id ?? "");
   const { isAuthenticated } = useAuth();
   const { lists, createListAsync } = useShoppingLists();
 
+  // Fall back to cuisine/tag-based similar recipes if vector search returns nothing
   const similarParams = recipe?.cuisine
     ? { cuisine: recipe.cuisine, limit: 7 }
     : recipe?.tags?.[0]
     ? { tag: recipe.tags[0], limit: 7 }
     : undefined;
-  const { data: similarData } = useRecipes(similarParams);
-  const similarRecipes = (similarData?.pages[0]?.items ?? [])
-    .filter((r) => r.id !== id)
-    .slice(0, 6);
+  const { data: fallbackSimilar } = useRecipes(similarParams);
+
+  const similarRecipes = (vectorSimilar?.items ?? []).length > 0
+    ? (vectorSimilar?.items ?? []).filter((r: RecipeSummary) => r.id !== id).slice(0, 6)
+    : (fallbackSimilar?.pages[0]?.items ?? []).filter((r) => r.id !== id).slice(0, 6);
 
   const baseServings = useMemo(
     () => parseBaseServings(recipe?.yields ?? null),
@@ -573,45 +575,6 @@ export default function RecipePage() {
         )}
       </article>
 
-      {/* ── Similar recipes shelf ── */}
-      {similarData && similarData.items.length > 0 && (
-        <section className="mt-16 border-t border-rule pt-10">
-          <div className="caps mb-6 text-ink-3">— More like this</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 20 }}>
-            {similarData.items.map((r: RecipeSummary) => (
-              <Link
-                key={r.id}
-                to={`/recipe/${r.id}`}
-                style={{ textDecoration: "none", color: "inherit", display: "flex", flexDirection: "column", gap: 8 }}
-              >
-                {r.image_url ? (
-                  <img
-                    src={r.image_url}
-                    alt={r.title}
-                    style={{ width: "100%", aspectRatio: "3/2", objectFit: "cover", border: "1px solid var(--rule-2)" }}
-                    loading="lazy"
-                  />
-                ) : (
-                  <div style={{
-                    aspectRatio: "3/2", border: "1px solid var(--rule-2)", background: "var(--bg-2)",
-                    display: "flex", alignItems: "center", justifyContent: "center", padding: 12,
-                  }}>
-                    <span className="serif" style={{ fontSize: 14, fontStyle: "italic", color: "var(--ink-3)", textAlign: "center" }}>
-                      {r.title}
-                    </span>
-                  </div>
-                )}
-                <div>
-                  <div className="serif" style={{ fontSize: 15, lineHeight: 1.2 }}>{r.title}</div>
-                  <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", textTransform: "uppercase", marginTop: 3 }}>
-                    {r.domain}{r.total_time ? ` · ${r.total_time}m` : ""}
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </section>
-      )}
     </>
   );
 }
