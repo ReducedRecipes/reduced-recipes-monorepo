@@ -307,6 +307,7 @@ export default function RecipePage() {
           }
           onPrint={() => window.print()}
           onCookMode={() => setCookMode(true)}
+          bookmarkSlot={<BookmarkButton recipeId={recipe.id} />}
         />
 
         {/* ── 4. Two-column body ── */}
@@ -509,7 +510,6 @@ export default function RecipePage() {
           >
             View original on {recipe.domain}
           </a>
-          <BookmarkButton recipeId={recipe.id} />
           <div className="flex-1" />
           <span className="font-mono text-xs text-ink-3">
             Indexed {new Date(recipe.extracted_at).toLocaleDateString()}

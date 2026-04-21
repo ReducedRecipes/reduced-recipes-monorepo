@@ -7,6 +7,7 @@ interface StickyControlsProps {
   onUnitToggle: () => void;
   onPrint: () => void;
   onCookMode: () => void;
+  bookmarkSlot?: React.ReactNode;
 }
 
 export function StickyControls({
@@ -16,6 +17,7 @@ export function StickyControls({
   onUnitToggle,
   onPrint,
   onCookMode,
+  bookmarkSlot,
 }: StickyControlsProps) {
   return (
     <div className="sticky top-[140px] z-[5] -mx-4 border-y border-rule bg-bg px-4 py-3">
@@ -60,6 +62,7 @@ export function StickyControls({
         <div className="flex-1" />
 
         {/* Action buttons */}
+        {bookmarkSlot}
         <Pill onClick={onPrint}>Print</Pill>
         <button
           onClick={onCookMode}
