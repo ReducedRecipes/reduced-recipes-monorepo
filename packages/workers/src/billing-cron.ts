@@ -119,55 +119,63 @@ function round(n: number): number {
 
 export default {
   async scheduled(_event: ScheduledEvent, env: BillingEnv, _ctx: ExecutionContext) {
-    if (!env.CF_API_TOKEN || !env.CF_ACCOUNT_ID || !env.FUNDING_DB) {
-      console.error('Billing cron: missing env bindings');
-      return;
+    try {
+      if (!env.CF_API_TOKEN || !env.CF_ACCOUNT_ID || !env.FUNDING_DB) {
+        console.error('Billing cron: missing env bindings', {
+          hasToken: !!env.CF_API_TOKEN,
+          hasAccount: !!env.CF_ACCOUNT_ID,
+          hasDB: !!env.FUNDING_DB,
+        });
+        return;
+      }
+
+      const now = new Date();
+      const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      const monthStart = `${month}-01`;
+      const today = now.toISOString().split('T')[0]!;
+
+      console.log(`Billing cron: fetching usage for ${monthStart} to ${today}`);
+
+      const usage = await fetchUsage(env, monthStart, today);
+
+      if (usage.errors) {
+        console.error('GraphQL errors:', JSON.stringify(usage.errors));
+        return;
+      }
+
+      const costs = computeCosts(usage);
+      if (!costs) {
+        console.error('Billing cron: no data returned from computeCosts');
+        return;
+      }
+
+      const total = round(
+        costs.d1_reads + costs.workers_ai + costs.kv + costs.queues +
+        costs.durable_objects + costs.r2 + costs.workers_base + costs.other
+      );
+
+      const notes = `Auto-updated ${today} | D1: ${costs.raw.d1Reads} rows read, AI: ${Math.round(costs.raw.neurons)} neurons, KV: ${costs.raw.kvOps} ops, Queues: ${costs.raw.queueOps} ops`;
+
+      await env.FUNDING_DB.prepare(
+        `INSERT INTO monthly_costs (month, d1_reads, workers_ai, queues, kv, durable_objects, r2, workers_base, other, total, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(month) DO UPDATE SET
+           d1_reads = excluded.d1_reads,
+           workers_ai = excluded.workers_ai,
+           queues = excluded.queues,
+           kv = excluded.kv,
+           durable_objects = excluded.durable_objects,
+           r2 = excluded.r2,
+           workers_base = excluded.workers_base,
+           other = excluded.other,
+           total = excluded.total,
+           notes = excluded.notes,
+           updated_at = datetime('now')`,
+      ).bind(month, costs.d1_reads, costs.workers_ai, costs.queues, costs.kv, costs.durable_objects, costs.r2, costs.workers_base, costs.other, total, notes).run();
+
+      console.log(`Billing cron: updated ${month} — total $${total}`);
+    } catch (err) {
+      console.error('Billing cron FAILED:', err);
     }
-
-    const now = new Date();
-    const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-    const monthStart = `${month}-01`;
-    const today = now.toISOString().split('T')[0]!;
-
-    console.log(`Billing cron: fetching usage for ${monthStart} to ${today}`);
-
-    const usage = await fetchUsage(env, monthStart, today);
-
-    if (usage.errors) {
-      console.error('GraphQL errors:', JSON.stringify(usage.errors));
-      return;
-    }
-
-    const costs = computeCosts(usage);
-    if (!costs) {
-      console.error('Billing cron: no data returned');
-      return;
-    }
-
-    const total = round(
-      costs.d1_reads + costs.workers_ai + costs.kv + costs.queues +
-      costs.durable_objects + costs.r2 + costs.workers_base + costs.other
-    );
-
-    const notes = `Auto-updated ${today} | D1: ${costs.raw.d1Reads.toLocaleString()} rows read, AI: ${Math.round(costs.raw.neurons).toLocaleString()} neurons, KV: ${costs.raw.kvOps.toLocaleString()} ops, Queues: ${costs.raw.queueOps.toLocaleString()} ops`;
-
-    await env.FUNDING_DB.prepare(
-      `INSERT INTO monthly_costs (month, d1_reads, workers_ai, queues, kv, durable_objects, r2, workers_base, other, total, notes)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(month) DO UPDATE SET
-         d1_reads = excluded.d1_reads,
-         workers_ai = excluded.workers_ai,
-         queues = excluded.queues,
-         kv = excluded.kv,
-         durable_objects = excluded.durable_objects,
-         r2 = excluded.r2,
-         workers_base = excluded.workers_base,
-         other = excluded.other,
-         total = excluded.total,
-         notes = excluded.notes,
-         updated_at = datetime('now')`,
-    ).bind(month, costs.d1_reads, costs.workers_ai, costs.queues, costs.kv, costs.durable_objects, costs.r2, costs.workers_base, costs.other, total, notes).run();
-
-    console.log(`Billing cron: updated ${month} — total $${total}`);
   },
 };
