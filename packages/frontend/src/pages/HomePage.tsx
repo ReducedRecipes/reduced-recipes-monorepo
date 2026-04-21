@@ -25,13 +25,16 @@ function pickFeatured(items: RecipeSummary[]): RecipeSummary | null {
 }
 
 export default function HomePage() {
-  const { data, isLoading } = useRecipes({ limit: 30 });
+  const { data, isLoading } = useRecipes({ sort: 'hot', limit: 30 });
   const { data: quickData } = useRecipes({ max_time: 20, limit: 8 });
   const { health } = useHealth();
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const quickItems = quickData?.pages.flatMap((p) => p.items) ?? [];
-  const featured = pickFeatured(items);
+  const featured =
+    (health?.featured_recipe_id
+      ? items.find((r) => r.id === health.featured_recipe_id) ?? null
+      : null) ?? pickFeatured(items);
   const totalRecipes = health?.total_recipes ?? 0;
   const totalWordsRemoved = health?.total_words_removed ?? 0;
   const totalAdsRemoved = health?.total_ads_removed ?? 0;

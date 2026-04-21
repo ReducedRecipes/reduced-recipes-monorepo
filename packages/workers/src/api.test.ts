@@ -484,6 +484,63 @@ describe('POST /api/v1/remove', () => {
   });
 });
 
+// ── Health endpoint tests ────────────────────────────────────────────────
+
+describe('GET /api/v1/health', () => {
+  it('includes featured_recipe_id and featured_recipe_title when a qualifying recipe exists', async () => {
+    const env = createEnv();
+    const emptyResults = Array.from({ length: 18 }, () => makeD1Result([{ total: 0 }]));
+    env.DB.batch = vi.fn().mockResolvedValue(emptyResults);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('vote_count >=') && sql.includes('hot_score DESC')) {
+        return makeStmt([{ id: 'featured-1', title: 'Best Recipe Ever' }]);
+      }
+      return makeStmt([{ total: 0 }]);
+    });
+
+    const res = await req('/api/v1/health', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.featured_recipe_id).toBe('featured-1');
+    expect(body.featured_recipe_title).toBe('Best Recipe Ever');
+  });
+
+  it('returns null featured fields when no recipe meets the vote threshold', async () => {
+    const env = createEnv();
+    const emptyResults = Array.from({ length: 18 }, () => makeD1Result([{ total: 0 }]));
+    env.DB.batch = vi.fn().mockResolvedValue(emptyResults);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('vote_count >=') && sql.includes('hot_score DESC')) {
+        return makeStmt([]);
+      }
+      return makeStmt([{ total: 0 }]);
+    });
+
+    const res = await req('/api/v1/health', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.featured_recipe_id).toBeNull();
+    expect(body.featured_recipe_title).toBeNull();
+  });
+
+  it('respects HOT_MIN_VOTES_FEATURED env override', async () => {
+    const env = createEnv({ HOT_MIN_VOTES_FEATURED: '10' });
+    const emptyResults = Array.from({ length: 18 }, () => makeD1Result([{ total: 0 }]));
+    env.DB.batch = vi.fn().mockResolvedValue(emptyResults);
+    const featuredStmt = makeStmt([{ id: 'r1', title: 'Hot Recipe' }]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('vote_count >=') && sql.includes('hot_score DESC')) {
+        return featuredStmt;
+      }
+      return makeStmt([{ total: 0 }]);
+    });
+
+    await req('/api/v1/health', env);
+    // Verify bind was called with threshold 10
+    expect(featuredStmt.bind).toHaveBeenCalledWith(10);
+  });
+});
+
 // ── Error handler tests ─────────────────────────────────────────────────
 
 describe('Global error handler', () => {

@@ -84,6 +84,8 @@ export interface HealthResponse {
   gluten_free: number;
   keto: number;
   translated_recipes: number;
+  featured_recipe_id: string | null;
+  featured_recipe_title: string | null;
 }
 
 export function fetchHealth(): Promise<HealthResponse> {
