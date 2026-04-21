@@ -83,6 +83,10 @@ new_classes = ["ShoppingListDO"]
 [ai]
 binding = "AI"
 
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "rr-recipes"
+
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"
 DEFAULT_CRAWL_DELAY_MS = "2000"
