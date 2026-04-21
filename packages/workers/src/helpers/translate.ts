@@ -1,8 +1,8 @@
 /**
- * Recipe translation helper — hybrid approach.
+ * Recipe translation helper using Workers AI Llama 3.1 model.
  *
- * - Titles: Llama 3.1 (needs cultural awareness to preserve dish names)
- * - Ingredients & instructions: m2m100 (dedicated translation model, 2.4x cheaper on output)
+ * Uses Llama for all translation — m2m100 was tested but produces
+ * poor results for culinary terms ("farina" → "meat", "soffritto" → "sufferer").
  */
 
 import type { RecipeDocument } from '@rr/shared';
@@ -117,25 +117,15 @@ export async function translateRecipe(
     // Keep original on failure
   }
 
-  // Translate instructions with m2m100 (longer text translates well, 2.4x cheaper)
+  // Translate instructions with Llama (m2m100 tested but too inaccurate for cooking steps)
   try {
     const translatedSteps: string[] = [];
-    for (let i = 0; i < doc.instructions.length; i++) {
-      const step = doc.instructions[i]!;
-      try {
-        let result = await translateCheap(step, lang, ai);
-        // Strip footnote reference numbers
-        result = result.replace(/\s+\d+\s*([,.\s])/g, '$1');
-        result = result.replace(/\s+\d+\s*$/g, '');
-        translatedSteps.push(result);
-      } catch (stepErr) {
-        console.warn(`m2m100 failed on step ${i}:`, stepErr);
-        translatedSteps.push(step); // Keep original step
-      }
+    for (const step of doc.instructions) {
+      const result = await translateWithLlama(step, lang, 'cooking instruction', ai);
+      translatedSteps.push(result);
     }
     translated.instructions = translatedSteps;
-  } catch (err) {
-    console.error('Instruction translation failed entirely:', err);
+  } catch {
     // Keep original on failure
   }
 
