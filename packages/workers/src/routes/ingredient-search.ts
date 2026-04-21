@@ -123,7 +123,9 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
   // Sort by fewest missing ingredients, then most matched
   items.sort((a, b) => a.match.missing.length - b.match.missing.length || b.match.have - a.match.have);
 
-  return c.json({ items, has_more: hasMore });
+  return c.json({ items, has_more: hasMore }, 200, {
+    'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+  });
 });
 
 // ── GET /api/v1/ingredients/suggest ────────────────────────────────────
@@ -144,7 +146,7 @@ ingredientSearch.get('/api/v1/ingredients/suggest', async (c) => {
     count: (r as Record<string, unknown>).count as number,
   }));
 
-  c.header('Cache-Control', 'public, max-age=300');
+  c.header('Cache-Control', 'public, max-age=300, s-maxage=3600, stale-while-revalidate=3600');
   return c.json({ items });
 });
 

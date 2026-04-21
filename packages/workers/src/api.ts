@@ -87,8 +87,19 @@ app.use(
   }),
 );
 
-// ── Health ──────────────────────────────────────────────────────────────
+// ── Health (KV-cached, 5-minute TTL) ────────────────────────────────────
 app.get('/api/v1/health', async (c) => {
+  const HEALTH_CACHE_KEY = 'cache:health';
+  const HEALTH_TTL = 300; // 5 minutes
+
+  // Try KV cache first
+  const cached = await c.env.CACHE_KV.get(HEALTH_CACHE_KEY, 'text');
+  if (cached) {
+    return c.json(JSON.parse(cached), 200, {
+      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+    });
+  }
+
   const minVotesFeatured = parseInt(c.env.HOT_MIN_VOTES_FEATURED ?? '3', 10) || 3;
 
   const [results, featuredRow] = await Promise.all([
@@ -120,7 +131,7 @@ app.get('/api/v1/health', async (c) => {
   const getTotal = (r: D1Result | undefined): number =>
     ((r?.results?.[0] as Record<string, number> | undefined)?.total) ?? 0;
 
-  return c.json({
+  const data = {
     ok: true,
     total_recipes: getTotal(results[0]),
     pending_crawls: getTotal(results[1]),
@@ -142,6 +153,19 @@ app.get('/api/v1/health', async (c) => {
     translated_recipes: getTotal(results[17]),
     featured_recipe_id: featuredRow?.id ?? null,
     featured_recipe_title: featuredRow?.title ?? null,
+  };
+
+  // Store in KV (fire-and-forget)
+  try {
+    c.executionCtx.waitUntil(
+      c.env.CACHE_KV.put(HEALTH_CACHE_KEY, JSON.stringify(data), { expirationTtl: HEALTH_TTL }),
+    );
+  } catch {
+    // No execution context (tests) — skip
+  }
+
+  return c.json(data, 200, {
+    'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
   });
 });
 
@@ -184,7 +208,7 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
 
   const doc: RecipeDocument = JSON.parse(value);
   return c.json(doc, 200, {
-    'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
   });
 });
 
@@ -289,7 +313,9 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
 
   const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
-  return c.json({ items, next_cursor });
+  return c.json({ items, next_cursor }, 200, {
+    'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+  });
 });
 
 // ── Tags ─────────────────────────────────────────────────────────────────
@@ -304,7 +330,7 @@ app.get('/api/v1/tags', async (c) => {
   });
 
   return c.json(tags, 200, {
-    'Cache-Control': 'public, max-age=3600',
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
   });
 });
 
@@ -324,7 +350,7 @@ app.get('/api/v1/domains', async (c) => {
   });
 
   return c.json(domains, 200, {
-    'Cache-Control': 'public, max-age=3600',
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
   });
 });
 
@@ -382,7 +408,9 @@ app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
 
   const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
-  return c.json({ items, next_cursor });
+  return c.json({ items, next_cursor }, 200, {
+    'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+  });
 });
 
 // ── Search ────────────────────────────────────────────────────────────
@@ -428,7 +456,9 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
 
   const items: RecipeSummary[] = rows.map((row: Record<string, unknown>) => toRecipeSummary(row));
 
-  return c.json({ items, has_more });
+  return c.json({ items, has_more }, 200, {
+    'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+  });
 });
 
 // ── Admin: Seed domain ────────────────────────────────────────────────
