@@ -271,8 +271,8 @@ describe('GET /api/v1/shopping-lists/:id', () => {
   it('returns list with items split into checked/unchecked', async () => {
     const mockList = { id: 'list-1', user_id: 'user-1', name: 'Weekly', is_default: 1, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' };
     const mockItems = [
-      { id: 'item-1', shopping_list_id: 'list-1', name: 'Milk', checked: 0, created_at: '2024-01-01T00:00:00Z' },
-      { id: 'item-2', shopping_list_id: 'list-1', name: 'Bread', checked: 1, created_at: '2024-01-01T00:00:00Z' },
+      { id: 'item-1', shopping_list_id: 'list-1', item: 'Milk', original_text: 'Milk', checked: 0, recipe_id: null, quantity: null, unit: null, parse_failed: 0, parsing: 0, source: 'manual', position: 0, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+      { id: 'item-2', shopping_list_id: 'list-1', item: 'Bread', original_text: 'Bread', checked: 1, recipe_id: null, quantity: null, unit: null, parse_failed: 0, parsing: 0, source: 'manual', position: 1, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
     ];
     const env = makeEnv(createMockUsersDB({ listById: mockList, items: mockItems }));
 
