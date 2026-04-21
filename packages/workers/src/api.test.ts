@@ -109,6 +109,104 @@ describe('GET /api/v1/recipes', () => {
     const mainQuery = prepareCalls.find((c) => c[0]!.includes('FROM recipes'));
     expect(mainQuery![0]).toContain('JOIN recipe_tags');
   });
+
+  it('sort=hot uses hot_score DESC when votes exceed threshold', async () => {
+    const env = createEnv();
+    const totalsStmt = { bind: vi.fn().mockReturnThis(), first: vi.fn().mockResolvedValue({ total: 200 }) };
+    const listStmt = makeStmt([]);
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SUM(vote_count)')) return totalsStmt;
+      if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
+      return listStmt;
+    });
+
+    await req('/api/v1/recipes?sort=hot', env);
+
+    const prepareCalls = env.DB.prepare.mock.calls as string[][];
+    const mainQuery = prepareCalls.find((c) => c[0]!.includes('FROM recipes r'));
+    expect(mainQuery![0]).toContain('hot_score DESC');
+  });
+
+  it('sort=hot falls back to extracted_at DESC during cold start (total votes < threshold)', async () => {
+    const env = createEnv();
+    const totalsStmt = { bind: vi.fn().mockReturnThis(), first: vi.fn().mockResolvedValue({ total: 5 }) };
+    const listStmt = makeStmt([]);
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SUM(vote_count)')) return totalsStmt;
+      if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
+      return listStmt;
+    });
+
+    await req('/api/v1/recipes?sort=hot', env);
+
+    const prepareCalls = env.DB.prepare.mock.calls as string[][];
+    const mainQuery = prepareCalls.find((c) => c[0]!.includes('FROM recipes r'));
+    // ORDER BY should use extracted_at DESC (cold start fallback), not hot_score DESC
+    expect(mainQuery![0]).toMatch(/ORDER BY r\.extracted_at DESC/);
+    expect(mainQuery![0]).not.toMatch(/ORDER BY r\.hot_score/);
+  });
+
+  it('sort=top uses vote_count DESC', async () => {
+    const env = createEnv();
+    const listStmt = makeStmt([]);
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
+      return listStmt;
+    });
+
+    await req('/api/v1/recipes?sort=top', env);
+
+    const prepareCalls = env.DB.prepare.mock.calls as string[][];
+    const mainQuery = prepareCalls.find((c) => c[0]!.includes('FROM recipes r'));
+    expect(mainQuery![0]).toContain('vote_count DESC');
+  });
+
+  it('sort=hot returns hot_score as next_cursor when paginating', async () => {
+    const env = createEnv();
+    const recipes = Array.from({ length: 25 }, (_, i) => ({
+      id: `r${i}`, title: `Recipe ${i}`, domain: 'example.com', image_url: null,
+      total_time: 30, cook_time: 20, yields: '4', cuisine: null, category: null,
+      extracted_at: `2024-01-01T00:00:00Z`, hot_score: 25 - i, vote_count: 25 - i,
+    }));
+    const totalsStmt = { bind: vi.fn().mockReturnThis(), first: vi.fn().mockResolvedValue({ total: 200 }) };
+    const listStmt = makeStmt(recipes);
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SUM(vote_count)')) return totalsStmt;
+      if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
+      return listStmt;
+    });
+
+    const res = await req('/api/v1/recipes?sort=hot', env);
+    const body = await res.json() as { items: unknown[]; next_cursor: string | null };
+    expect(body.next_cursor).not.toBeNull();
+    // next_cursor should be the hot_score of the last item (index 23, value = 25-23 = 2)
+    expect(body.next_cursor).toBe('2');
+  });
+
+  it('sort=hot respects HOT_MIN_TOTAL_VOTES env override', async () => {
+    const env = createEnv({ HOT_MIN_TOTAL_VOTES: '50' });
+    // 40 votes < 50 threshold → cold start
+    const totalsStmt = { bind: vi.fn().mockReturnThis(), first: vi.fn().mockResolvedValue({ total: 40 }) };
+    const listStmt = makeStmt([]);
+    const tagStmt = makeStmt([]);
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('SUM(vote_count)')) return totalsStmt;
+      if (sql.includes('recipe_tags WHERE recipe_id')) return tagStmt;
+      return listStmt;
+    });
+
+    await req('/api/v1/recipes?sort=hot', env);
+
+    const prepareCalls = env.DB.prepare.mock.calls as string[][];
+    const mainQuery = prepareCalls.find((c) => c[0]!.includes('FROM recipes r'));
+    // ORDER BY should use extracted_at DESC (cold start fallback), not hot_score DESC
+    expect(mainQuery![0]).toMatch(/ORDER BY r\.extracted_at DESC/);
+    expect(mainQuery![0]).not.toMatch(/ORDER BY r\.hot_score/);
+  });
 });
 
 describe('GET /api/v1/tags', () => {
