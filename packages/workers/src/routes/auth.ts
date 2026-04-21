@@ -57,6 +57,7 @@ export function validateReturnTo(returnTo: string, platform: string): string {
     const url = new URL(returnTo);
     if (
       url.hostname === 'reducedrecipes.com' ||
+      url.hostname === 'reduced.recipes' ||
       url.hostname.endsWith('.reduced-recipes.pages.dev') ||
       url.hostname === 'localhost'
     ) {
