@@ -80,12 +80,12 @@ bindings = [
 tag = "v1"
 new_classes = ["ShoppingListDO"]
 
-[ai]
-binding = "AI"
-
 [[vectorize]]
 binding = "VECTORIZE"
 index_name = "rr-recipes"
+
+[ai]
+binding = "AI"
 
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"

@@ -4,6 +4,7 @@ import type { Env } from '@rr/shared/env';
 import type { RecipeDocument, RecipeSummary, User } from '@rr/shared';
 import { optionalAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
+import { parseExclusions } from './helpers/query-parser';
 import { castVote } from './helpers/hot-score';
 import authRoutes from './routes/auth';
 import bookmarkRoutes from './routes/bookmarks';
@@ -415,6 +416,102 @@ app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
   });
 });
 
+// ── Search helpers ────────────────────────────────────────────────────
+
+const EMBEDDING_MODEL = '@cf/baai/bge-small-en-v1.5' as const;
+const MIN_SIMILARITY = 0.65;
+
+/** Fetch recipe summaries from D1 by ID list, respecting dietary mask. */
+async function fetchRecipesByIds(
+  db: D1Database,
+  ids: string[],
+  dietaryMask: number,
+): Promise<RecipeSummary[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  const dietaryClause = dietaryMask > 0 ? 'AND (dietary_bitmask & ?) = ?' : '';
+  const params: (string | number)[] = [...ids];
+  if (dietaryMask > 0) {
+    params.push(dietaryMask, dietaryMask);
+  }
+  const { results } = await db
+    .prepare(
+      `SELECT id, title, domain, image_url, total_time, cook_time, yields, cuisine, category
+       FROM recipes WHERE id IN (${placeholders}) ${dietaryClause}`,
+    )
+    .bind(...params)
+    .all();
+  const rows = (results ?? []) as Record<string, unknown>[];
+  // Preserve the vector ranking order
+  const byId = new Map(rows.map((r) => [r.id as string, r]));
+  const ordered = ids.map((id) => byId.get(id)).filter(Boolean) as Record<string, unknown>[];
+  return ordered.map((r) => toRecipeSummary(r));
+}
+
+/** Post-filter recipe IDs that contain any exclusion ingredient. */
+async function filterExclusions(
+  db: D1Database,
+  ids: string[],
+  exclusions: string[],
+): Promise<string[]> {
+  if (exclusions.length === 0 || ids.length === 0) return ids;
+  const placeholders = ids.map(() => '?').join(',');
+  const excludedIds = new Set<string>();
+  for (const term of exclusions) {
+    const { results } = await db
+      .prepare(
+        `SELECT DISTINCT recipe_id FROM recipe_ingredients
+         WHERE recipe_id IN (${placeholders}) AND ingredient LIKE ?`,
+      )
+      .bind(...ids, `%${term}%`)
+      .all();
+    for (const row of results ?? []) {
+      excludedIds.add((row as { recipe_id: string }).recipe_id);
+    }
+  }
+  return ids.filter((id) => !excludedIds.has(id));
+}
+
+/** Embed a query string and return the vector. */
+async function embedQuery(ai: Ai, text: string): Promise<number[]> {
+  const result = await ai.run(EMBEDDING_MODEL, { text: [text] }) as { data: number[][] };
+  return result.data[0] ?? [];
+}
+
+/** Run FTS keyword search and return ordered IDs. */
+async function keywordSearchIds(
+  db: D1Database,
+  sanitized: string,
+  topK: number,
+  dietaryMask: number,
+): Promise<string[]> {
+  const dietaryClause = dietaryMask > 0 ? 'AND (r.dietary_bitmask & ?3) = ?3' : '';
+  const bindParams: (string | number)[] = [sanitized, topK];
+  if (dietaryMask > 0) bindParams.push(dietaryMask);
+  const { results } = await db
+    .prepare(
+      `SELECT r.id FROM recipes_fts fts
+       JOIN recipes r ON fts.rowid = r.rowid
+       WHERE recipes_fts MATCH ?1 ${dietaryClause}
+       LIMIT ?2`,
+    )
+    .bind(...bindParams)
+    .all();
+  return (results ?? []).map((r) => (r as { id: string }).id);
+}
+
+/** Reciprocal rank fusion of two ranked ID lists (k = 60). */
+function reciprocalRankFusion(listA: string[], listB: string[], k = 60): string[] {
+  const scores = new Map<string, number>();
+  for (const [rank, id] of listA.entries()) {
+    scores.set(id, (scores.get(id) ?? 0) + 1 / (k + rank + 1));
+  }
+  for (const [rank, id] of listB.entries()) {
+    scores.set(id, (scores.get(id) ?? 0) + 1 / (k + rank + 1));
+  }
+  return [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+}
+
 // ── Search ────────────────────────────────────────────────────────────
 app.get('/api/v1/search', optionalAuth, async (c) => {
   const q = c.req.query('q') ?? '';
@@ -422,6 +519,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
   const offsetParam = c.req.query('offset');
   const limit = Math.min(Math.max(parseInt(limitParam ?? '24', 10) || 24, 1), 50);
   const offset = Math.max(parseInt(offsetParam ?? '0', 10) || 0, 0);
+  const mode = (c.req.query('mode') ?? 'keyword') as 'keyword' | 'semantic' | 'hybrid';
 
   if (q.length < 2) {
     return c.json(
@@ -430,13 +528,51 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     );
   }
 
+  const dietaryMask = await getDietaryMask(c);
+
+  // ── Semantic / Hybrid modes ───────────────────────────────────────
+  if (mode === 'semantic' || mode === 'hybrid') {
+    const { cleanQuery, exclusions } = parseExclusions(q);
+    const queryText = cleanQuery || q;
+
+    const vector = await embedQuery(c.env.AI!, queryText);
+
+    const vectorMatches = await c.env.VECTORIZE!.query(vector, { topK: 50 });
+    const semanticIds = (vectorMatches.matches ?? [])
+      .filter((m) => m.score >= MIN_SIMILARITY)
+      .map((m) => m.id);
+
+    let mergedIds: string[];
+
+    if (mode === 'hybrid') {
+      const sanitized = queryText
+        .replace(/\b(AND|OR|NOT)\b/g, ' ')
+        .replace(/[*"():^~\-:]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const kw = sanitized ? await keywordSearchIds(c.env.DB, sanitized, 50, dietaryMask) : [];
+      mergedIds = reciprocalRankFusion(kw, semanticIds);
+    } else {
+      mergedIds = semanticIds;
+    }
+
+    const afterExclusions = await filterExclusions(c.env.DB, mergedIds, exclusions);
+    const pagedIds = afterExclusions.slice(offset, offset + limit);
+    const has_more = afterExclusions.length > offset + limit;
+
+    const items = await fetchRecipesByIds(c.env.DB, pagedIds, dietaryMask);
+
+    return c.json({ items, has_more, search_mode: mode }, 200, {
+      'Cache-Control': 'no-store',
+    });
+  }
+
+  // ── Keyword (default) mode ────────────────────────────────────────
   const sanitized = q.replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/[*"():^~\-:]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!sanitized) {
     return c.json({ items: [], next_cursor: null }, 200);
   }
 
-  // Dietary bitmask filtering for search
-  const dietaryMask = await getDietaryMask(c);
   const dietaryClause = dietaryMask > 0 ? 'AND (r.dietary_bitmask & ?4) = ?4' : '';
   const bindParams: (string | number)[] = [sanitized, limit + 1, offset];
   if (dietaryMask > 0) bindParams.push(dietaryMask);
@@ -458,7 +594,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
 
   const items: RecipeSummary[] = rows.map((row: Record<string, unknown>) => toRecipeSummary(row));
 
-  return c.json({ items, has_more }, 200, {
+  return c.json({ items, has_more, search_mode: 'keyword' }, 200, {
     'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
   });
 });
