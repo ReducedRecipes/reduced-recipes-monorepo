@@ -39,14 +39,10 @@ queue = "projection-jobs"
 
 [[vectorize]]
 binding = "VECTORIZE"
-index_name = "recipe-embeddings"
+index_name = "rr-recipes"
 
 [ai]
 binding = "AI"
-
-[[vectorize]]
-binding = "VECTORIZE"
-index_name = "rr-recipes"
 
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"

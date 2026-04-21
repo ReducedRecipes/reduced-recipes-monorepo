@@ -39,9 +39,6 @@ export interface Env {
   FUNDING_DB?: D1Database;
   KOFI_VERIFICATION_TOKEN?: string;
 
-  /** Phase 3 bindings — vector search. */
-  VECTORIZE?: VectorizeIndex;
-
   /** Phase 3 bindings — hot ranking. */
   VOTES_KV?: KVNamespace;
   HOT_DECAY_SECONDS?: string;
