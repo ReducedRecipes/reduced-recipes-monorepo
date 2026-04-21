@@ -89,25 +89,32 @@ app.use(
 
 // ── Health ──────────────────────────────────────────────────────────────
 app.get('/api/v1/health', async (c) => {
-  const results = await c.env.DB.batch([
-    c.env.DB.prepare('SELECT COUNT(*) as total FROM recipes'),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='pending'"),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='failed'"),
-    c.env.DB.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
-    c.env.DB.prepare('SELECT COALESCE(SUM(words_removed), 0) as total FROM recipes'),
-    c.env.DB.prepare('SELECT COALESCE(SUM(ads_detected), 0) as total FROM recipes'),
-    c.env.DB.prepare('SELECT ROUND(AVG(total_time)) as total FROM recipes WHERE total_time IS NOT NULL AND total_time > 0'),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE total_time IS NOT NULL AND total_time <= 20"),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE total_time IS NOT NULL AND total_time <= 30"),
-    c.env.DB.prepare('SELECT COUNT(DISTINCT domain) as total FROM recipes'),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE original_language IS NOT NULL AND original_language != 'en'"),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE extracted_at > datetime('now', '-7 days')"),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag = 'vegetarian'"),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag = 'vegan'"),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('one-pan','one pan','skillet','one-pot','one pot')"),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('gluten-free','gluten free')"),
-    c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('keto','low-carb','low carb')"),
-    c.env.DB.prepare("SELECT COUNT(DISTINCT recipe_id) as total FROM recipe_tags WHERE tag = 'translated'"),
+  const minVotesFeatured = parseInt(c.env.HOT_MIN_VOTES_FEATURED ?? '3', 10) || 3;
+
+  const [results, featuredRow] = await Promise.all([
+    c.env.DB.batch([
+      c.env.DB.prepare('SELECT COUNT(*) as total FROM recipes'),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='pending'"),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='failed'"),
+      c.env.DB.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
+      c.env.DB.prepare('SELECT COALESCE(SUM(words_removed), 0) as total FROM recipes'),
+      c.env.DB.prepare('SELECT COALESCE(SUM(ads_detected), 0) as total FROM recipes'),
+      c.env.DB.prepare('SELECT ROUND(AVG(total_time)) as total FROM recipes WHERE total_time IS NOT NULL AND total_time > 0'),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE total_time IS NOT NULL AND total_time <= 20"),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE total_time IS NOT NULL AND total_time <= 30"),
+      c.env.DB.prepare('SELECT COUNT(DISTINCT domain) as total FROM recipes'),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE original_language IS NOT NULL AND original_language != 'en'"),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE extracted_at > datetime('now', '-7 days')"),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag = 'vegetarian'"),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag = 'vegan'"),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('one-pan','one pan','skillet','one-pot','one pot')"),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('gluten-free','gluten free')"),
+      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('keto','low-carb','low carb')"),
+      c.env.DB.prepare("SELECT COUNT(DISTINCT recipe_id) as total FROM recipe_tags WHERE tag = 'translated'"),
+    ]),
+    c.env.DB.prepare('SELECT id, title FROM recipes WHERE vote_count >= ? ORDER BY hot_score DESC LIMIT 1')
+      .bind(minVotesFeatured)
+      .first<{ id: string; title: string }>(),
   ]);
 
   const getTotal = (r: D1Result | undefined): number =>
@@ -133,6 +140,8 @@ app.get('/api/v1/health', async (c) => {
     gluten_free: getTotal(results[15]),
     keto: getTotal(results[16]),
     translated_recipes: getTotal(results[17]),
+    featured_recipe_id: featuredRow?.id ?? null,
+    featured_recipe_title: featuredRow?.title ?? null,
   });
 });
 

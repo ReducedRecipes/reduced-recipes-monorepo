@@ -7,10 +7,16 @@ vi.mock("../hooks/useRecipes", () => ({
   useRecipes: vi.fn(),
 }));
 
+vi.mock("../hooks/useHealth", () => ({
+  useHealth: vi.fn().mockReturnValue({ health: null, isLoading: false }),
+}));
+
 import { useRecipes } from "../hooks/useRecipes";
+import { useHealth } from "../hooks/useHealth";
 import HomePage from "../pages/HomePage";
 
 const mockedUseRecipes = vi.mocked(useRecipes);
+const mockedUseHealth = vi.mocked(useHealth);
 
 const MOCK_ITEMS = Array.from({ length: 14 }, (_, i) => ({
   id: `r${i + 1}`,
@@ -137,6 +143,14 @@ describe("HomePage", () => {
     });
   });
 
+  it("requests recipes with sort=hot", () => {
+    mockLoaded();
+    renderPage();
+    const calls = mockedUseRecipes.mock.calls;
+    const hotCall = calls.find((c) => (c[0] as Record<string, unknown>)?.sort === "hot");
+    expect(hotCall).toBeDefined();
+  });
+
   describe("Featured recipe", () => {
     it("renders Fig. 003 label", () => {
       mockLoaded();
@@ -148,6 +162,26 @@ describe("HomePage", () => {
       mockLoaded();
       renderPage();
       expect(screen.getAllByText("Recipe 1").length).toBeGreaterThan(0);
+    });
+
+    it("prefers health.featured_recipe_id when set", () => {
+      const itemsWithFeatured = [
+        ...MOCK_ITEMS,
+        { id: "hot-recipe", title: "Trending Hot Recipe", domain: "example.com", image_url: null, total_time: 25, cook_time: null, yields: null, cuisine: null, category: null, tags: [] },
+      ];
+      mockedUseRecipes.mockReturnValue({
+        data: { pages: [{ items: itemsWithFeatured, next_cursor: null }] },
+        isLoading: false,
+        hasNextPage: false,
+        fetchNextPage: vi.fn(),
+        isFetchingNextPage: false,
+      } as any);
+      mockedUseHealth.mockReturnValue({
+        health: { featured_recipe_id: "hot-recipe", featured_recipe_title: "Trending Hot Recipe" } as any,
+        isLoading: false,
+      });
+      renderPage();
+      expect(screen.getAllByText("Trending Hot Recipe").length).toBeGreaterThan(0);
     });
 
     it("renders Open recipe CTA", () => {
