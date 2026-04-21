@@ -521,6 +521,9 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
   const limit = Math.min(Math.max(parseInt(limitParam ?? '24', 10) || 24, 1), 50);
   const offset = Math.max(parseInt(offsetParam ?? '0', 10) || 0, 0);
   const mode = (c.req.query('mode') ?? 'keyword') as 'keyword' | 'semantic' | 'hybrid';
+  const maxTime = c.req.query('max_time') ? parseInt(c.req.query('max_time')!, 10) : null;
+  const tagsParam = c.req.query('tags');
+  const tagList = tagsParam ? tagsParam.split(',').map((t) => t.trim()).filter(Boolean) : [];
 
   if (q.length < 2) {
     return c.json(
@@ -578,7 +581,26 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     const pagedIds = afterExclusions.slice(offset, offset + limit);
     const has_more = afterExclusions.length > offset + limit;
 
-    const items = await fetchRecipesByIds(c.env.DB, pagedIds, dietaryMask);
+    let filteredIds = pagedIds;
+    // Post-filter by max_time and tags for semantic/hybrid
+    if (maxTime || tagList.length > 0) {
+      const allItems = await fetchRecipesByIds(c.env.DB, afterExclusions, dietaryMask);
+      const filtered = allItems.filter((r) => {
+        if (maxTime && (r.total_time == null || r.total_time > maxTime)) return false;
+        if (tagList.length > 0 && r.tags) {
+          for (const t of tagList) {
+            if (!r.tags.includes(t)) return false;
+          }
+        }
+        return true;
+      });
+      const paged = filtered.slice(offset, offset + limit);
+      return c.json({ items: paged, has_more: filtered.length > offset + limit, search_mode: mode }, 200, {
+        'Cache-Control': 'no-store',
+      });
+    }
+
+    const items = await fetchRecipesByIds(c.env.DB, filteredIds, dietaryMask);
 
     return c.json({ items, has_more, search_mode: mode }, 200, {
       'Cache-Control': 'no-store',
@@ -591,16 +613,37 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     return c.json({ items: [], next_cursor: null }, 200);
   }
 
-  const dietaryClause = dietaryMask > 0 ? 'AND (r.dietary_bitmask & ?4) = ?4' : '';
-  const bindParams: (string | number)[] = [sanitized, limit + 1, offset];
-  if (dietaryMask > 0) bindParams.push(dietaryMask);
+  // Build additional WHERE clauses for time and tag filters
+  const extraClauses: string[] = [];
+  const extraParams: (string | number)[] = [];
+  if (dietaryMask > 0) {
+    extraClauses.push('(r.dietary_bitmask & ? ) = ?');
+    extraParams.push(dietaryMask, dietaryMask);
+  }
+  if (maxTime) {
+    extraClauses.push('r.total_time IS NOT NULL AND r.total_time <= ?');
+    extraParams.push(maxTime);
+  }
+
+  let tagJoin = '';
+  if (tagList.length > 0) {
+    tagList.forEach((t, i) => {
+      const alias = `srt${i}`;
+      tagJoin += ` JOIN recipe_tags ${alias} ON ${alias}.recipe_id = r.id AND ${alias}.tag = ?`;
+      extraParams.push(t);
+    });
+  }
+
+  const extraWhere = extraClauses.length > 0 ? 'AND ' + extraClauses.join(' AND ') : '';
+  const bindParams: (string | number)[] = [sanitized, limit + 1, offset, ...extraParams];
 
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
             r.yields, r.cuisine, r.category
      FROM recipes_fts fts
      JOIN recipes r ON fts.rowid = r.rowid
-     WHERE recipes_fts MATCH ?1 ${dietaryClause}
+     ${tagJoin}
+     WHERE recipes_fts MATCH ?1 ${extraWhere}
      LIMIT ?2 OFFSET ?3`,
   )
     .bind(...bindParams)

@@ -157,7 +157,10 @@ export default function SearchPage() {
     hasNextPage: searchHasNext,
     fetchNextPage: searchFetchNext,
     isFetchingNextPage: searchFetchingNext,
-  } = useSearch(isSearching ? q : "", searchMode);
+  } = useSearch(isSearching ? q : "", searchMode, {
+    maxTime: filters.maxTime,
+    tags: tagFilters,
+  });
 
   const {
     data: browseData,

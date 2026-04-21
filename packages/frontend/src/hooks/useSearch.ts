@@ -13,12 +13,24 @@ const PAGE_SIZE = 24;
 
 export type SearchMode = "keyword" | "semantic" | "hybrid";
 
-export function useSearch(query: string, mode: SearchMode = "hybrid") {
+export interface SearchFilters {
+  maxTime?: number | null;
+  tags?: string[];
+}
+
+export function useSearch(query: string, mode: SearchMode = "keyword", filters: SearchFilters = {}) {
   return useInfiniteQuery({
-    queryKey: ["search", query, mode],
+    queryKey: ["search", query, mode, filters.maxTime, filters.tags?.join(",")],
     queryFn: ({ pageParam = 0 }) =>
       apiFetch<SearchPage>(
-        `/search${buildQuery({ q: query, limit: PAGE_SIZE, offset: pageParam as number, mode })}`,
+        `/search${buildQuery({
+          q: query,
+          limit: PAGE_SIZE,
+          offset: pageParam as number,
+          mode,
+          ...(filters.maxTime ? { max_time: filters.maxTime } : {}),
+          ...(filters.tags && filters.tags.length > 0 ? { tags: filters.tags.join(",") } : {}),
+        })}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {
