@@ -57,11 +57,14 @@ export interface SearchResponse {
   has_more: boolean;
 }
 
+export type SearchMode = "keyword" | "semantic" | "hybrid";
+
 export function searchRecipes(
   q: string,
   limit?: number,
+  mode: SearchMode = "hybrid",
 ): Promise<SearchResponse> {
-  return apiFetch<SearchResponse>(`/search${buildQuery({ q, limit })}`);
+  return apiFetch<SearchResponse>(`/search${buildQuery({ q, limit, mode })}`);
 }
 
 export interface HealthResponse {

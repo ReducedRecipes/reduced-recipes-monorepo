@@ -24,6 +24,7 @@ vi.mock("../../components/BookmarkButton", () => ({
 
 vi.mock("../../lib/api", () => ({
   fetchRecipe: vi.fn(),
+  fetchRecipes: vi.fn().mockResolvedValue({ items: [], next_cursor: null }),
 }));
 
 import { fetchRecipe } from "../../lib/api";
