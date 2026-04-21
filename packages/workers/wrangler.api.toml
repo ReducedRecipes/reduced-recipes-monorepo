@@ -80,6 +80,10 @@ bindings = [
 tag = "v1"
 new_classes = ["ShoppingListDO"]
 
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "rr-recipe-embeddings"
+
 [ai]
 binding = "AI"
 
