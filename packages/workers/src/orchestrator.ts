@@ -43,17 +43,9 @@ async function runScheduled(env: Env) {
       WHERE status = 'crawling' AND next_crawl < datetime('now', '-10 minutes')
     `).run();
 
-    // 4. Ingest 1 sitemap per run (discovery can be slow)
-    try {
-      await ingestNextSitemap(env);
-    } catch (err) {
-      console.error('SITEMAP: ingest failed', err);
-    }
-
     console.log(`ORCHESTRATOR: ${due.results.length} URLs due from ${allDomains.results.length} domains`);
-    if (!due.results.length) return;
 
-    // 2. Mark as in-flight + 3. Enqueue to crawl-jobs — in batches of 50
+    // 2. Mark as in-flight + 3. Enqueue to crawl-jobs FIRST (before sitemap which can be slow)
     const batches = chunk(due.results, 50);
     for (const batch of batches) {
       const batchUrls = batch.map((r) => r.url);
@@ -68,6 +60,13 @@ async function runScheduled(env: Env) {
           contentType: 'json' as const,
         })),
       );
+    }
+
+    // 4. Ingest 1 sitemap per run AFTER crawl batch is enqueued
+    try {
+      await ingestNextSitemap(env);
+    } catch (err) {
+      console.error('SITEMAP: ingest failed', err);
     }
 }
 
