@@ -40,7 +40,7 @@ queue = "projection-jobs"
 
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"
-DEFAULT_CRAWL_DELAY_MS = "500"
+DEFAULT_CRAWL_DELAY_MS = "1500"
 MAX_QUEUE_BATCH = "200"
 ENVIRONMENT = "production"
 

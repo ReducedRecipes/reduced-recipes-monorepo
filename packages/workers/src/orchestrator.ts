@@ -6,36 +6,27 @@ import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 async function runScheduled(env: Env) {
     // 1. Pull due URLs — prioritise domains with high-priority URLs first,
     //    then fill remaining slots with random domains.
-    const priorityDomains = await env.DB.prepare(`
-      SELECT DISTINCT domain FROM crawl_queue
-      WHERE status = 'pending' AND priority <= 3 AND next_crawl <= datetime('now')
-      LIMIT 20
-    `).all<{ domain: string }>();
+    // Pick domains with pending URLs — spread evenly across all active domains
+    const allDomains = await env.DB.prepare(`
+      SELECT domain, COUNT(*) as pending FROM crawl_queue
+      WHERE status = 'pending' AND next_crawl <= datetime('now')
+      GROUP BY domain
+      HAVING pending > 0
+      ORDER BY RANDOM()
+      LIMIT 100
+    `).all<{ domain: string; pending: number }>();
 
-    const randomDomains = await env.DB.prepare(
-      'SELECT domain FROM domains WHERE active = 1 ORDER BY RANDOM() LIMIT 80',
-    ).all<{ domain: string }>();
-
-    // Merge and deduplicate
-    const seen = new Set(priorityDomains.results.map((d) => d.domain));
-    const domains = {
-      results: [
-        ...priorityDomains.results,
-        ...randomDomains.results.filter((d) => !seen.has(d.domain)),
-      ].slice(0, 100),
-    };
-
+    // Take fewer URLs per domain (max 5) to spread load across more sites
     const due: { results: CrawlJob[] } = { results: [] };
-    if (domains.results.length > 0) {
-      // D1 batch limit is 100 statements — split into 2 batches if needed
-      const domainChunks = chunk(domains.results, 50);
+    if (allDomains.results.length > 0) {
+      const domainChunks = chunk(allDomains.results, 50);
       for (const domainBatch of domainChunks) {
         const stmts = domainBatch.map((d) =>
           env.DB.prepare(`
             SELECT url, domain FROM crawl_queue
             WHERE status = 'pending' AND domain = ? AND next_crawl <= datetime('now')
             ORDER BY priority ASC, next_crawl ASC
-            LIMIT 20
+            LIMIT 5
           `).bind(d.domain),
         );
         const results = await env.DB.batch(stmts);
