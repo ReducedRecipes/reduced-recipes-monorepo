@@ -249,10 +249,13 @@ export default function ShoppingListPage() {
     }
   };
 
+  const [copied, setCopied] = useState(false);
   const handleCopyShareLink = async () => {
     if (list.share_token) {
       const url = `${window.location.origin}/shared/lists/${list.share_token}`;
       await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
     } else {
       createShareLink();
     }
@@ -356,7 +359,7 @@ export default function ShoppingListPage() {
             }}
             title="Share list"
           >
-            Share
+            {copied ? "Copied!" : "Share"}
           </button>
           <button
             onClick={handleDelete}

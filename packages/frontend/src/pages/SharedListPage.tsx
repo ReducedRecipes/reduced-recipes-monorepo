@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "../lib/api";
@@ -7,6 +7,7 @@ import {
   useSharedListMembership,
   useSharedListItems,
 } from "../hooks/useShoppingLists";
+import { useShoppingListSocket } from "../hooks/useShoppingListSocket";
 import type { SmartRollupItem } from "@rr/shared";
 
 interface SharedListResponse {
@@ -103,6 +104,22 @@ export default function SharedListPage() {
     queryFn: () => apiFetch<SharedListResponse>(`/shared/lists/${token}`),
     enabled: !!token,
   });
+
+  // Connect via WebSocket for real-time updates using the share token
+  const socketOpts = token
+    ? { shareToken: token, enabled: !!list?.id }
+    : { enabled: false };
+  const { isConnected, items: socketItems } = useShoppingListSocket(
+    list?.id,
+    socketOpts,
+  );
+
+  // When socket receives updates, refetch the rolled-up view
+  useEffect(() => {
+    if (isConnected && socketItems.length > 0) {
+      queryClient.invalidateQueries({ queryKey: ["shared-list", token] });
+    }
+  }, [socketItems, isConnected, queryClient, token]);
 
   const { membership, joinList, leaveList, isJoining, isLeaving } =
     useSharedListMembership(token);
@@ -213,6 +230,9 @@ export default function SharedListPage() {
           Shared shopping list
           {list.owner_name && (
             <span> by {list.owner_name}</span>
+          )}
+          {isConnected && (
+            <span title="Real-time sync active"> · Live</span>
           )}
         </p>
         {(list.member_count ?? 0) > 0 && (
