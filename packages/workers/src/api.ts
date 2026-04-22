@@ -613,29 +613,32 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     return c.json({ items: [], next_cursor: null }, 200);
   }
 
-  // Build additional WHERE clauses for time and tag filters
-  const extraClauses: string[] = [];
-  const extraParams: (string | number)[] = [];
-  if (dietaryMask > 0) {
-    extraClauses.push('(r.dietary_bitmask & ? ) = ?');
-    extraParams.push(dietaryMask, dietaryMask);
-  }
-  if (maxTime) {
-    extraClauses.push('r.total_time IS NOT NULL AND r.total_time <= ?');
-    extraParams.push(maxTime);
-  }
+  // Build filters — tag JOINs come before WHERE in SQL, so their params must be ordered first
+  const joinParams: (string | number)[] = [];
+  const whereClauses: string[] = [];
+  const whereParams: (string | number)[] = [];
 
   let tagJoin = '';
   if (tagList.length > 0) {
     tagList.forEach((t, i) => {
       const alias = `srt${i}`;
       tagJoin += ` JOIN recipe_tags ${alias} ON ${alias}.recipe_id = r.id AND ${alias}.tag = ?`;
-      extraParams.push(t);
+      joinParams.push(t);
     });
   }
 
-  const extraWhere = extraClauses.length > 0 ? 'AND ' + extraClauses.join(' AND ') : '';
-  const bindParams: (string | number)[] = [sanitized, limit + 1, offset, ...extraParams];
+  if (dietaryMask > 0) {
+    whereClauses.push('(r.dietary_bitmask & ?) = ?');
+    whereParams.push(dietaryMask, dietaryMask);
+  }
+  if (maxTime) {
+    whereClauses.push('r.total_time IS NOT NULL AND r.total_time <= ?');
+    whereParams.push(maxTime);
+  }
+
+  const extraWhere = whereClauses.length > 0 ? 'AND ' + whereClauses.join(' AND ') : '';
+  // Param order: ?1=query, ?2=limit, ?3=offset, then JOIN params, then WHERE params
+  const bindParams: (string | number)[] = [sanitized, limit + 1, offset, ...joinParams, ...whereParams];
 
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
