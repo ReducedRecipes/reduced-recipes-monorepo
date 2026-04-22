@@ -200,6 +200,7 @@ export default function ShoppingListPage() {
   const [newItemName, setNewItemName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [editedName, setEditedName] = useState("");
+  const [copied, setCopied] = useState(false);
   const nameInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -249,7 +250,6 @@ export default function ShoppingListPage() {
     }
   };
 
-  const [copied, setCopied] = useState(false);
   const handleCopyShareLink = async () => {
     if (list.share_token) {
       const url = `${window.location.origin}/shared/lists/${list.share_token}`;
