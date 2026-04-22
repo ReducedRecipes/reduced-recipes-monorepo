@@ -896,16 +896,16 @@ app.post('/api/v1/admin/backfill-nutrition', async (c) => {
   const { estimateNutrition } = await import('./helpers/nutrition-estimate');
 
   const body = await c.req.json<{ offset?: number; batch_size?: number }>().catch(() => ({} as { offset?: number; batch_size?: number }));
-  const batchSize = Math.min(body.batch_size ?? 50, 100);
+  const batchSize = Math.min(body.batch_size ?? 200, 500);
   const offset = body.offset ?? 0;
 
   // Query D1 for recipes without nutrition data
   const rows = await c.env.DB.prepare(
-    'SELECT id FROM recipes WHERE calories IS NULL AND nutrition_source IS NULL ORDER BY id LIMIT ?',
-  ).bind(batchSize).all<{ id: string }>();
+    'SELECT id FROM recipes WHERE calories IS NULL ORDER BY id LIMIT ? OFFSET ?',
+  ).bind(batchSize, offset).all<{ id: string }>();
 
   const remaining = await c.env.DB.prepare(
-    'SELECT COUNT(*) as cnt FROM recipes WHERE calories IS NULL AND nutrition_source IS NULL',
+    'SELECT COUNT(*) as cnt FROM recipes WHERE calories IS NULL',
   ).first<{ cnt: number }>();
 
   let processed = 0;
@@ -915,24 +915,14 @@ app.post('/api/v1/admin/backfill-nutrition', async (c) => {
   for (const row of rows.results) {
     try {
       const value = await c.env.RECIPES_KV.get(`recipe:${row.id}`, 'text');
-      if (!value) {
-        // Mark as skipped in D1 so it doesn't come back
-        await c.env.DB.prepare('UPDATE recipes SET nutrition_source = ? WHERE id = ?').bind('skip', row.id).run();
-        skipped++; continue;
-      }
+      if (!value) { skipped++; continue; }
 
       const doc: RecipeDocument = JSON.parse(value);
       if (doc.nutrition) { skipped++; continue; }
-      if (!doc.ingredients || doc.ingredients.length === 0) {
-        await c.env.DB.prepare('UPDATE recipes SET nutrition_source = ? WHERE id = ?').bind('skip', row.id).run();
-        skipped++; continue;
-      }
+      if (!doc.ingredients || doc.ingredients.length === 0) { skipped++; continue; }
 
       const nutrition = await estimateNutrition(doc, c.env.AI);
-      if (!nutrition) {
-        await c.env.DB.prepare('UPDATE recipes SET nutrition_source = ? WHERE id = ?').bind('skip', row.id).run();
-        skipped++; continue;
-      }
+      if (!nutrition) { skipped++; continue; }
 
       // Update KV
       doc.nutrition = nutrition;
@@ -955,14 +945,13 @@ app.post('/api/v1/admin/backfill-nutrition', async (c) => {
     }
   }
 
-  const remainingCount = (remaining?.cnt ?? 0) - processed;
-
   return c.json({
     ok: true,
     processed,
     skipped,
     errors,
-    remaining: remainingCount,
+    remaining: remaining?.cnt ?? 0,
+    next_offset: offset + batchSize,
     done: rows.results.length === 0,
   });
 });
