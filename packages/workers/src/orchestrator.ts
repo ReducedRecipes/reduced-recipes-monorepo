@@ -43,9 +43,11 @@ async function runScheduled(env: Env) {
       WHERE status = 'crawling' AND next_crawl < datetime('now', '-10 minutes')
     `).run();
 
-    // 4. Ingest up to 3 sitemaps per run to speed up domain onboarding
-    for (let i = 0; i < 3; i++) {
+    // 4. Ingest 1 sitemap per run (discovery can be slow)
+    try {
       await ingestNextSitemap(env);
+    } catch (err) {
+      console.error('SITEMAP: ingest failed', err);
     }
 
     console.log(`ORCHESTRATOR: ${due.results.length} URLs due from ${allDomains.results.length} domains`);
@@ -158,7 +160,7 @@ async function discoverSitemap(domain: string): Promise<string | null> {
       const res = await fetch(url, {
         headers: { 'User-Agent': 'ReducedRecipesBot/1.0' },
         redirect: 'follow',
-        signal: AbortSignal.timeout(5000),
+        signal: AbortSignal.timeout(3000),
       });
       if (!res.ok) continue;
 
