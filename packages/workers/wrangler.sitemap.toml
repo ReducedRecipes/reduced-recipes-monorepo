@@ -1,0 +1,18 @@
+name = "rr-sitemap-cron"
+main = "src/sitemap-cron.ts"
+compatibility_date = "2024-05-01"
+
+[triggers]
+crons = ["0 5 * * *"]  # Daily at 05:00 UTC (before billing cron at 06:00)
+
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "18ffdf8619c84b22b4993371e4eb92c7"
+
+[env.preview]
+name = "rr-sitemap-cron-preview"

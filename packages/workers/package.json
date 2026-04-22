@@ -12,8 +12,9 @@
     "wrangler": "^3.50"
   },
   "scripts": {
-    "deploy": "wrangler deploy -c wrangler.api.toml && wrangler deploy -c wrangler.orchestrator.toml && wrangler deploy -c wrangler.crawler.toml && wrangler deploy -c wrangler.parser.toml && wrangler deploy -c wrangler.projection.toml && wrangler deploy -c wrangler.dlq.toml && wrangler deploy -c wrangler.hot-refresh.toml && wrangler deploy -c wrangler.billing.toml",
+    "deploy": "wrangler deploy -c wrangler.api.toml && wrangler deploy -c wrangler.orchestrator.toml && wrangler deploy -c wrangler.crawler.toml && wrangler deploy -c wrangler.parser.toml && wrangler deploy -c wrangler.projection.toml && wrangler deploy -c wrangler.dlq.toml && wrangler deploy -c wrangler.hot-refresh.toml && wrangler deploy -c wrangler.billing.toml && wrangler deploy -c wrangler.sitemap.toml",
     "deploy:billing": "wrangler deploy -c wrangler.billing.toml",
+    "deploy:sitemap": "wrangler deploy -c wrangler.sitemap.toml",
     "deploy:api": "wrangler deploy -c wrangler.api.toml",
     "deploy:orchestrator": "wrangler deploy -c wrangler.orchestrator.toml",
     "deploy:crawler": "wrangler deploy -c wrangler.crawler.toml",
