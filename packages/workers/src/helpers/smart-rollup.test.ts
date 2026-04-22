@@ -85,7 +85,7 @@ describe('rollupItems', () => {
     expect(result.items.unchecked).toHaveLength(1);
     expect(result.items.unchecked[0]!.total_quantity).toBe(5);
     expect(result.items.unchecked[0]!.unit).toBeNull();
-    expect(result.items.unchecked[0]!.display_text).toBe('5 egg');
+    expect(result.items.unchecked[0]!.display_text).toBe('5 eggs');
   });
 
   it('canonicalises names — case insensitive, singularised', () => {
