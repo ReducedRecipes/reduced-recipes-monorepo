@@ -185,8 +185,10 @@ async function main(): Promise<void> {
   const dryRun = args.includes("--dry-run");
   const batchArg = args.find((a) => a.startsWith("--batch="));
   const limitArg = args.find((a) => a.startsWith("--limit="));
+  const offsetArg = args.find((a) => a.startsWith("--offset="));
   const batchSize = batchArg ? Math.min(parseInt(batchArg.split("=")[1]!, 10), 1000) : 100;
   const limit = limitArg ? parseInt(limitArg.split("=")[1]!, 10) : Infinity;
+  const startOffset = offsetArg ? parseInt(offsetArg.split("=")[1]!, 10) : 0;
 
   if (!ACCOUNT_ID || !API_TOKEN) {
     console.error("Error: CLOUDFLARE_ACCOUNT_ID and CLOUDFLARE_API_TOKEN must be set.");
@@ -200,24 +202,23 @@ async function main(): Promise<void> {
   console.log(`  AI model      : ${AI_MODEL}`);
   console.log(`  Batch size    : ${batchSize}`);
   console.log(`  Limit         : ${isFinite(limit) ? limit : "none"}`);
+  console.log(`  Offset        : ${startOffset}`);
   console.log(`  Dry run       : ${dryRun}`);
   console.log();
 
-  // ── Step 1: fetch all recipe IDs from D1 ───────────────────────────────────
+  // ── Step 1: fetch recipe IDs from D1 (paginated to avoid timeout) ──
   console.log("Fetching recipe IDs from D1...");
+  const fetchCount = isFinite(limit) ? startOffset + limit : 200_000;
+  const wranglerEnv = { ...process.env };
+  delete wranglerEnv.CLOUDFLARE_API_TOKEN; // Use OAuth for D1
   let d1Raw: string;
   try {
-    // wrangler --json writes to stdout on success; stderr has warnings we ignore
-    // Remove CLOUDFLARE_API_TOKEN so wrangler uses OAuth login (the API token may lack D1 scope)
-    const wranglerEnv = { ...process.env };
-    delete wranglerEnv.CLOUDFLARE_API_TOKEN;
     d1Raw = execSync(
-      `npx wrangler d1 execute ${D1_DATABASE} --remote --json --config wrangler.api.toml --command "SELECT id FROM recipes ORDER BY id"`,
-      { encoding: "utf-8", cwd: WORKERS_DIR, maxBuffer: 100 * 1024 * 1024, timeout: 120_000, env: wranglerEnv },
+      `npx wrangler d1 execute ${D1_DATABASE} --remote --json --config wrangler.api.toml --command "SELECT id FROM recipes ORDER BY id LIMIT ${fetchCount}"`,
+      { encoding: "utf-8", cwd: WORKERS_DIR, maxBuffer: 200 * 1024 * 1024, timeout: 180_000, env: wranglerEnv },
     );
   } catch (err: unknown) {
     const e = err as { stdout?: string; stderr?: string; status?: number };
-    // wrangler exits non-zero due to npm warnings on stderr, but stdout has valid JSON
     if (e.stdout && e.stdout.trim().startsWith("[")) {
       d1Raw = e.stdout;
     } else {
@@ -227,8 +228,8 @@ async function main(): Promise<void> {
     }
   }
   const allIds = parseD1Result(d1Raw);
-  const ids = isFinite(limit) ? allIds.slice(0, limit) : allIds;
-  console.log(`  Found ${allIds.length} recipes, processing ${ids.length}.`);
+  const ids = allIds.slice(startOffset, isFinite(limit) ? startOffset + limit : undefined);
+  console.log(`  Total in DB: ${allIds.length}, skipping ${startOffset}, processing ${ids.length}.`);
   console.log();
 
   // ── Step 2-4: fetch docs, embed, upsert — in batches ──────────────────────
