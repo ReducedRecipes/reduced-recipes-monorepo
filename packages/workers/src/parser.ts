@@ -16,6 +16,7 @@ export default {
           : inlineHtml;
 
         if (!html) {
+          console.log(`PARSER: no HTML for ${url}`);
           await updateCrawlStatus(crawlDb, url, 'failed');
           msg.ack();
           continue;
@@ -25,6 +26,7 @@ export default {
         const schema = extractSchemaOrg(html);
 
         if (!schema) {
+          console.log(`PARSER: no schema for ${url}`);
           await updateCrawlStatus(crawlDb, url, 'no_schema');
           msg.ack();
           continue;
@@ -48,6 +50,8 @@ export default {
           msg.ack();
           continue;
         }
+
+        console.log(`PARSER: extracted "${doc.title}" from ${url} (${doc.ingredients.length} ingredients)`);
 
         // ── Write full document to KV ───────────────────────────────
         await env.RECIPES_KV.put(

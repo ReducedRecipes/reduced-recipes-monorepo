@@ -48,6 +48,7 @@ async function runScheduled(env: Env) {
       await ingestNextSitemap(env);
     }
 
+    console.log(`ORCHESTRATOR: ${due.results.length} URLs due from ${allDomains.results.length} domains`);
     if (!due.results.length) return;
 
     // 2. Mark as in-flight + 3. Enqueue to crawl-jobs — in batches of 50
@@ -97,14 +98,18 @@ async function ingestNextSitemap(env: Env) {
 
   if (!domain) return;
 
+  console.log(`SITEMAP: processing ${domain.domain} (sitemap: ${domain.sitemap_url ?? 'none'})`);
+
   // Auto-discover sitemap if missing
   let sitemapUrl = domain.sitemap_url;
   if (!sitemapUrl) {
     sitemapUrl = await discoverSitemap(domain.domain);
     if (sitemapUrl) {
+      console.log(`SITEMAP: discovered ${sitemapUrl} for ${domain.domain}`);
       await db.prepare('UPDATE domains SET sitemap_url = ? WHERE domain = ?')
         .bind(sitemapUrl, domain.domain).run();
     } else {
+      console.log(`SITEMAP: no sitemap found for ${domain.domain}, seeding homepage`);
       // No sitemap found — seed the homepage so the parser can discover links
       await db.prepare(`
         INSERT OR IGNORE INTO crawl_queue (url, domain, priority, status, next_crawl)
@@ -118,6 +123,7 @@ async function ingestNextSitemap(env: Env) {
 
   const urls = await parseSitemap(sitemapUrl);
   const recipeUrls = urls.filter((u) => isRecipeUrl(u, domain.domain));
+  console.log(`SITEMAP: ${domain.domain} — ${urls.length} URLs, ${recipeUrls.length} recipe URLs`);
 
   // Upsert into crawl_queue — ignore existing
   const stmts = recipeUrls.map((url) =>

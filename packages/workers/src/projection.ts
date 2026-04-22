@@ -19,9 +19,12 @@ export default {
         ).bind(doc.title, doc.domain, doc.id).first<{ id: string }>();
 
         if (existing) {
+          console.log(`DEDUP: skipping "${doc.title}" (${doc.domain}) — already exists as ${existing.id}`);
           msg.ack();
           continue;
         }
+
+        console.log(`PROJECTING: "${doc.title}" (${doc.domain}) id=${doc.id}`);
 
         // ── Translate non-English recipes ───────────────────────────
         if (doc.original_language && doc.original_language !== 'en') {
