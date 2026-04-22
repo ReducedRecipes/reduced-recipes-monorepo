@@ -613,32 +613,37 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     return c.json({ items: [], next_cursor: null }, 200);
   }
 
-  // Build filters — tag JOINs come before WHERE in SQL, so their params must be ordered first
-  const joinParams: (string | number)[] = [];
-  const whereClauses: string[] = [];
-  const whereParams: (string | number)[] = [];
+  // Build filters with numbered params to avoid positional/numbered mixing
+  const allParams: (string | number)[] = [sanitized]; // ?1 = query
+  let paramIdx = 2; // next available param number
 
   let tagJoin = '';
   if (tagList.length > 0) {
     tagList.forEach((t, i) => {
       const alias = `srt${i}`;
-      tagJoin += ` JOIN recipe_tags ${alias} ON ${alias}.recipe_id = r.id AND ${alias}.tag = ?`;
-      joinParams.push(t);
+      tagJoin += ` JOIN recipe_tags ${alias} ON ${alias}.recipe_id = r.id AND ${alias}.tag = ?${paramIdx}`;
+      allParams.push(t);
+      paramIdx++;
     });
   }
 
+  const whereClauses: string[] = [];
   if (dietaryMask > 0) {
-    whereClauses.push('(r.dietary_bitmask & ?) = ?');
-    whereParams.push(dietaryMask, dietaryMask);
+    whereClauses.push(`(r.dietary_bitmask & ?${paramIdx}) = ?${paramIdx + 1}`);
+    allParams.push(dietaryMask, dietaryMask);
+    paramIdx += 2;
   }
   if (maxTime) {
-    whereClauses.push('r.total_time IS NOT NULL AND r.total_time <= ?');
-    whereParams.push(maxTime);
+    whereClauses.push(`r.total_time IS NOT NULL AND r.total_time <= ?${paramIdx}`);
+    allParams.push(maxTime);
+    paramIdx++;
   }
 
+  const limitIdx = paramIdx;
+  const offsetIdx = paramIdx + 1;
+  allParams.push(limit + 1, offset);
+
   const extraWhere = whereClauses.length > 0 ? 'AND ' + whereClauses.join(' AND ') : '';
-  // Param order: ?1=query, ?2=limit, ?3=offset, then JOIN params, then WHERE params
-  const bindParams: (string | number)[] = [sanitized, limit + 1, offset, ...joinParams, ...whereParams];
 
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
@@ -647,9 +652,9 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
      JOIN recipes r ON fts.rowid = r.rowid
      ${tagJoin}
      WHERE recipes_fts MATCH ?1 ${extraWhere}
-     LIMIT ?2 OFFSET ?3`,
+     LIMIT ?${limitIdx} OFFSET ?${offsetIdx}`,
   )
-    .bind(...bindParams)
+    .bind(...allParams)
     .all();
 
   const rows = results ?? [];
