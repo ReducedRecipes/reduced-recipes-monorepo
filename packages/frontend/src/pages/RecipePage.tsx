@@ -337,7 +337,7 @@ export default function RecipePage() {
             yields={recipe.yields}
             ingredientCount={recipe.ingredients.length}
             stepCount={recipe.instructions.length}
-            calories={recipe.nutrition?.calories}
+            calories={recipe.nutrition?.calories ?? null}
           />
         </div>
 
