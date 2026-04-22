@@ -47,16 +47,6 @@ export default function HomePage() {
   const [have, setHave] = useState<string[]>([]);
   const [excluded, setExcluded] = useState<string[]>([]);
 
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
-          Loading index&hellip;
-        </div>
-      </div>
-    );
-  }
-
   return (
     <main>
       {/* ——— Hero: manifesto + stat panel ——— */}
@@ -355,6 +345,35 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* ——— Loading skeletons ——— */}
+      {isLoading && (
+        <section style={{ padding: "48px 0", borderBottom: "1px solid var(--rule)" }}>
+          <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 12 }}>◆ Fig. 003 — Feature of the week</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: 32 }}>
+            <div>
+              <div style={{ height: 48, background: "var(--bg-2)", marginBottom: 16 }} />
+              <div style={{ height: 20, background: "var(--bg-2)", width: "60%", marginBottom: 8 }} />
+              <div style={{ height: 16, background: "var(--bg-2)", width: "40%" }} />
+            </div>
+            <div style={{ height: 300, background: "var(--bg-2)" }} />
+          </div>
+        </section>
+      )}
+      {isLoading && (
+        <section style={{ padding: "48px 0", borderBottom: "1px solid var(--rule)" }}>
+          <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 12 }}>◆ Fig. 004 — Trending this week</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 16 }}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i}>
+                <div style={{ aspectRatio: "1", background: "var(--bg-2)", marginBottom: 8 }} />
+                <div style={{ height: 14, background: "var(--bg-2)", width: "80%", marginBottom: 4 }} />
+                <div style={{ height: 10, background: "var(--bg-2)", width: "50%" }} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ——— Featured (editorial two-column) ——— */}
       {featured && (
