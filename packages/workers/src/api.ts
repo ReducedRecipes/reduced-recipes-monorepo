@@ -176,6 +176,28 @@ app.get('/api/v1/health', async (c) => {
 // ── Recipe detail ───────────────────────────────────────────────────────
 app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
   const id = c.req.param('id');
+  const userId = c.get('userId');
+
+  // Serve from edge cache for anonymous users (skip KV entirely)
+  if (!userId) {
+    const cacheKey = new Request(c.req.url, c.req.raw);
+    const cache = caches.default;
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+
+    const value = await c.env.RECIPES_KV.get(`recipe:${id}`, 'text');
+    if (value === null) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Recipe not found' } }, 404);
+    }
+
+    const response = c.json(JSON.parse(value), 200, {
+      'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
+    });
+    const clone = response.clone();
+    try { c.executionCtx.waitUntil(cache.put(cacheKey, clone)); } catch { /* no ctx */ }
+    return response;
+  }
+
   const value = await c.env.RECIPES_KV.get(`recipe:${id}`, 'text');
 
   if (value === null) {
@@ -183,7 +205,6 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
   }
 
   // Fire-and-forget recipe view tracking + implicit vote for authenticated users
-  const userId = c.get('userId');
   if (userId && c.env.USERS_DB) {
     const usersDb = c.env.USERS_DB;
     const recipesDb = c.env.DB;
