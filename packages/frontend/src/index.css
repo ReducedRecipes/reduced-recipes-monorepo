@@ -191,7 +191,7 @@ body::before {
 
   /* Seasonal list rows: simplified on mobile */
   main section a[style*="grid-template-columns"] {
-    grid-template-columns: 30px 1fr !important;
+    grid-template-columns: 30px 1fr auto !important;
     gap: 8px !important;
   }
   main section a[style*="grid-template-columns"] > div:nth-child(3),
@@ -199,11 +199,10 @@ body::before {
   main section a[style*="grid-template-columns"] > div:nth-child(6) {
     display: none !important;
   }
-  /* Time/domain column: truncate */
+  /* Time/domain column: compact */
   main section a[style*="grid-template-columns"] > div:nth-child(5) {
     font-size: 10px !important;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    text-align: right;
     white-space: nowrap;
   }
   /* Recipe title: smaller on mobile */
