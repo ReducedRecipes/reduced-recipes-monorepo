@@ -901,11 +901,11 @@ app.post('/api/v1/admin/backfill-nutrition', async (c) => {
 
   // Query D1 for recipes without nutrition data
   const rows = await c.env.DB.prepare(
-    'SELECT id FROM recipes WHERE calories IS NULL ORDER BY id LIMIT ?',
+    'SELECT id FROM recipes WHERE calories IS NULL AND nutrition_source IS NULL ORDER BY id LIMIT ?',
   ).bind(batchSize).all<{ id: string }>();
 
   const remaining = await c.env.DB.prepare(
-    'SELECT COUNT(*) as cnt FROM recipes WHERE calories IS NULL',
+    'SELECT COUNT(*) as cnt FROM recipes WHERE calories IS NULL AND nutrition_source IS NULL',
   ).first<{ cnt: number }>();
 
   let processed = 0;
@@ -915,14 +915,24 @@ app.post('/api/v1/admin/backfill-nutrition', async (c) => {
   for (const row of rows.results) {
     try {
       const value = await c.env.RECIPES_KV.get(`recipe:${row.id}`, 'text');
-      if (!value) { skipped++; continue; }
+      if (!value) {
+        // Mark as skipped in D1 so it doesn't come back
+        await c.env.DB.prepare('UPDATE recipes SET nutrition_source = ? WHERE id = ?').bind('skip', row.id).run();
+        skipped++; continue;
+      }
 
       const doc: RecipeDocument = JSON.parse(value);
       if (doc.nutrition) { skipped++; continue; }
-      if (!doc.ingredients || doc.ingredients.length === 0) { skipped++; continue; }
+      if (!doc.ingredients || doc.ingredients.length === 0) {
+        await c.env.DB.prepare('UPDATE recipes SET nutrition_source = ? WHERE id = ?').bind('skip', row.id).run();
+        skipped++; continue;
+      }
 
       const nutrition = await estimateNutrition(doc, c.env.AI);
-      if (!nutrition) { skipped++; continue; }
+      if (!nutrition) {
+        await c.env.DB.prepare('UPDATE recipes SET nutrition_source = ? WHERE id = ?').bind('skip', row.id).run();
+        skipped++; continue;
+      }
 
       // Update KV
       doc.nutrition = nutrition;
