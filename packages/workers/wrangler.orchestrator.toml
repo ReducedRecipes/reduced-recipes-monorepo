@@ -3,7 +3,7 @@ main = "src/orchestrator.ts"
 compatibility_date = "2024-05-01"
 
 [triggers]
-crons = ["*/2 * * * *"]
+crons = ["* * * * *"]
 
 [[d1_databases]]
 binding = "DB"
@@ -36,8 +36,8 @@ queue = "projection-jobs"
 
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"
-DEFAULT_CRAWL_DELAY_MS = "1000"
-MAX_QUEUE_BATCH = "50"
+DEFAULT_CRAWL_DELAY_MS = "500"
+MAX_QUEUE_BATCH = "200"
 ENVIRONMENT = "production"
 
 [env.preview]
