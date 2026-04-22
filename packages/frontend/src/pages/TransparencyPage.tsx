@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useFunding } from "../hooks/useFunding";
 import { Rule, Stat } from "../components/design-system";
 
@@ -14,6 +15,7 @@ const COST_LABELS: Record<string, string> = {
 
 export default function TransparencyPage() {
   const { funding, isLoading } = useFunding();
+  const [showFullscreen, setShowFullscreen] = useState(false);
 
   if (isLoading) {
     return (
@@ -197,9 +199,37 @@ export default function TransparencyPage() {
         <img
           src="/arch-diagram.png"
           alt="ReducedRecipes system architecture"
-          style={{ width: "100%", border: "1px solid var(--rule-2)" }}
+          onClick={() => setShowFullscreen(true)}
+          style={{ width: "100%", border: "1px solid var(--rule-2)", cursor: "zoom-in" }}
         />
+        <div className="mono" style={{ fontSize: 11, color: "var(--ink-3)", marginTop: 8 }}>
+          Click to enlarge
+        </div>
       </div>
+
+      {/* Fullscreen overlay */}
+      {showFullscreen && (
+        <div
+          onClick={() => setShowFullscreen(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 50,
+            background: "rgba(0,0,0,0.9)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            cursor: "zoom-out",
+            padding: 20,
+          }}
+        >
+          <img
+            src="/arch-diagram.png"
+            alt="ReducedRecipes system architecture"
+            style={{ maxWidth: "100%", maxHeight: "100%", objectFit: "contain" }}
+          />
+        </div>
+      )}
     </main>
   );
 }
