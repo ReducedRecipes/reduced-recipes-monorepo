@@ -218,6 +218,36 @@ body::before {
   .utility-strip > span:nth-child(4) {
     display: none;
   }
+
+  /* Hero: constrain text and buttons */
+  main > section[style*="1.2fr"] h1 {
+    font-size: 42px !important;
+  }
+  main > section[style*="1.2fr"] div[style*="gap: 10"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Funding card + specimen box: full width, no overflow */
+  main > section[style*="1.2fr"] > div[style*="flex-direction: column"] {
+    margin-top: 16px !important;
+    overflow: hidden;
+  }
+
+  /* Search page: stack mode toggles and results header */
+  .search-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Search page results header: stack on mobile */
+  .search-grid > div > div:first-child {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  /* Prevent any horizontal overflow */
+  main {
+    overflow-x: hidden;
+  }
 }
 
 /* ——— Print styles ——— */

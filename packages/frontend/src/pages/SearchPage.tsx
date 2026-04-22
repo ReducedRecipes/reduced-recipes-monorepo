@@ -266,7 +266,7 @@ export default function SearchPage() {
           </div>
 
           {/* Search mode toggle */}
-          <div style={{ marginTop: 14, display: "flex", gap: 6, alignItems: "center" }}>
+          <div style={{ marginTop: 14, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
             <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", marginRight: 4 }}>Mode</span>
             {SEARCH_MODES.map(({ value, label }) => (
               <button
@@ -359,9 +359,10 @@ export default function SearchPage() {
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
             marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--rule)",
+            flexWrap: "wrap", gap: 10,
           }}>
             <div className="caps" style={{ color: "var(--ink-3)" }}>Results</div>
-            <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
               {isSearching && (
                 <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid var(--rule-2)" }}>
                   {(["keyword", "hybrid", "semantic"] as const).map((m) => (

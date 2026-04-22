@@ -105,7 +105,7 @@ export default function HomePage() {
             to the bottom to find the ingredients. Just the list, the method, and
             the number of minutes until dinner.
           </div>
-          <div style={{ marginTop: 32, display: "flex", gap: 10 }}>
+          <div style={{ marginTop: 32, display: "flex", gap: 10, flexWrap: "wrap" }}>
             {featured && (
               <Link
                 to={`/recipe/${featured.id}`}
