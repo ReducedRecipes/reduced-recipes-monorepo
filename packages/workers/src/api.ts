@@ -420,7 +420,7 @@ app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
 // ── Search helpers ────────────────────────────────────────────────────
 
 const EMBEDDING_MODEL = '@cf/google/embeddinggemma-300m' as const;
-const MIN_SIMILARITY = 0.30;
+const MIN_SIMILARITY = 0.40;
 
 /** Fetch recipe summaries from D1 by ID list, respecting dietary mask. */
 async function fetchRecipesByIds(
