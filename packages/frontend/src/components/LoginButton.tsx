@@ -5,7 +5,14 @@ import { useAuth } from "../hooks/useAuth";
 export function LoginButton({ className = "" }: { className?: string }) {
   const { user, isLoading, isAuthenticated, login, logout } = useAuth();
   const [open, setOpen] = useState(false);
+  const [showInAppWarning, setShowInAppWarning] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handler = () => setShowInAppWarning(true);
+    window.addEventListener("inapp-browser-login", handler);
+    return () => window.removeEventListener("inapp-browser-login", handler);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -25,6 +32,57 @@ export function LoginButton({ className = "" }: { className?: string }) {
   }
 
   if (!isAuthenticated || !user) {
+    if (showInAppWarning) {
+      return (
+        <div className={className} style={{ position: "relative" }}>
+          <div style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 999,
+            display: "flex", alignItems: "center", justifyContent: "center", padding: 20,
+          }} onClick={() => setShowInAppWarning(false)}>
+            <div style={{
+              background: "var(--bg)", border: "1px solid var(--rule-2)", padding: 28,
+              maxWidth: 360, width: "100%",
+            }} onClick={(e) => e.stopPropagation()}>
+              <div className="caps" style={{ color: "var(--accent-ink)", marginBottom: 12 }}>
+                Open in browser
+              </div>
+              <p style={{ fontSize: 14, color: "var(--ink)", lineHeight: 1.6, marginBottom: 16 }}>
+                Google Sign-In doesn&rsquo;t work in in-app browsers.
+                Please open this page in Safari or Chrome to sign in.
+              </p>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button
+                  onClick={() => {
+                    // Try to open in system browser
+                    window.open(window.location.href, "_system");
+                  }}
+                  className="mono"
+                  style={{
+                    fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em",
+                    padding: "10px 16px", background: "var(--ink)", color: "var(--bg)",
+                    border: "1px solid var(--ink)",
+                  }}
+                >
+                  Open in browser
+                </button>
+                <button
+                  onClick={() => setShowInAppWarning(false)}
+                  className="mono"
+                  style={{
+                    fontSize: 11, textTransform: "uppercase", letterSpacing: "0.1em",
+                    padding: "10px 16px", border: "1px solid var(--rule-2)",
+                    color: "var(--ink-3)",
+                  }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <button
         onClick={() => login()}

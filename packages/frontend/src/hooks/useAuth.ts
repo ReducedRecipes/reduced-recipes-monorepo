@@ -32,7 +32,18 @@ export function useAuth() {
     queryClient.invalidateQueries({ queryKey: ["auth"] });
   };
 
+  const isInAppBrowser = (): boolean => {
+    const ua = navigator.userAgent || "";
+    return /FBAN|FBAV|Instagram|Twitter|Line\/|Snapchat|Pinterest|LinkedIn|TikTok|ProductHunt/i.test(ua)
+      || (!/Safari/i.test(ua) && /AppleWebKit/i.test(ua) && /Mobile/i.test(ua));
+  };
+
   const login = async (returnTo?: string) => {
+    if (isInAppBrowser()) {
+      // Signal to UI that in-app browser was detected
+      window.dispatchEvent(new CustomEvent("inapp-browser-login"));
+      return;
+    }
     const destination = returnTo ?? `${window.location.origin}/auth/callback`;
     const { url } = await getGoogleAuthUrl("web", destination);
     window.location.href = url;
