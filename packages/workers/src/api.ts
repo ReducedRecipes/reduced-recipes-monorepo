@@ -553,6 +553,16 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     );
   }
 
+  // Check KV cache (5 min TTL, keyed on full query string)
+  const cacheKey = `search:${c.req.url.split('?')[1] ?? ''}`;
+  const cached = await c.env.CACHE_KV.get(cacheKey, 'text');
+  if (cached) {
+    return c.json(JSON.parse(cached), 200, {
+      'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+      'X-Cache': 'HIT',
+    });
+  }
+
   const dietaryMask = await getDietaryMask(c);
 
   // ── Semantic / Hybrid modes ───────────────────────────────────────
@@ -616,15 +626,19 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
         return true;
       });
       const paged = filtered.slice(offset, offset + limit);
-      return c.json({ items: paged, has_more: filtered.length > offset + limit, search_mode: mode }, 200, {
-        'Cache-Control': 'no-store',
+      const body = { items: paged, has_more: filtered.length > offset + limit, search_mode: mode };
+      c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+      return c.json(body, 200, {
+        'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
       });
     }
 
     const items = await fetchRecipesByIds(c.env.DB, filteredIds, dietaryMask);
 
-    return c.json({ items, has_more, search_mode: mode }, 200, {
-      'Cache-Control': 'no-store',
+    const body = { items, has_more, search_mode: mode };
+    c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+    return c.json(body, 200, {
+      'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
     });
   }
 
@@ -684,8 +698,11 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
 
   const items: RecipeSummary[] = rows.map((row: Record<string, unknown>) => toRecipeSummary(row));
 
-  return c.json({ items, has_more, search_mode: 'keyword' }, 200, {
+  const body = { items, has_more, search_mode: 'keyword' };
+  c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+  return c.json(body, 200, {
     'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+    'X-Cache': 'MISS',
   });
 });
 
