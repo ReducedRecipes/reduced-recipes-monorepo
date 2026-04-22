@@ -716,8 +716,9 @@ app.get('/sitemap.xml', async (c) => {
   });
 });
 
-app.get('/sitemap-:file', async (c) => {
-  const file = c.req.param('file').replace('.xml', '');
+app.get('/sitemap-*', async (c) => {
+  const path = new URL(c.req.url).pathname;
+  const file = path.replace('/sitemap-', '').replace('.xml', '');
   const kvKey = file === 'static' ? 'sitemap:static' : `sitemap:chunk:${file}`;
   const xml = await c.env.CACHE_KV.get(kvKey, 'text');
   if (!xml) return c.text('Not found', 404);
