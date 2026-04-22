@@ -895,24 +895,30 @@ app.post('/api/v1/admin/backfill-nutrition', async (c) => {
 
   const { estimateNutrition } = await import('./helpers/nutrition-estimate');
 
-  const body = await c.req.json<{ cursor?: string; batch_size?: number }>().catch(() => ({} as { cursor?: string; batch_size?: number }));
+  const body = await c.req.json<{ offset?: number; batch_size?: number }>().catch(() => ({} as { offset?: number; batch_size?: number }));
   const batchSize = Math.min(body.batch_size ?? 50, 100);
+  const offset = body.offset ?? 0;
 
-  const opts: KVNamespaceListOptions = { prefix: 'recipe:', limit: batchSize };
-  if (body.cursor) opts.cursor = body.cursor;
+  // Query D1 for recipes without nutrition data
+  const rows = await c.env.DB.prepare(
+    'SELECT id FROM recipes WHERE calories IS NULL ORDER BY id LIMIT ?',
+  ).bind(batchSize).all<{ id: string }>();
 
-  const list = await c.env.RECIPES_KV.list(opts);
+  const remaining = await c.env.DB.prepare(
+    'SELECT COUNT(*) as cnt FROM recipes WHERE calories IS NULL',
+  ).first<{ cnt: number }>();
+
   let processed = 0;
   let skipped = 0;
   let errors = 0;
 
-  for (const key of list.keys) {
+  for (const row of rows.results) {
     try {
-      const value = await c.env.RECIPES_KV.get(key.name, 'text');
+      const value = await c.env.RECIPES_KV.get(`recipe:${row.id}`, 'text');
       if (!value) { skipped++; continue; }
 
       const doc: RecipeDocument = JSON.parse(value);
-      if (doc.nutrition) { skipped++; continue; } // Already has nutrition
+      if (doc.nutrition) { skipped++; continue; }
       if (!doc.ingredients || doc.ingredients.length === 0) { skipped++; continue; }
 
       const nutrition = await estimateNutrition(doc, c.env.AI);
@@ -920,7 +926,7 @@ app.post('/api/v1/admin/backfill-nutrition', async (c) => {
 
       // Update KV
       doc.nutrition = nutrition;
-      await c.env.RECIPES_KV.put(key.name, JSON.stringify(doc), { expirationTtl: 31_536_000 });
+      await c.env.RECIPES_KV.put(`recipe:${row.id}`, JSON.stringify(doc), { expirationTtl: 31_536_000 });
 
       // Update D1
       await c.env.DB.prepare(
@@ -929,25 +935,25 @@ app.post('/api/v1/admin/backfill-nutrition', async (c) => {
       ).bind(
         nutrition.calories, nutrition.protein_g, nutrition.fat_g,
         nutrition.carbs_g, nutrition.fiber_g, nutrition.sodium_mg,
-        nutrition.source, doc.id,
+        nutrition.source, row.id,
       ).run();
 
       processed++;
     } catch (error) {
-      console.error('Nutrition backfill failed for', key.name, error);
+      console.error('Nutrition backfill failed for', row.id, error);
       errors++;
     }
   }
 
-  const nextCursor = list.list_complete ? null : list.cursor;
+  const remainingCount = (remaining?.cnt ?? 0) - processed;
 
   return c.json({
     ok: true,
     processed,
     skipped,
     errors,
-    next_cursor: nextCursor,
-    done: list.list_complete,
+    remaining: remainingCount,
+    done: rows.results.length === 0,
   });
 });
 
