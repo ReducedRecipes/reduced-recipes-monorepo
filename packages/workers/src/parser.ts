@@ -66,6 +66,15 @@ export default {
         const seen = new Set<string>();
         let linkMatch;
 
+        // Skip non-recipe URLs
+        const JUNK_PATTERNS = [
+          /\.(pdf|jpg|jpeg|png|gif|svg|webp|css|js|ico|xml|json|zip|mp4|mp3)$/i,
+          /[#?]/,                           // fragments and query strings
+          /\/(tag|category|author|page|feed|wp-json|wp-admin|wp-content|wp-includes|comment|login|register|cart|checkout|account)\//i,
+          /\/(search|sitemap|rss|atom|print|share|embed)\b/i,
+          /\/\d{4}\/\d{2}\/?$/,             // date archives like /2024/03/
+        ];
+
         while ((linkMatch = linkRegex.exec(html)) !== null && seen.size < 50) {
           try {
             const href = new URL(linkMatch[1]!, url).href;
@@ -73,6 +82,11 @@ export default {
 
             if (linkDomain !== domain) continue;
             if (seen.has(href)) continue;
+
+            // Filter junk URLs
+            const path = new URL(href).pathname;
+            if (JUNK_PATTERNS.some((p) => p.test(href) || p.test(path))) continue;
+
             seen.add(href);
 
             await env.DB.prepare(
