@@ -5,45 +5,22 @@ import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
 async function runScheduled(env: Env) {
     const db = env.CRAWL_DB ?? env.DB;
-    // 1. Pull due URLs — prioritise domains with high-priority URLs first,
-    //    then fill remaining slots with random domains.
-    // Pick domains with pending URLs — spread evenly across all active domains
-    const allDomains = await db.prepare(`
-      SELECT domain, COUNT(*) as pending FROM crawl_queue
+
+    // 1. Pull pending URLs — simple query, priority first
+    const due = await db.prepare(`
+      SELECT url, domain FROM crawl_queue
       WHERE status = 'pending' AND next_crawl <= datetime('now')
-      GROUP BY domain
-      HAVING pending > 0
-      ORDER BY RANDOM()
-      LIMIT 100
-    `).all<{ domain: string; pending: number }>();
+      ORDER BY priority ASC, next_crawl ASC
+      LIMIT 500
+    `).all<CrawlJob>();
 
-    // Take fewer URLs per domain (max 5) to spread load across more sites
-    const due: { results: CrawlJob[] } = { results: [] };
-    if (allDomains.results.length > 0) {
-      const domainChunks = chunk(allDomains.results, 50);
-      for (const domainBatch of domainChunks) {
-        const stmts = domainBatch.map((d) =>
-          db.prepare(`
-            SELECT url, domain FROM crawl_queue
-            WHERE status = 'pending' AND domain = ? AND next_crawl <= datetime('now')
-            ORDER BY priority ASC, next_crawl ASC
-            LIMIT 5
-          `).bind(d.domain),
-        );
-        const results = await db.batch(stmts);
-        for (const r of results) {
-          due.results.push(...(r.results as unknown as CrawlJob[]));
-        }
-      }
-    }
-
-    // 3.5. Reset stuck 'crawling' URLs older than 10 minutes
+    // 2. Reset stuck 'crawling' URLs older than 10 minutes
     await db.prepare(`
       UPDATE crawl_queue SET status = 'pending', next_crawl = datetime('now')
       WHERE status = 'crawling' AND next_crawl < datetime('now', '-10 minutes')
     `).run();
 
-    console.log(`ORCHESTRATOR: ${due.results.length} URLs due from ${allDomains.results.length} domains`);
+    console.log(`ORCHESTRATOR: ${due.results.length} URLs due`);
 
     // 2. Mark as in-flight + 3. Enqueue to crawl-jobs FIRST (before sitemap which can be slow)
     const batches = chunk(due.results, 50);
@@ -62,12 +39,13 @@ async function runScheduled(env: Env) {
       );
     }
 
-    // 4. Ingest 1 sitemap per run AFTER crawl batch is enqueued
-    try {
-      await ingestNextSitemap(env);
-    } catch (err) {
-      console.error('SITEMAP: ingest failed', err);
-    }
+    // 4. Sitemap ingest disabled temporarily — was causing orchestrator timeouts
+    // TODO: move to a separate worker or queue
+    // try {
+    //   await ingestNextSitemap(env);
+    // } catch (err) {
+    //   console.error('SITEMAP: ingest failed', err);
+    // }
 }
 
 export default {
