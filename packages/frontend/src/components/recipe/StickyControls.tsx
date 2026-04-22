@@ -1,4 +1,14 @@
+import { useEffect, useState } from "react";
 import { Pill } from "../design-system";
+
+function useHeaderHeight() {
+  const [height, setHeight] = useState(130);
+  useEffect(() => {
+    const header = document.querySelector("header[data-no-print]");
+    if (header) setHeight(header.getBoundingClientRect().height);
+  }, []);
+  return height;
+}
 
 interface StickyControlsProps {
   servings: number;
@@ -19,8 +29,9 @@ export function StickyControls({
   onCookMode,
   bookmarkSlot,
 }: StickyControlsProps) {
+  const headerH = useHeaderHeight();
   return (
-    <div className="sticky top-[140px] z-[5] -mx-4 border-y border-rule bg-bg px-4 py-3">
+    <div className="sticky z-[5] -mx-4 border-y border-rule bg-bg px-4 py-3" style={{ top: headerH }}>
       <div className="flex flex-wrap items-center gap-3">
         {/* Servings adjuster */}
         <div className="flex items-center gap-2">
