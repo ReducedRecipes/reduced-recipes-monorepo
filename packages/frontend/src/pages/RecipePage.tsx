@@ -538,7 +538,7 @@ export default function RecipePage() {
 
             {/* ── 6. Nutrition panel ── */}
             <div className="mt-10">
-              <NutritionPanel />
+              <NutritionPanel nutrition={recipe.nutrition} />
             </div>
           </div>
         </div>

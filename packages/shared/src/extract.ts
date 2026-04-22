@@ -57,6 +57,7 @@ export function normaliseRecipe(
 ): RecipeDocument {
   const id = crypto.randomUUID();
   const now = new Date().toISOString();
+  const nutrition = extractNutrition(raw);
 
   return {
     id,
@@ -78,7 +79,37 @@ export function normaliseRecipe(
     schema_valid: true,
     extracted_at: now,
     last_checked: now,
+    ...(nutrition ? { nutrition } : {}),
   };
+}
+
+/**
+ * Extract nutrition data from Schema.org NutritionInformation.
+ * Parses string values like "250 calories" or "12 g" into numbers.
+ */
+export function extractNutrition(
+  raw: Record<string, unknown>,
+): RecipeDocument['nutrition'] | null {
+  const nutrition = raw.nutrition as Record<string, unknown> | undefined;
+  if (!nutrition) return null;
+
+  const parseValue = (v: unknown): number | null => {
+    if (v == null) return null;
+    const s = String(v).replace(/[^\d.]/g, '');
+    const n = parseFloat(s);
+    return isNaN(n) ? null : Math.round(n * 10) / 10;
+  };
+
+  const calories = parseValue(nutrition.calories);
+  const protein_g = parseValue(nutrition.proteinContent);
+  const fat_g = parseValue(nutrition.fatContent);
+  const carbs_g = parseValue(nutrition.carbohydrateContent);
+  const fiber_g = parseValue(nutrition.fiberContent);
+  const sodium_mg = parseValue(nutrition.sodiumContent);
+
+  if (calories === null) return null;
+
+  return { calories, protein_g, fat_g, carbs_g, fiber_g, sodium_mg, source: 'schema' };
 }
 
 /**

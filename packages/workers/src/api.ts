@@ -852,6 +852,76 @@ app.post('/api/v1/admin/backfill-ingredients', async (c) => {
   });
 });
 
+// ── Backfill nutrition via AI ─────────────────────────────────────────
+app.post('/api/v1/admin/backfill-nutrition', async (c) => {
+  const authHeader = c.req.header('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token || token !== c.env.ADMIN_TOKEN) {
+    return c.json({ error: { code: 401, message: 'Unauthorized' } }, 401);
+  }
+
+  if (!c.env.AI) {
+    return c.json({ error: { code: 500, message: 'AI binding not available' } }, 500);
+  }
+
+  const { estimateNutrition } = await import('./helpers/nutrition-estimate');
+
+  const body = await c.req.json<{ cursor?: string; batch_size?: number }>().catch(() => ({} as { cursor?: string; batch_size?: number }));
+  const batchSize = Math.min(body.batch_size ?? 50, 100);
+
+  const opts: KVNamespaceListOptions = { prefix: 'recipe:', limit: batchSize };
+  if (body.cursor) opts.cursor = body.cursor;
+
+  const list = await c.env.RECIPES_KV.list(opts);
+  let processed = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  for (const key of list.keys) {
+    try {
+      const value = await c.env.RECIPES_KV.get(key.name, 'text');
+      if (!value) { skipped++; continue; }
+
+      const doc: RecipeDocument = JSON.parse(value);
+      if (doc.nutrition) { skipped++; continue; } // Already has nutrition
+      if (!doc.ingredients || doc.ingredients.length === 0) { skipped++; continue; }
+
+      const nutrition = await estimateNutrition(doc, c.env.AI);
+      if (!nutrition) { skipped++; continue; }
+
+      // Update KV
+      doc.nutrition = nutrition;
+      await c.env.RECIPES_KV.put(key.name, JSON.stringify(doc), { expirationTtl: 31_536_000 });
+
+      // Update D1
+      await c.env.DB.prepare(
+        `UPDATE recipes SET calories = ?, protein_g = ?, fat_g = ?, carbs_g = ?,
+         fiber_g = ?, sodium_mg = ?, nutrition_source = ? WHERE id = ?`,
+      ).bind(
+        nutrition.calories, nutrition.protein_g, nutrition.fat_g,
+        nutrition.carbs_g, nutrition.fiber_g, nutrition.sodium_mg,
+        nutrition.source, doc.id,
+      ).run();
+
+      processed++;
+    } catch (error) {
+      console.error('Nutrition backfill failed for', key.name, error);
+      errors++;
+    }
+  }
+
+  const nextCursor = list.list_complete ? null : list.cursor;
+
+  return c.json({
+    ok: true,
+    processed,
+    skipped,
+    errors,
+    next_cursor: nextCursor,
+    done: list.list_complete,
+  });
+});
+
 // ── Removal request ──────────────────────────────────────────────────
 app.post('/api/v1/remove', async (c) => {
   const body = await c.req.json<{ url: string; email: string; reason: string }>();

@@ -4,6 +4,7 @@ import { chunk } from '@rr/shared/utils';
 import { inferDietaryBitmask } from './helpers/dietary-inference';
 import { translateRecipe } from './helpers/translate';
 import { extractIngredientNames } from './helpers/ingredient-extract';
+import { estimateNutrition } from './helpers/nutrition-estimate';
 import { embedRecipe } from './helpers/embed';
 
 export default {
@@ -99,6 +100,20 @@ export default {
           );
         }
 
+        // 1c. Update nutrition data (from Schema.org or AI)
+        if (doc.nutrition) {
+          statements.push(
+            env.DB.prepare(
+              `UPDATE recipes SET calories = ?, protein_g = ?, fat_g = ?, carbs_g = ?,
+               fiber_g = ?, sodium_mg = ?, nutrition_source = ? WHERE id = ?`,
+            ).bind(
+              doc.nutrition.calories, doc.nutrition.protein_g, doc.nutrition.fat_g,
+              doc.nutrition.carbs_g, doc.nutrition.fiber_g, doc.nutrition.sodium_mg,
+              doc.nutrition.source, doc.id,
+            ),
+          );
+        }
+
         // 2. Delete existing tags
         statements.push(
           env.DB.prepare('DELETE FROM recipe_tags WHERE recipe_id = ?').bind(doc.id),
@@ -174,7 +189,28 @@ export default {
           }
         }
 
-        // 8. Best-effort vector embedding — index in Vectorize for semantic search
+        // 8. Best-effort nutrition estimation — AI fallback if Schema.org missing
+        if (env.AI && !doc.nutrition) {
+          try {
+            const nutrition = await estimateNutrition(doc, env.AI);
+            if (nutrition) {
+              doc.nutrition = nutrition;
+              await env.RECIPES_KV.put(`recipe:${doc.id}`, JSON.stringify(doc), { expirationTtl: 31_536_000 });
+              await env.DB.prepare(
+                `UPDATE recipes SET calories = ?, protein_g = ?, fat_g = ?, carbs_g = ?,
+                 fiber_g = ?, sodium_mg = ?, nutrition_source = ? WHERE id = ?`,
+              ).bind(
+                nutrition.calories, nutrition.protein_g, nutrition.fat_g,
+                nutrition.carbs_g, nutrition.fiber_g, nutrition.sodium_mg,
+                nutrition.source, doc.id,
+              ).run();
+            }
+          } catch (error) {
+            console.warn('Nutrition estimation failed for recipe', doc.id, error);
+          }
+        }
+
+        // 9. Best-effort vector embedding — index in Vectorize for semantic search
         if (env.AI && env.VECTORIZE) {
           try {
             const vector = await embedRecipe(doc, env.AI);

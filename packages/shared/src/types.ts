@@ -25,6 +25,16 @@ export interface RecipeDocument {
   original_title?: string;
   /** Net engagement vote count (hearts). Used for social proof on detail page. */
   vote_count?: number;
+  /** Nutrition data per serving. */
+  nutrition?: {
+    calories: number | null;
+    protein_g: number | null;
+    fat_g: number | null;
+    carbs_g: number | null;
+    fiber_g: number | null;
+    sodium_mg: number | null;
+    source: 'schema' | 'ai';
+  };
   /** Content reduction stats — how much bloat we removed. */
   reduction?: {
     /** Total visible words on the original page. */
