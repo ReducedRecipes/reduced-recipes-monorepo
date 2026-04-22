@@ -4,9 +4,9 @@ compatibility_date = "2024-05-01"
 
 [[queues.consumers]]
 queue = "crawl-jobs"
-max_batch_size = 10
+max_batch_size = 25
 max_retries = 3
-max_concurrency = 20
+max_concurrency = 50
 dead_letter_queue = "crawl-dlq"
 
 [[d1_databases]]
@@ -40,8 +40,8 @@ queue = "projection-jobs"
 
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"
-DEFAULT_CRAWL_DELAY_MS = "2000"
-MAX_QUEUE_BATCH = "10"
+DEFAULT_CRAWL_DELAY_MS = "1000"
+MAX_QUEUE_BATCH = "50"
 ENVIRONMENT = "production"
 
 [env.preview]
