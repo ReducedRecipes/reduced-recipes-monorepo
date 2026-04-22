@@ -57,15 +57,27 @@ interface D1QueryRow {
 
 /**
  * Build the text string that will be embedded for a recipe.
- * Combines the fields most relevant for semantic ingredient/dish search.
+ * Combines the fields most relevant for semantic search including nutrition.
  */
 export function buildEmbeddingText(doc: RecipeDocument): string {
   const parts: string[] = [doc.title];
   if (doc.cuisine) parts.push(doc.cuisine);
   if (doc.category) parts.push(doc.category);
-  if (doc.tags.length > 0) parts.push(doc.tags.join(" "));
-  if (doc.ingredients.length > 0) parts.push(doc.ingredients.join(" "));
-  return parts.join(" ").replace(/\s+/g, " ").trim();
+  if (doc.ingredients.length > 0) parts.push(doc.ingredients.join(", "));
+
+  // Include nutrition for queries like "high protein", "low calorie"
+  const n = doc.nutrition as { calories?: number | null; protein_g?: number | null; fat_g?: number | null; carbs_g?: number | null; fiber_g?: number | null } | undefined;
+  if (n) {
+    const np: string[] = [];
+    if (n.calories != null) np.push(`${n.calories} calories`);
+    if (n.protein_g != null) np.push(`${n.protein_g}g protein`);
+    if (n.fat_g != null) np.push(`${n.fat_g}g fat`);
+    if (n.carbs_g != null) np.push(`${n.carbs_g}g carbs`);
+    if (n.fiber_g != null) np.push(`${n.fiber_g}g fiber`);
+    if (np.length > 0) parts.push(np.join(", "));
+  }
+
+  return parts.join(" | ").replace(/\s+/g, " ").trim();
 }
 
 /**
