@@ -143,10 +143,8 @@ export default function TransparencyPage() {
         </>
       )}
 
-      <Rule style={{ marginTop: 40 }} />
-
       {/* Recent donations */}
-      <div style={{ marginTop: 24 }}>
+      <div style={{ marginTop: 40 }}>
         <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 16 }}>
           Recent supporters
         </div>
@@ -186,18 +184,21 @@ export default function TransparencyPage() {
         )}
       </div>
 
-      <Rule style={{ marginTop: 40 }} />
-
       {/* Infrastructure info */}
-      <div style={{ marginTop: 24, marginBottom: 40 }}>
+      <div style={{ marginTop: 40, marginBottom: 40 }}>
         <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 16 }}>
           Infrastructure
         </div>
-        <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 520 }}>
+        <p style={{ fontSize: 14, color: "var(--ink-2)", lineHeight: 1.6, maxWidth: 520, marginBottom: 24 }}>
           ReducedRecipes runs entirely on Cloudflare&rsquo;s edge network: Workers for compute,
           D1 for the database, KV for caching, Queues for the crawl pipeline, and Workers AI
           for translation and dietary inference. No traditional servers, no AWS bills.
         </p>
+        <img
+          src="/arch-diagram.png"
+          alt="ReducedRecipes system architecture"
+          style={{ width: "100%", border: "1px solid var(--rule-2)" }}
+        />
       </div>
     </main>
   );
