@@ -123,6 +123,7 @@ export function extractInstructions(raw: unknown): string[] {
     return raw
       .flatMap((step: unknown) => {
         if (typeof step === "string") return [cleanText(step)];
+        if (Array.isArray(step)) return extractInstructions(step);
         const obj = step as Record<string, unknown>;
         if (obj["@type"] === "HowToStep")
           return [cleanText(String(obj.text ?? obj.name ?? ""))];
