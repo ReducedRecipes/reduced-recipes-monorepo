@@ -716,18 +716,10 @@ app.get('/sitemap.xml', async (c) => {
   });
 });
 
-app.get('/sitemap-static.xml', async (c) => {
-  const xml = await c.env.CACHE_KV.get('sitemap:static', 'text');
-  if (!xml) return c.text('Not found', 404);
-  return c.body(xml, 200, {
-    'Content-Type': 'application/xml',
-    'Cache-Control': 'public, max-age=3600, s-maxage=86400',
-  });
-});
-
-app.get('/sitemap-:chunk.xml', async (c) => {
-  const chunk = c.req.param('chunk');
-  const xml = await c.env.CACHE_KV.get(`sitemap:chunk:${chunk}`, 'text');
+app.get('/sitemap-:file', async (c) => {
+  const file = c.req.param('file').replace('.xml', '');
+  const kvKey = file === 'static' ? 'sitemap:static' : `sitemap:chunk:${file}`;
+  const xml = await c.env.CACHE_KV.get(kvKey, 'text');
   if (!xml) return c.text('Not found', 404);
   return c.body(xml, 200, {
     'Content-Type': 'application/xml',
