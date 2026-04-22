@@ -6,6 +6,8 @@ workers_dev = true
 
 routes = [
   { pattern = "reducedrecipes.com/api/*", zone_name = "reducedrecipes.com" },
+  { pattern = "reducedrecipes.com/sitemap*", zone_name = "reducedrecipes.com" },
+  { pattern = "reducedrecipes.com/robots.txt", zone_name = "reducedrecipes.com" },
 ]
 
 [[d1_databases]]

@@ -3,7 +3,7 @@ main = "src/sitemap-cron.ts"
 compatibility_date = "2024-05-01"
 
 [triggers]
-crons = ["0 5 * * *"]  # Daily at 05:00 UTC (before billing cron at 06:00)
+crons = ["0 5 * * *"]  # Daily at 05:00 UTC
 
 [[d1_databases]]
 binding = "DB"
