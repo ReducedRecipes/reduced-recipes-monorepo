@@ -57,6 +57,12 @@ database_id = "3bb2302a-7f7a-43c9-b3e7-de5870824869"
 database_name = "reduced-recipes-users"
 migrations_dir = "../../migrations-users"
 
+[[d1_databases]]
+binding = "CRAWL_DB"
+database_id = "372e4627-76ea-4692-84f3-8dbf33e59e05"
+database_name = "reduced-recipes-crawl"
+migrations_dir = "../../migrations-crawl"
+
 [[kv_namespaces]]
 binding = "SESSION_KV"
 id = "b780ce4935dd4cd6834defdb30c2137f"

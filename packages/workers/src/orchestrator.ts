@@ -4,10 +4,11 @@ import { chunk, chunks } from '@rr/shared/utils';
 import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
 async function runScheduled(env: Env) {
+    const db = env.CRAWL_DB ?? env.DB;
     // 1. Pull due URLs — prioritise domains with high-priority URLs first,
     //    then fill remaining slots with random domains.
     // Pick domains with pending URLs — spread evenly across all active domains
-    const allDomains = await env.DB.prepare(`
+    const allDomains = await db.prepare(`
       SELECT domain, COUNT(*) as pending FROM crawl_queue
       WHERE status = 'pending' AND next_crawl <= datetime('now')
       GROUP BY domain
@@ -22,14 +23,14 @@ async function runScheduled(env: Env) {
       const domainChunks = chunk(allDomains.results, 50);
       for (const domainBatch of domainChunks) {
         const stmts = domainBatch.map((d) =>
-          env.DB.prepare(`
+          db.prepare(`
             SELECT url, domain FROM crawl_queue
             WHERE status = 'pending' AND domain = ? AND next_crawl <= datetime('now')
             ORDER BY priority ASC, next_crawl ASC
             LIMIT 5
           `).bind(d.domain),
         );
-        const results = await env.DB.batch(stmts);
+        const results = await db.batch(stmts);
         for (const r of results) {
           due.results.push(...(r.results as unknown as CrawlJob[]));
         }
@@ -37,7 +38,7 @@ async function runScheduled(env: Env) {
     }
 
     // 3.5. Reset stuck 'crawling' URLs older than 10 minutes
-    await env.DB.prepare(`
+    await db.prepare(`
       UPDATE crawl_queue SET status = 'pending', next_crawl = datetime('now')
       WHERE status = 'crawling' AND next_crawl < datetime('now', '-10 minutes')
     `).run();
@@ -53,7 +54,7 @@ async function runScheduled(env: Env) {
     const batches = chunk(due.results, 50);
     for (const batch of batches) {
       const batchUrls = batch.map((r) => r.url);
-      await env.DB.prepare(
+      await db.prepare(
         `UPDATE crawl_queue SET status = 'crawling', next_crawl = datetime('now')
          WHERE url IN (${batchUrls.map(() => '?').join(',')})`,
       ).bind(...batchUrls).run();
@@ -86,7 +87,8 @@ export default {
 };
 
 async function ingestNextSitemap(env: Env) {
-  const domain = await env.DB.prepare(`
+  const db = env.CRAWL_DB ?? env.DB;
+  const domain = await db.prepare(`
     SELECT domain, sitemap_url FROM domains
     WHERE active = 1 AND (last_spidered IS NULL OR last_spidered < datetime('now', '-7 days'))
     ORDER BY last_spidered ASC NULLS FIRST
@@ -100,7 +102,7 @@ async function ingestNextSitemap(env: Env) {
 
   // Upsert into crawl_queue — ignore existing
   const stmts = recipeUrls.map((url) =>
-    env.DB.prepare(`
+    db.prepare(`
       INSERT OR IGNORE INTO crawl_queue (url, domain, status, next_crawl)
       VALUES (?, ?, 'pending', datetime('now'))
     `).bind(url, domain.domain),
@@ -108,10 +110,10 @@ async function ingestNextSitemap(env: Env) {
 
   // D1 batch max is 100
   for (const c of chunks(stmts, 100)) {
-    await env.DB.batch(c);
+    await db.batch(c);
   }
 
-  await env.DB.prepare(
+  await db.prepare(
     `UPDATE domains SET last_spidered = datetime('now') WHERE domain = ?`,
   ).bind(domain.domain).run();
 }

@@ -13,6 +13,11 @@ binding = "DB"
 database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
 database_name = "reduced-recipes-prod"
 
+[[d1_databases]]
+binding = "CRAWL_DB"
+database_id = "372e4627-76ea-4692-84f3-8dbf33e59e05"
+database_name = "reduced-recipes-crawl"
+
 [[kv_namespaces]]
 binding = "RECIPES_KV"
 id = "1ca521a6b82b499b802318ee8bf747db"

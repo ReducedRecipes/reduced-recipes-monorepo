@@ -35,6 +35,9 @@ export interface Env {
   SHOPPING_LIST_DO?: DurableObjectNamespace;
   INGREDIENT_PARSE_QUEUE?: Queue;
 
+  /** Crawl pipeline DB — crawl_queue + domains (separated from recipes DB). */
+  CRAWL_DB?: D1Database;
+
   /** Funding & transparency. */
   FUNDING_DB?: D1Database;
   KOFI_VERIFICATION_TOKEN?: string;

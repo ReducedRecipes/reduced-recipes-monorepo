@@ -106,12 +106,11 @@ app.get('/api/v1/health', async (c) => {
 
   const minVotesFeatured = parseInt(c.env.HOT_MIN_VOTES_FEATURED ?? '3', 10) || 3;
 
-  const [results, featuredRow] = await Promise.all([
+  const crawlDb = c.env.CRAWL_DB ?? c.env.DB;
+
+  const [results, crawlResults, featuredRow] = await Promise.all([
     c.env.DB.batch([
       c.env.DB.prepare('SELECT COUNT(*) as total FROM recipes'),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='pending'"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='failed'"),
-      c.env.DB.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
       c.env.DB.prepare('SELECT COALESCE(SUM(words_removed), 0) as total FROM recipes'),
       c.env.DB.prepare('SELECT COALESCE(SUM(ads_detected), 0) as total FROM recipes'),
       c.env.DB.prepare('SELECT ROUND(AVG(total_time)) as total FROM recipes WHERE total_time IS NOT NULL AND total_time > 0'),
@@ -127,6 +126,11 @@ app.get('/api/v1/health', async (c) => {
       c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('keto','low-carb','low carb')"),
       c.env.DB.prepare("SELECT COUNT(DISTINCT recipe_id) as total FROM recipe_tags WHERE tag = 'translated'"),
     ]),
+    crawlDb.batch([
+      crawlDb.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='pending'"),
+      crawlDb.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='failed'"),
+      crawlDb.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
+    ]),
     c.env.DB.prepare('SELECT id, title FROM recipes WHERE vote_count >= ? ORDER BY hot_score DESC LIMIT 1')
       .bind(minVotesFeatured)
       .first<{ id: string; title: string }>(),
@@ -138,23 +142,23 @@ app.get('/api/v1/health', async (c) => {
   const data = {
     ok: true,
     total_recipes: getTotal(results[0]),
-    pending_crawls: getTotal(results[1]),
-    failed_crawls: getTotal(results[2]),
-    active_domains: getTotal(results[3]),
-    total_words_removed: getTotal(results[4]),
-    total_ads_removed: getTotal(results[5]),
-    avg_cook_time: getTotal(results[6]),
-    under_20_min: getTotal(results[7]),
-    under_30_min: getTotal(results[8]),
-    sources_count: getTotal(results[9]),
-    translated_count: getTotal(results[10]),
-    new_this_week: getTotal(results[11]),
-    vegetarian: getTotal(results[12]),
-    vegan: getTotal(results[13]),
-    one_pan: getTotal(results[14]),
-    gluten_free: getTotal(results[15]),
-    keto: getTotal(results[16]),
-    translated_recipes: getTotal(results[17]),
+    pending_crawls: getTotal(crawlResults[0]),
+    failed_crawls: getTotal(crawlResults[1]),
+    active_domains: getTotal(crawlResults[2]),
+    total_words_removed: getTotal(results[1]),
+    total_ads_removed: getTotal(results[2]),
+    avg_cook_time: getTotal(results[3]),
+    under_20_min: getTotal(results[4]),
+    under_30_min: getTotal(results[5]),
+    sources_count: getTotal(results[6]),
+    translated_count: getTotal(results[7]),
+    new_this_week: getTotal(results[8]),
+    vegetarian: getTotal(results[9]),
+    vegan: getTotal(results[10]),
+    one_pan: getTotal(results[11]),
+    gluten_free: getTotal(results[12]),
+    keto: getTotal(results[13]),
+    translated_recipes: getTotal(results[14]),
     featured_recipe_id: featuredRow?.id ?? null,
     featured_recipe_title: featuredRow?.title ?? null,
   };
@@ -361,7 +365,8 @@ app.get('/api/v1/tags', async (c) => {
 
 // ── Domains ──────────────────────────────────────────────────────────────
 app.get('/api/v1/domains', async (c) => {
-  const result = await c.env.DB.prepare(
+  const crawlDb = c.env.CRAWL_DB ?? c.env.DB;
+  const result = await crawlDb.prepare(
     'SELECT domain, recipe_count, last_spidered FROM domains WHERE active=1 ORDER BY recipe_count DESC',
   ).all();
 
@@ -788,7 +793,8 @@ app.post('/api/v1/admin/seed', async (c) => {
     return c.json({ error: { code: 'INVALID_INPUT', message: 'domain is required' } }, 400);
   }
 
-  await c.env.DB.prepare(
+  const crawlDb = c.env.CRAWL_DB ?? c.env.DB;
+  await crawlDb.prepare(
     'INSERT OR IGNORE INTO domains (domain, sitemap_url, crawl_delay_ms, recipe_count, active) VALUES (?1, ?2, ?3, 0, 1)',
   )
     .bind(body.domain, body.sitemap_url ?? null, body.crawl_delay_ms ?? null)

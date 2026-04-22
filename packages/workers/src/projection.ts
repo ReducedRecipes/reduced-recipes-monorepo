@@ -161,21 +161,20 @@ export default {
           ),
         );
 
-        // 5. Increment domain counter
-        statements.push(
-          env.DB.prepare(`
-            UPDATE domains
-            SET recipe_count = recipe_count + 1,
-                last_spidered = datetime('now')
-            WHERE domain = ?
-          `).bind(doc.domain),
-        );
-
-        // 6. Batch execute — chunk into groups of 100
+        // 5. Batch execute — chunk into groups of 100
         const batches = chunk(statements, 100);
         for (const batch of batches) {
           await env.DB.batch(batch);
         }
+
+        // 5b. Increment domain counter (may live in a separate DB)
+        const crawlDb = env.CRAWL_DB ?? env.DB;
+        await crawlDb.prepare(`
+          UPDATE domains
+          SET recipe_count = recipe_count + 1,
+              last_spidered = datetime('now')
+          WHERE domain = ?
+        `).bind(doc.domain).run();
 
         // 7. Best-effort dietary inference — runs after recipe is stored
         if (env.AI) {

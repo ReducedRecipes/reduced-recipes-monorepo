@@ -7,6 +7,7 @@ interface DlqMessage {
 
 export default {
   async queue(batch: MessageBatch<unknown>, env: Env): Promise<void> {
+    const crawlDb = env.CRAWL_DB ?? env.DB;
     for (const msg of batch.messages) {
       try {
         const body = msg.body as DlqMessage;
@@ -24,7 +25,7 @@ export default {
 
         // For crawl-dlq messages: mark the URL as failed in crawl_queue
         if (queueName === 'crawl-dlq' && body?.url) {
-          await env.DB.prepare(
+          await crawlDb.prepare(
             'UPDATE crawl_queue SET status = ? WHERE url = ?',
           )
             .bind('failed', body.url)

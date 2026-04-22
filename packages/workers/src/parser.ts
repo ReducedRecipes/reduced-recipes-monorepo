@@ -5,6 +5,7 @@ import { detectLanguage } from './helpers/detect-language';
 
 export default {
   async queue(batch: MessageBatch<ParseJob>, env: Env) {
+    const crawlDb = env.CRAWL_DB ?? env.DB;
     for (const msg of batch.messages) {
       const { url, domain, html: inlineHtml, htmlKey } = msg.body;
 
@@ -15,7 +16,7 @@ export default {
           : inlineHtml;
 
         if (!html) {
-          await updateCrawlStatus(env, url, 'failed');
+          await updateCrawlStatus(crawlDb, url, 'failed');
           msg.ack();
           continue;
         }
@@ -24,7 +25,7 @@ export default {
         const schema = extractSchemaOrg(html);
 
         if (!schema) {
-          await updateCrawlStatus(env, url, 'no_schema');
+          await updateCrawlStatus(crawlDb, url, 'no_schema');
           msg.ack();
           continue;
         }
@@ -43,7 +44,7 @@ export default {
 
         // ── Validate required fields ────────────────────────────────
         if (!doc.title || doc.ingredients.length === 0) {
-          await updateCrawlStatus(env, url, 'no_schema');
+          await updateCrawlStatus(crawlDb, url, 'no_schema');
           msg.ack();
           continue;
         }
@@ -89,7 +90,7 @@ export default {
 
             seen.add(href);
 
-            await env.DB.prepare(
+            await crawlDb.prepare(
               `INSERT OR IGNORE INTO crawl_queue (url, domain, priority, status)
                VALUES (?, ?, 8, 'pending')`,
             ).bind(href, domain).run();
@@ -102,7 +103,7 @@ export default {
         if (htmlKey) await env.CACHE_KV.delete(htmlKey);
 
         // ── Mark crawl as done ──────────────────────────────────────
-        await updateCrawlStatus(env, url, 'done');
+        await updateCrawlStatus(crawlDb, url, 'done');
         msg.ack();
       } catch {
         msg.retry();
@@ -163,11 +164,11 @@ function calculateReduction(html: string, doc: RecipeDocument): NonNullable<Reci
 }
 
 async function updateCrawlStatus(
-  env: Env,
+  db: D1Database,
   url: string,
   status: string,
 ): Promise<void> {
-  await env.DB.prepare(
+  await db.prepare(
     'UPDATE crawl_queue SET status = ? WHERE url = ?',
   ).bind(status, url).run();
 }
