@@ -243,6 +243,15 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
 
 // ── List recipes ─────────────────────────────────────────────────────────
 app.get('/api/v1/recipes', optionalAuth, async (c) => {
+  // Edge cache for anonymous users — avoids D1 entirely on repeat requests
+  const authUserId = c.get('userId');
+  if (!authUserId) {
+    const cache = caches.default;
+    const cacheKey = new Request(c.req.url, c.req.raw);
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+  }
+
   const { tag, tags: tagsParam, domain, cuisine, max_time, min_time, cursor, limit: limitParam, sort } = c.req.query();
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
 
@@ -342,9 +351,18 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
 
   const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
-  return c.json({ items, next_cursor }, 200, {
-    'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+  const response = c.json({ items, next_cursor }, 200, {
+    'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
   });
+
+  // Store in edge cache for anonymous users
+  if (!authUserId) {
+    const cache = caches.default;
+    const cacheKey = new Request(c.req.url, c.req.raw);
+    try { c.executionCtx.waitUntil(cache.put(cacheKey, response.clone())); } catch { /* no ctx */ }
+  }
+
+  return response;
 });
 
 // ── Tags ─────────────────────────────────────────────────────────────────
