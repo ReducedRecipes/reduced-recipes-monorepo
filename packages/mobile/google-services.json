@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "185737034001",
+    "project_id": "reducedrecipes",
+    "storage_bucket": "reducedrecipes.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:185737034001:android:19bd65b956e87645cd74b0",
+        "android_client_info": {
+          "package_name": "com.reducedrecipes.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBcqtqlWVmdPopRhXnwaCe0xXLr2Unxi4U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
