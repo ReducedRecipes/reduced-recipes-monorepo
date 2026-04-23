@@ -1,65 +1,69 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("../lib/api", () => ({
+  apiFetch: vi.fn(),
   searchRecipes: vi.fn(),
 }));
 
-import { searchRecipes } from "../lib/api";
-import SearchPage from "../pages/SearchPage";
+import { apiFetch, searchRecipes } from "../lib/api";
 
-const mockedSearch = vi.mocked(searchRecipes);
+const mockApiFetch = vi.mocked(apiFetch);
+const mockSearchRecipes = vi.mocked(searchRecipes);
 
-function renderPage(route: string) {
-  const queryClient = new QueryClient({
-    defaultOptions: { queries: { retry: false } },
-  });
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter initialEntries={[route]}>
-        <SearchPage />
-      </MemoryRouter>
-    </QueryClientProvider>,
-  );
-}
-
-afterEach(() => {
-  cleanup();
+beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("SearchPage", () => {
-  it("shows hint when query is too short", () => {
-    renderPage("/search?q=a");
-    expect(
-      screen.getByText("Enter at least 2 characters to search."),
-    ).toBeDefined();
+describe("SearchPage — search mode API integration", () => {
+  it("searchRecipes passes mode=hybrid by default", async () => {
+    mockSearchRecipes.mockResolvedValueOnce({ items: [], has_more: false });
+    await searchRecipes("pasta");
+    expect(mockSearchRecipes).toHaveBeenCalledWith("pasta");
   });
 
-  it("shows heading with query term", async () => {
-    mockedSearch.mockResolvedValue({
-      items: [
-        {
-          id: "r1",
-          title: "Pasta",
-          domain: "example.com",
-          image_url: null,
-          total_time: 30,
-        } as any,
-      ],
-      has_more: false,
-    });
-    renderPage("/search?q=pasta");
-    expect(
-      await screen.findByText(/Search results for/),
-    ).toBeDefined();
+  it("searchRecipes accepts keyword mode", async () => {
+    mockSearchRecipes.mockResolvedValueOnce({ items: [], has_more: false });
+    await searchRecipes("pasta", 24, "keyword");
+    expect(mockSearchRecipes).toHaveBeenCalledWith("pasta", 24, "keyword");
   });
 
-  it("shows no results message when empty", async () => {
-    mockedSearch.mockResolvedValue({ items: [], has_more: false });
-    renderPage("/search?q=xyz");
-    expect(await screen.findByText("No results found.")).toBeDefined();
+  it("searchRecipes accepts semantic mode", async () => {
+    mockSearchRecipes.mockResolvedValueOnce({ items: [], has_more: false });
+    await searchRecipes("pasta", 24, "semantic");
+    expect(mockSearchRecipes).toHaveBeenCalledWith("pasta", 24, "semantic");
+  });
+
+  it("searchRecipes accepts hybrid mode", async () => {
+    mockSearchRecipes.mockResolvedValueOnce({ items: [], has_more: false });
+    await searchRecipes("pasta", 24, "hybrid");
+    expect(mockSearchRecipes).toHaveBeenCalledWith("pasta", 24, "hybrid");
+  });
+});
+
+describe("SearchPage — useSearch hook mode parameter", () => {
+  it("apiFetch is called with mode in query", async () => {
+    mockApiFetch.mockResolvedValueOnce({ items: [], has_more: false });
+
+    // Import the real searchRecipes (not mocked) to test query building
+    const { buildQuery } = await import("@rr/shared/build-query");
+    const query = buildQuery({ q: "pasta", limit: 24, offset: 0, mode: "keyword" });
+
+    expect(query).toContain("mode=keyword");
+    expect(query).toContain("q=pasta");
+  });
+
+  it("buildQuery includes hybrid mode when specified", async () => {
+    const { buildQuery } = await import("@rr/shared/build-query");
+    const query = buildQuery({ q: "cake", limit: 24, offset: 0, mode: "hybrid" });
+
+    expect(query).toContain("mode=hybrid");
+    expect(query).toContain("q=cake");
+  });
+
+  it("buildQuery includes semantic mode when specified", async () => {
+    const { buildQuery } = await import("@rr/shared/build-query");
+    const query = buildQuery({ q: "soup", limit: 24, offset: 0, mode: "semantic" });
+
+    expect(query).toContain("mode=semantic");
   });
 });

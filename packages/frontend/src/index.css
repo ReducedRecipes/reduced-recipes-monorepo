@@ -191,12 +191,23 @@ body::before {
 
   /* Seasonal list rows: simplified on mobile */
   main section a[style*="grid-template-columns"] {
-    grid-template-columns: 40px 1fr 60px !important;
-    gap: 10px !important;
+    grid-template-columns: 30px 1fr auto !important;
+    gap: 8px !important;
   }
   main section a[style*="grid-template-columns"] > div:nth-child(3),
-  main section a[style*="grid-template-columns"] > div:nth-child(4) {
+  main section a[style*="grid-template-columns"] > div:nth-child(4),
+  main section a[style*="grid-template-columns"] > div:nth-child(6) {
     display: none !important;
+  }
+  /* Time/domain column: compact */
+  main section a[style*="grid-template-columns"] > div:nth-child(5) {
+    font-size: 10px !important;
+    text-align: right;
+    white-space: nowrap;
+  }
+  /* Recipe title: smaller on mobile */
+  main section a[style*="grid-template-columns"] > div:nth-child(2) {
+    font-size: 20px !important;
   }
 
   /* Featured title: smaller on mobile */
@@ -217,6 +228,36 @@ body::before {
   /* TopBar utility strip: hide overflow items */
   .utility-strip > span:nth-child(4) {
     display: none;
+  }
+
+  /* Hero: constrain text and buttons */
+  main > section[style*="1.2fr"] h1 {
+    font-size: 42px !important;
+  }
+  main > section[style*="1.2fr"] div[style*="gap: 10"] {
+    flex-wrap: wrap !important;
+  }
+
+  /* Funding card + specimen box: full width, no overflow */
+  main > section[style*="1.2fr"] > div[style*="flex-direction: column"] {
+    margin-top: 16px !important;
+    overflow: hidden;
+  }
+
+  /* Search page: stack mode toggles and results header */
+  .search-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Search page results header: stack on mobile */
+  .search-grid > div > div:first-child {
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  /* Prevent any horizontal overflow */
+  main {
+    overflow-x: hidden;
   }
 }
 

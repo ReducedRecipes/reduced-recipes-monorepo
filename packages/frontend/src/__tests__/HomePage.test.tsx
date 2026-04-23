@@ -106,9 +106,9 @@ describe("HomePage", () => {
     it("renders stat panel stats", () => {
       mockLoaded();
       renderPage();
-      expect(screen.getByText("Median read")).toBeDefined();
       expect(screen.getByText("Avg. cook")).toBeDefined();
       expect(screen.getByText("Ads removed")).toBeDefined();
+      expect(screen.getByText("Sources")).toBeDefined();
     });
 
     it("renders today's index section", () => {

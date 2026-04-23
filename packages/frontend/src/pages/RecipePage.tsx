@@ -1,17 +1,20 @@
 import { useState, useEffect, useMemo } from "react";
 import { useParams, Link } from "react-router-dom";
 import { useRecipe } from "../hooks/useRecipe";
+import { useRecipes } from "../hooks/useRecipes";
 import { useAuth } from "../hooks/useAuth";
 import { useShoppingLists } from "../hooks/useShoppingLists";
 import { BookmarkButton } from "../components/BookmarkButton";
-import { addRecipeToList, heartRecipe, unheartRecipe } from "../lib/api";
+import { addRecipeToList } from "../lib/api";
 import { Rule, Pill, FoodPlaceholder } from "../components/design-system";
 import { StatRail } from "../components/recipe/StatRail";
 import { StickyControls } from "../components/recipe/StickyControls";
 import { CookMode } from "../components/recipe/CookMode";
 import { NutritionPanel } from "../components/recipe/NutritionPanel";
 import { scaleIngredient, parseIngredient, formatQty } from "../lib/formatQty";
+import { useSimilarRecipes } from "../hooks/useSimilarRecipes";
 import type { RecipeDocument } from "@rr/shared/types";
+import type { RecipeSummary } from "@rr/shared";
 
 function formatTime(minutes: number): string {
   if (minutes < 60) return `${minutes} min`;
@@ -49,6 +52,33 @@ function parseBaseServings(yields: string | null): number {
   return m ? parseInt(m[1]!) : 4;
 }
 
+function SimilarShelfCard({ r }: { r: RecipeSummary }) {
+  const [imgFailed, setImgFailed] = useState(false);
+  return (
+    <Link
+      to={`/recipe/${r.id}`}
+      style={{ display: "flex", flexDirection: "column", gap: 8, minWidth: 160, maxWidth: 200, flexShrink: 0, textDecoration: "none", color: "inherit" }}
+    >
+      {r.image_url && !imgFailed ? (
+        <img
+          src={r.image_url}
+          alt={r.title}
+          onError={() => setImgFailed(true)}
+          style={{ width: "100%", aspectRatio: "1/1", objectFit: "cover", display: "block", border: "1px solid var(--rule-2)" }}
+        />
+      ) : (
+        <div style={{ aspectRatio: "1/1", background: "var(--bg-2)", border: "1px solid var(--rule-2)", display: "flex", alignItems: "center", justifyContent: "center", padding: 12 }}>
+          <span className="serif" style={{ fontSize: 13, fontStyle: "italic", color: "var(--ink-3)", textAlign: "center", lineHeight: 1.2 }}>{r.title}</span>
+        </div>
+      )}
+      <div>
+        <div className="serif" style={{ fontSize: 14, lineHeight: 1.2, letterSpacing: "-0.01em", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{r.title}</div>
+        {r.total_time && <div className="mono" style={{ fontSize: 10, color: "var(--ink-3)", marginTop: 3, textTransform: "uppercase", letterSpacing: "0.04em" }}>{r.total_time}m</div>}
+      </div>
+    </Link>
+  );
+}
+
 function RecipeImage({ url, title }: { url: string | null; title: string }) {
   const [failed, setFailed] = useState(false);
   if (!url || failed) {
@@ -72,8 +102,21 @@ function RecipeImage({ url, title }: { url: string | null; title: string }) {
 export default function RecipePage() {
   const { id } = useParams<{ id: string }>();
   const { data: recipe, isLoading, error } = useRecipe(id ?? "");
+  const { data: vectorSimilar } = useSimilarRecipes(id ?? "");
   const { isAuthenticated } = useAuth();
   const { lists, createListAsync } = useShoppingLists();
+
+  // Fall back to cuisine/tag-based similar recipes if vector search returns nothing
+  const similarParams = recipe?.cuisine
+    ? { cuisine: recipe.cuisine, limit: 7 }
+    : recipe?.tags?.[0]
+    ? { tag: recipe.tags[0], limit: 7 }
+    : undefined;
+  const { data: fallbackSimilar } = useRecipes(similarParams);
+
+  const similarRecipes = (vectorSimilar?.items ?? []).length > 0
+    ? (vectorSimilar?.items ?? []).filter((r: RecipeSummary) => r.id !== id).slice(0, 6)
+    : (fallbackSimilar?.pages[0]?.items ?? []).filter((r) => r.id !== id).slice(0, 6);
 
   const baseServings = useMemo(
     () => parseBaseServings(recipe?.yields ?? null),
@@ -89,13 +132,6 @@ export default function RecipePage() {
   const [showListPicker, setShowListPicker] = useState(false);
   const [addingToList, setAddingToList] = useState<string | null>(null);
   const [addedToList, setAddedToList] = useState<string | null>(null);
-  const [hearted, setHearted] = useState(false);
-  const [voteCount, setVoteCount] = useState(0);
-
-  useEffect(() => {
-    if (recipe) setVoteCount(recipe.vote_count ?? 0);
-  }, [recipe]);
-
   useEffect(() => {
     setServings(baseServings);
   }, [baseServings]);
@@ -160,21 +196,6 @@ export default function RecipePage() {
       document.head.removeChild(script);
     };
   }, [recipe]);
-
-  async function handleHeart() {
-    const nextHearted = !hearted;
-    setHearted(nextHearted);
-    setVoteCount((c) => c + (nextHearted ? 1 : -1));
-    try {
-      const res = nextHearted
-        ? await heartRecipe(recipe!.id)
-        : await unheartRecipe(recipe!.id);
-      setVoteCount(res.vote_count);
-    } catch {
-      setHearted(!nextHearted);
-      setVoteCount((c) => c + (nextHearted ? -1 : 1));
-    }
-  }
 
   function toggleIngredient(index: number) {
     setCheckedIngredients((prev) => {
@@ -316,6 +337,7 @@ export default function RecipePage() {
             yields={recipe.yields}
             ingredientCount={recipe.ingredients.length}
             stepCount={recipe.instructions.length}
+            calories={recipe.nutrition?.calories ?? null}
           />
         </div>
 
@@ -329,6 +351,7 @@ export default function RecipePage() {
           }
           onPrint={() => window.print()}
           onCookMode={() => setCookMode(true)}
+          bookmarkSlot={<BookmarkButton recipeId={recipe.id} />}
         />
 
         {/* ── 4. Two-column body ── */}
@@ -516,7 +539,7 @@ export default function RecipePage() {
 
             {/* ── 6. Nutrition panel ── */}
             <div className="mt-10">
-              <NutritionPanel />
+              <NutritionPanel nutrition={recipe.nutrition} />
             </div>
           </div>
         </div>
@@ -531,30 +554,28 @@ export default function RecipePage() {
           >
             View original on {recipe.domain}
           </a>
-          <BookmarkButton recipeId={recipe.id} />
-          <button
-            type="button"
-            onClick={handleHeart}
-            aria-label={hearted ? "Un-heart recipe" : "Heart recipe"}
-            className="flex items-center gap-1.5 border border-rule px-3 py-2 font-mono text-xs uppercase tracking-wider transition-colors hover:border-ink-3"
-            style={{ color: hearted ? "#e53e3e" : "var(--ink-3)" }}
-          >
-            <svg viewBox="0 0 24 24" width={14} height={14} aria-hidden="true">
-              <path
-                d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z"
-                fill={hearted ? "currentColor" : "none"}
-                stroke="currentColor"
-                strokeWidth={1.5}
-              />
-            </svg>
-            {voteCount > 0 ? voteCount : "Heart"}
-          </button>
           <div className="flex-1" />
           <span className="font-mono text-xs text-ink-3">
             Indexed {new Date(recipe.extracted_at).toLocaleDateString()}
           </span>
         </div>
+
+        {/* ── Similar recipes shelf ── */}
+        {similarRecipes.length > 0 && (
+          <section style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid var(--rule)" }}>
+            <div className="caps" style={{ color: "var(--accent-ink)", marginBottom: 6 }}>◆ More like this</div>
+            <div className="serif" style={{ fontSize: 28, fontStyle: "italic", letterSpacing: "-0.015em", marginBottom: 20 }}>
+              {recipe.cuisine ? `More ${recipe.cuisine} recipes` : `More ${recipe.tags[0]} recipes`}
+            </div>
+            <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 8 }}>
+              {similarRecipes.map((r) => (
+                <SimilarShelfCard key={r.id} r={r} />
+              ))}
+            </div>
+          </section>
+        )}
       </article>
+
     </>
   );
 }

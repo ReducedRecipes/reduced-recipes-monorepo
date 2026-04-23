@@ -35,6 +35,13 @@ export interface Env {
   SHOPPING_LIST_DO?: DurableObjectNamespace;
   INGREDIENT_PARSE_QUEUE?: Queue;
 
+  /** Crawl pipeline DB — crawl_queue + domains (separated from recipes DB). */
+  CRAWL_DB?: D1Database;
+
+  /** Funding & transparency. */
+  FUNDING_DB?: D1Database;
+  KOFI_VERIFICATION_TOKEN?: string;
+
   /** Phase 3 bindings — hot ranking. */
   VOTES_KV?: KVNamespace;
   HOT_DECAY_SECONDS?: string;
@@ -45,4 +52,7 @@ export interface Env {
   WEIGHT_HEART?: string;
   WEIGHT_LIST_ADD?: string;
   WEIGHT_AUTH_VIEW?: string;
+
+  /** Vectorize — semantic search index. */
+  VECTORIZE?: VectorizeIndex;
 }

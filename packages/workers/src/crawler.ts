@@ -4,6 +4,7 @@ import { checkRobots } from '@rr/shared/robots';
 
 export default {
   async queue(batch: MessageBatch<CrawlJob>, env: Env) {
+    const crawlDb = env.CRAWL_DB ?? env.DB;
     for (const msg of batch.messages) {
       const { url, domain } = msg.body;
 
@@ -11,7 +12,7 @@ export default {
         // ── robots.txt ──────────────────────────────────────────
         const robotsAllowed = await checkRobots(url, domain, env);
         if (!robotsAllowed) {
-          await updateCrawlStatus(env, url, 'skipped');
+          await updateCrawlStatus(crawlDb, url, 'skipped');
           msg.ack();
           continue;
         }
@@ -32,7 +33,7 @@ export default {
 
         const contentType = response.headers.get('content-type') ?? '';
         if (!contentType.includes('text/html')) {
-          await updateCrawlStatus(env, url, 'skipped');
+          await updateCrawlStatus(crawlDb, url, 'skipped');
           msg.ack();
           continue;
         }
@@ -48,13 +49,13 @@ export default {
           { url, domain, htmlKey } satisfies ParseJob,
           { contentType: 'json' },
         );
-        await updateCrawlStatus(env, url, 'done');
+        await updateCrawlStatus(crawlDb, url, 'done');
         msg.ack();
       } catch (err) {
         const error = err as Error;
 
         try {
-          await env.DB.prepare(`
+          await crawlDb.prepare(`
             UPDATE crawl_queue
             SET
               fail_count = fail_count + 1,
@@ -80,11 +81,11 @@ export default {
 };
 
 async function updateCrawlStatus(
-  env: Env,
+  db: D1Database,
   url: string,
   status: string,
 ): Promise<void> {
-  await env.DB.prepare(
+  await db.prepare(
     'UPDATE crawl_queue SET status = ? WHERE url = ?',
   ).bind(status, url).run();
 }

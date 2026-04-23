@@ -6,7 +6,7 @@
  * Reverse index: user-sessions:{user_id} JSON array of tokens
  */
 
-const SESSION_TTL = 30 * 24 * 60 * 60; // 30 days in seconds
+const SESSION_TTL = 365 * 24 * 60 * 60; // 1 year in seconds
 
 export interface Session {
   user_id: string;
@@ -71,7 +71,14 @@ export async function getSession(
     return { replacement_token: data.replacement_token } as GraceSession;
   }
 
-  return data as Session;
+  // Refresh TTL on every read — active users never expire
+  const session = data as Session;
+  session.refreshed_at = Date.now();
+  kv.put(sessionKey(token), JSON.stringify(session), {
+    expirationTtl: SESSION_TTL,
+  }).catch(() => {}); // fire-and-forget
+
+  return session;
 }
 
 export async function deleteSession(

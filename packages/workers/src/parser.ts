@@ -5,6 +5,7 @@ import { detectLanguage } from './helpers/detect-language';
 
 export default {
   async queue(batch: MessageBatch<ParseJob>, env: Env) {
+    const crawlDb = env.CRAWL_DB ?? env.DB;
     for (const msg of batch.messages) {
       const { url, domain, html: inlineHtml, htmlKey } = msg.body;
 
@@ -15,7 +16,8 @@ export default {
           : inlineHtml;
 
         if (!html) {
-          await updateCrawlStatus(env, url, 'failed');
+          console.log(`PARSER: no HTML for ${url}`);
+          await updateCrawlStatus(crawlDb, url, 'failed');
           msg.ack();
           continue;
         }
@@ -24,7 +26,8 @@ export default {
         const schema = extractSchemaOrg(html);
 
         if (!schema) {
-          await updateCrawlStatus(env, url, 'no_schema');
+          console.log(`PARSER: no schema for ${url}`);
+          await updateCrawlStatus(crawlDb, url, 'no_schema');
           msg.ack();
           continue;
         }
@@ -33,7 +36,7 @@ export default {
         const doc: RecipeDocument = normaliseRecipe(schema, url);
 
         // ── Detect source language ─────────────────────────────────
-        const sourceLang = detectLanguage(html);
+        const sourceLang = detectLanguage(html, doc.title, url);
         if (sourceLang) {
           doc.original_language = sourceLang;
         }
@@ -43,10 +46,12 @@ export default {
 
         // ── Validate required fields ────────────────────────────────
         if (!doc.title || doc.ingredients.length === 0) {
-          await updateCrawlStatus(env, url, 'no_schema');
+          await updateCrawlStatus(crawlDb, url, 'no_schema');
           msg.ack();
           continue;
         }
+
+        console.log(`PARSER: extracted "${doc.title}" from ${url} (${doc.ingredients.length} ingredients)`);
 
         // ── Write full document to KV ───────────────────────────────
         await env.RECIPES_KV.put(
@@ -66,6 +71,15 @@ export default {
         const seen = new Set<string>();
         let linkMatch;
 
+        // Skip non-recipe URLs
+        const JUNK_PATTERNS = [
+          /\.(pdf|jpg|jpeg|png|gif|svg|webp|css|js|ico|xml|json|zip|mp4|mp3)$/i,
+          /[#?]/,                           // fragments and query strings
+          /\/(tag|category|author|page|feed|wp-json|wp-admin|wp-content|wp-includes|comment|login|register|cart|checkout|account)\//i,
+          /\/(search|sitemap|rss|atom|print|share|embed)\b/i,
+          /\/\d{4}\/\d{2}\/?$/,             // date archives like /2024/03/
+        ];
+
         while ((linkMatch = linkRegex.exec(html)) !== null && seen.size < 50) {
           try {
             const href = new URL(linkMatch[1]!, url).href;
@@ -73,9 +87,14 @@ export default {
 
             if (linkDomain !== domain) continue;
             if (seen.has(href)) continue;
+
+            // Filter junk URLs
+            const path = new URL(href).pathname;
+            if (JUNK_PATTERNS.some((p) => p.test(href) || p.test(path))) continue;
+
             seen.add(href);
 
-            await env.DB.prepare(
+            await crawlDb.prepare(
               `INSERT OR IGNORE INTO crawl_queue (url, domain, priority, status)
                VALUES (?, ?, 8, 'pending')`,
             ).bind(href, domain).run();
@@ -88,7 +107,7 @@ export default {
         if (htmlKey) await env.CACHE_KV.delete(htmlKey);
 
         // ── Mark crawl as done ──────────────────────────────────────
-        await updateCrawlStatus(env, url, 'done');
+        await updateCrawlStatus(crawlDb, url, 'done');
         msg.ack();
       } catch {
         msg.retry();
@@ -149,11 +168,11 @@ function calculateReduction(html: string, doc: RecipeDocument): NonNullable<Reci
 }
 
 async function updateCrawlStatus(
-  env: Env,
+  db: D1Database,
   url: string,
   status: string,
 ): Promise<void> {
-  await env.DB.prepare(
+  await db.prepare(
     'UPDATE crawl_queue SET status = ? WHERE url = ?',
   ).bind(status, url).run();
 }

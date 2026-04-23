@@ -85,7 +85,7 @@ describe('rollupItems', () => {
     expect(result.items.unchecked).toHaveLength(1);
     expect(result.items.unchecked[0]!.total_quantity).toBe(5);
     expect(result.items.unchecked[0]!.unit).toBeNull();
-    expect(result.items.unchecked[0]!.display_text).toBe('5 egg');
+    expect(result.items.unchecked[0]!.display_text).toBe('5 eggs');
   });
 
   it('canonicalises names — case insensitive, singularised', () => {
@@ -171,6 +171,6 @@ describe('rollupItems', () => {
       makeItem({ id: '1', item: null, original_text: 'Salt and Pepper' }),
     ];
     const result = rollupItems(items);
-    expect(result.items.unchecked[0]!.canonical_item).toBe('salt and pepper');
+    expect(result.items.unchecked[0]!.canonical_item).toBe('pepper salt');
   });
 });

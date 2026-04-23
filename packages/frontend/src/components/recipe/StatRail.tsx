@@ -7,6 +7,7 @@ interface StatRailProps {
   yields: string | null;
   ingredientCount: number;
   stepCount: number;
+  calories?: number | null;
 }
 
 function fmtTime(min: number | null): string {
@@ -30,6 +31,7 @@ export function StatRail({
   yields,
   ingredientCount,
   stepCount,
+  calories,
 }: StatRailProps) {
   const activeTime = prepTime ?? cookTime;
 
@@ -38,7 +40,7 @@ export function StatRail({
       <Stat k="Total" v={fmtTime(totalTime)} />
       <Stat k="Active" v={fmtTime(activeTime)} />
       <Stat k="Servings" v={parseServings(yields)} />
-      <Stat k="Per serving" v="—" sub="kcal" />
+      <Stat k="Per serving" v={calories != null ? String(calories) : "—"} sub="kcal" />
       <Stat k="Ingredients" v={ingredientCount} />
       <Stat k="Steps" v={stepCount} />
     </div>

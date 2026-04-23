@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .wrangler/
+.playwright-mcp/
 .dev.vars
 .env
 *.log

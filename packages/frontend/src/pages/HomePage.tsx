@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useRecipes } from "../hooks/useRecipes";
 import { useHealth } from "../hooks/useHealth";
+import { useFunding } from "../hooks/useFunding";
 import {
   Ticker,
   Rule,
@@ -28,6 +29,7 @@ export default function HomePage() {
   const { data, isLoading } = useRecipes({ sort: 'hot', limit: 30 });
   const { data: quickData } = useRecipes({ max_time: 20, limit: 8 });
   const { health } = useHealth();
+  const { funding } = useFunding();
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const quickItems = quickData?.pages.flatMap((p) => p.items) ?? [];
@@ -44,16 +46,6 @@ export default function HomePage() {
 
   const [have, setHave] = useState<string[]>([]);
   const [excluded, setExcluded] = useState<string[]>([]);
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center py-20">
-        <div className="mono" style={{ color: "var(--ink-3)", fontSize: 12 }}>
-          Loading index&hellip;
-        </div>
-      </div>
-    );
-  }
 
   return (
     <main>
@@ -103,7 +95,7 @@ export default function HomePage() {
             to the bottom to find the ingredients. Just the list, the method, and
             the number of minutes until dinner.
           </div>
-          <div style={{ marginTop: 32, display: "flex", gap: 10 }}>
+          <div style={{ marginTop: 32, display: "flex", gap: 10, flexWrap: "wrap" }}>
             {featured && (
               <Link
                 to={`/recipe/${featured.id}`}
@@ -139,14 +131,69 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Stat panel */}
+        {/* Right column: funding tracker + stat panel */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16, justifyContent: "flex-start", alignSelf: "start", marginTop: 32 }}>
+
+          {/* Funding tracker */}
+          {funding && funding.monthly_cost > 0 && (() => {
+            const cost = funding.monthly_cost;
+            const funded = funding.funded_this_month;
+            const pct = Math.min(Math.round((funded / cost) * 100), 100);
+            const barWidth = Math.min((funded / cost) * 100, 100);
+            return (
+              <div style={{ padding: "16px 20px", border: "1px solid var(--rule)", position: "relative" }}>
+                <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 10 }}>
+                  Monthly running costs
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8 }}>
+                  <div className="mono" style={{ fontSize: 22, color: "var(--ink)" }}>
+                    ${cost.toFixed(0)}
+                    <span style={{ fontSize: 12, color: "var(--ink-3)" }}> /mo</span>
+                  </div>
+                  <div className="mono" style={{ fontSize: 12, color: funded >= cost ? "var(--accent-ink)" : "var(--ink-2)" }}>
+                    {pct}% funded
+                  </div>
+                </div>
+                {/* Progress bar */}
+                <div style={{ height: 4, background: "var(--rule)", width: "100%", marginBottom: 12 }}>
+                  <div style={{ height: 4, background: funded >= cost ? "var(--accent)" : "var(--ink)", width: `${barWidth}%`, transition: "width 0.5s ease" }} />
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <a
+                    href="https://ko-fi.com/B0B51JEVN"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mono"
+                    style={{
+                      fontSize: 11,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.1em",
+                      padding: "8px 14px",
+                      background: "var(--ink)",
+                      color: "var(--bg)",
+                      border: "1px solid var(--ink)",
+                    }}
+                  >
+                    Buy me a coffee
+                  </a>
+                  <Link
+                    to="/transparency"
+                    className="mono"
+                    style={{ fontSize: 11, color: "var(--ink-3)" }}
+                  >
+                    Full breakdown &rarr;
+                  </Link>
+                </div>
+              </div>
+            );
+          })()}
+
         <aside
           style={{
             border: "1px solid var(--rule-2)",
             padding: "24px 24px 20px",
             background: "var(--bg-2)",
             position: "relative",
-            alignSelf: "end",
           }}
         >
           <div
@@ -230,6 +277,7 @@ export default function HomePage() {
             </div>
           </div>
         </aside>
+        </div>
       </section>
 
       {/* ——— Ingredient-driven search ——— */}
@@ -297,6 +345,35 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
+
+      {/* ——— Loading skeletons ——— */}
+      {isLoading && (
+        <section style={{ padding: "48px 0", borderBottom: "1px solid var(--rule)" }}>
+          <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 12 }}>◆ Fig. 003 — Feature of the week</div>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1.1fr", gap: 32 }}>
+            <div>
+              <div style={{ height: 48, background: "var(--bg-2)", marginBottom: 16 }} />
+              <div style={{ height: 20, background: "var(--bg-2)", width: "60%", marginBottom: 8 }} />
+              <div style={{ height: 16, background: "var(--bg-2)", width: "40%" }} />
+            </div>
+            <div style={{ height: 300, background: "var(--bg-2)" }} />
+          </div>
+        </section>
+      )}
+      {isLoading && (
+        <section style={{ padding: "48px 0", borderBottom: "1px solid var(--rule)" }}>
+          <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 12 }}>◆ Fig. 004 — Trending this week</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 16 }}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+              <div key={i}>
+                <div style={{ aspectRatio: "1", background: "var(--bg-2)", marginBottom: 8 }} />
+                <div style={{ height: 14, background: "var(--bg-2)", width: "80%", marginBottom: 4 }} />
+                <div style={{ height: 10, background: "var(--bg-2)", width: "50%" }} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ——— Featured (editorial two-column) ——— */}
       {featured && (
@@ -435,12 +512,10 @@ export default function HomePage() {
       {seasonal.length > 0 && (
         <section
           style={{
-            padding: "48px 0",
+            padding: "48px 32px",
             borderBottom: "1px solid var(--rule)",
             background: "var(--bg-2)",
             margin: "0 -16px",
-            paddingLeft: 16,
-            paddingRight: 16,
           }}
         >
           <div

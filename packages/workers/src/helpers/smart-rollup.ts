@@ -167,7 +167,7 @@ function flattenGroups(groups: Map<string, BucketGroup>): SmartRollupItem[] {
   for (const group of groups.values()) {
     for (const bucket of group.buckets) {
       result.push({
-        canonical_item: group.displayName,
+        canonical_item: group.canonical,
         display_text: buildDisplayText(group.displayName, bucket.totalQty, bucket.unit),
         total_quantity: bucket.totalQty,
         unit: bucket.unit,

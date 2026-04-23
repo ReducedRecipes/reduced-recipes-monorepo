@@ -23,6 +23,7 @@ import SharedListPage from "./pages/SharedListPage";
 import ManifestoPage from "./pages/ManifestoPage";
 import IngredientsPage from "./pages/IngredientsPage";
 import PrivacyPage from "./pages/PrivacyPage";
+import TransparencyPage from "./pages/TransparencyPage";
 import "./index.css";
 
 const queryClient = new QueryClient({
@@ -59,6 +60,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/about" element={<ManifestoPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/transparency" element={<TransparencyPage />} />
             <Route path="*" element={<NotFoundPage />} />
           </Route>
         </Routes>

@@ -1,0 +1,21 @@
+name = "rr-billing-cron"
+main = "src/billing-cron.ts"
+compatibility_date = "2024-05-01"
+
+[triggers]
+crons = ["0 6 * * *"]  # Daily at 06:00 UTC
+
+[[d1_databases]]
+binding = "FUNDING_DB"
+database_id = "dc6d2bd6-e3cd-490a-ad86-45ffe7f819b4"
+database_name = "reduced-recipes-funding"
+migrations_dir = "../../migrations-funding"
+
+[vars]
+CF_ACCOUNT_ID = "f456a7efea126e3206183d4aa228159e"
+
+# Secrets (set via `wrangler secret put <NAME>`):
+#   CF_API_TOKEN — Cloudflare API token with Analytics read permissions
+
+[env.preview]
+name = "rr-billing-cron-preview"

@@ -3,12 +3,17 @@ main = "src/orchestrator.ts"
 compatibility_date = "2024-05-01"
 
 [triggers]
-crons = ["*/5 * * * *"]
+crons = ["*/2 * * * *"]
 
 [[d1_databases]]
 binding = "DB"
 database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
 database_name = "reduced-recipes-prod"
+
+[[d1_databases]]
+binding = "CRAWL_DB"
+database_id = "372e4627-76ea-4692-84f3-8dbf33e59e05"
+database_name = "reduced-recipes-crawl"
 
 [[kv_namespaces]]
 binding = "RECIPES_KV"
@@ -36,8 +41,8 @@ queue = "projection-jobs"
 
 [vars]
 BOT_USER_AGENT = "ReducedRecipesBot/1.0"
-DEFAULT_CRAWL_DELAY_MS = "2000"
-MAX_QUEUE_BATCH = "10"
+DEFAULT_CRAWL_DELAY_MS = "1500"
+MAX_QUEUE_BATCH = "100"
 ENVIRONMENT = "production"
 
 [env.preview]

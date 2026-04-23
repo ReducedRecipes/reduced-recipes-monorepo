@@ -1,10 +1,17 @@
 import { useState, useRef } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useSearch } from "../hooks/useSearch";
+import type { SearchMode } from "../hooks/useSearch";
 import { useRecipes } from "../hooks/useRecipes";
 import { useHealth } from "../hooks/useHealth";
 import { Ticker } from "../components/design-system";
 import type { RecipeSummary } from "@rr/shared";
+
+const SEARCH_MODES: { value: SearchMode; label: string }[] = [
+  { value: "keyword", label: "Keyword" },
+  { value: "semantic", label: "Semantic" },
+  { value: "hybrid", label: "Hybrid" },
+];
 
 const TIME_OPTIONS = [
   { value: 15, label: "≤ 15 Min" },
@@ -130,6 +137,8 @@ export default function SearchPage() {
   const dietParam = searchParams.get("diet");
   const methodParam = searchParams.get("method");
   const sortBy = searchParams.get("sort") || "newest";
+  const modeParam = searchParams.get("mode");
+  const searchMode: SearchMode = (modeParam === "keyword" || modeParam === "semantic" || modeParam === "hybrid") ? modeParam : "keyword";
 
   const filters = {
     maxTime: maxTimeParam ? parseInt(maxTimeParam, 10) : null as number | null,
@@ -148,7 +157,10 @@ export default function SearchPage() {
     hasNextPage: searchHasNext,
     fetchNextPage: searchFetchNext,
     isFetchingNextPage: searchFetchingNext,
-  } = useSearch(isSearching ? q : "");
+  } = useSearch(isSearching ? q : "", searchMode, {
+    maxTime: filters.maxTime,
+    tags: tagFilters,
+  });
 
   const {
     data: browseData,
@@ -200,7 +212,11 @@ export default function SearchPage() {
   };
 
   const clearFilters = () => {
-    updateParams({ max_time: null, diet: null, method: null, sort: null });
+    updateParams({ max_time: null, diet: null, method: null, sort: null, mode: null });
+  };
+
+  const setSearchModeParam = (val: SearchMode) => {
+    updateParams({ mode: val === "keyword" ? null : val });
   };
 
   const activeFilterCount = [filters.maxTime, ...filters.diet, ...filters.method].filter(Boolean).length;
@@ -220,11 +236,12 @@ export default function SearchPage() {
             {q.trim() ? `"${q}"` : `Search ${totalRecipes > 0 ? totalRecipes.toLocaleString() : ""} recipes`}
           </h1>
 
-          <form onSubmit={(e) => e.preventDefault()} style={{ position: "relative" }}>
+          <div style={{ position: "relative" }}>
             <input
               ref={inputRef}
               value={q}
-              onChange={(e) => setSearchParams(e.target.value ? { q: e.target.value } : {})}
+              onChange={(e) => updateParams({ q: e.target.value || null })}
+              onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
               placeholder="Recipe name, ingredient, cuisine, or tag..."
               autoFocus
               style={{
@@ -235,7 +252,7 @@ export default function SearchPage() {
             />
             {q && (
               <button
-                onClick={() => { setSearchParams({}); inputRef.current?.focus(); }}
+                onClick={() => { updateParams({ q: null }); inputRef.current?.focus(); }}
                 className="mono"
                 style={{
                   position: "absolute", right: 16, top: "50%", transform: "translateY(-50%)",
@@ -246,9 +263,31 @@ export default function SearchPage() {
                 Clear
               </button>
             )}
-          </form>
+          </div>
 
-          <div style={{ marginTop: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          {/* Search mode toggle */}
+          <div style={{ marginTop: 14, display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em", marginRight: 4 }}>Mode</span>
+            {SEARCH_MODES.map(({ value, label }) => (
+              <button
+                key={value}
+                onClick={() => updateParams({ mode: value === "keyword" ? null : value })}
+                className="mono"
+                style={{
+                  fontSize: 11, padding: "5px 12px", letterSpacing: "0.06em",
+                  textTransform: "uppercase", border: "1px solid",
+                  borderColor: searchMode === value ? "var(--ink)" : "var(--rule-2)",
+                  background: searchMode === value ? "var(--ink)" : "transparent",
+                  color: searchMode === value ? "var(--bg)" : "var(--ink-3)",
+                  cursor: "pointer",
+                }}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
+          <div style={{ marginTop: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div className="mono" style={{ fontSize: 12, color: "var(--ink-2)" }}>
               <span style={{ color: "var(--ink)" }}>
                 <Ticker value={recipes.length} />
@@ -320,9 +359,29 @@ export default function SearchPage() {
           <div style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
             marginBottom: 20, paddingBottom: 14, borderBottom: "1px solid var(--rule)",
+            flexWrap: "wrap", gap: 10,
           }}>
             <div className="caps" style={{ color: "var(--ink-3)" }}>Results</div>
-            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+              {isSearching && (
+                <div style={{ display: "flex", alignItems: "center", gap: 4, border: "1px solid var(--rule-2)" }}>
+                  {(["keyword", "hybrid", "semantic"] as const).map((m) => (
+                    <button
+                      key={m}
+                      onClick={() => setSearchModeParam(m)}
+                      className="mono"
+                      style={{
+                        fontSize: 10, padding: "5px 9px", textTransform: "uppercase",
+                        letterSpacing: "0.08em", border: "none",
+                        background: searchMode === m ? "var(--ink)" : "var(--bg)",
+                        color: searchMode === m ? "var(--bg)" : "var(--ink-3)",
+                      }}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              )}
               <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>Sort by</span>
               <select
                 value={sortBy}

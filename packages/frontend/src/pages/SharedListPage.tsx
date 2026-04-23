@@ -102,6 +102,7 @@ export default function SharedListPage() {
     queryKey: ["shared-list", token],
     queryFn: () => apiFetch<SharedListResponse>(`/shared/lists/${token}`),
     enabled: !!token,
+    refetchInterval: 5000,
   });
 
   const { membership, joinList, leaveList, isJoining, isLeaving } =

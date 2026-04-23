@@ -6,16 +6,31 @@ import { buildQuery } from "@rr/shared/build-query";
 interface SearchPage {
   items: RecipeSummary[];
   has_more: boolean;
+  search_mode?: string;
 }
 
 const PAGE_SIZE = 24;
 
-export function useSearch(query: string) {
+export type SearchMode = "keyword" | "semantic" | "hybrid";
+
+export interface SearchFilters {
+  maxTime?: number | null;
+  tags?: string[];
+}
+
+export function useSearch(query: string, mode: SearchMode = "keyword", filters: SearchFilters = {}) {
   return useInfiniteQuery({
-    queryKey: ["search", query],
+    queryKey: ["search", query, mode, filters.maxTime, filters.tags?.join(",")],
     queryFn: ({ pageParam = 0 }) =>
       apiFetch<SearchPage>(
-        `/search${buildQuery({ q: query, limit: PAGE_SIZE, offset: pageParam as number })}`,
+        `/search${buildQuery({
+          q: query,
+          limit: PAGE_SIZE,
+          offset: pageParam as number,
+          mode,
+          ...(filters.maxTime ? { max_time: filters.maxTime } : {}),
+          ...(filters.tags && filters.tags.length > 0 ? { tags: filters.tags.join(",") } : {}),
+        })}`,
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage, allPages) => {

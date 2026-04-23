@@ -26,6 +26,16 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      - name: Run funding DB migrations
+        run: npx wrangler d1 migrations apply reduced-recipes-funding --remote --config packages/workers/wrangler.api.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+      - name: Run crawl DB migrations
+        run: npx wrangler d1 migrations apply reduced-recipes-crawl --remote --config packages/workers/wrangler.api.toml
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
       - name: Set worker secrets
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -33,6 +43,8 @@ jobs:
         run: |
           echo "${{ secrets.GOOGLE_CLIENT_ID }}" | npx wrangler secret put GOOGLE_CLIENT_ID --config packages/workers/wrangler.api.toml 2>/dev/null || true
           echo "${{ secrets.GOOGLE_CLIENT_SECRET }}" | npx wrangler secret put GOOGLE_CLIENT_SECRET --config packages/workers/wrangler.api.toml 2>/dev/null || true
+          echo "${{ secrets.KOFI_VERIFICATION_TOKEN }}" | npx wrangler secret put KOFI_VERIFICATION_TOKEN --config packages/workers/wrangler.api.toml 2>/dev/null || true
+          echo "${{ secrets.CF_ANALYTICS_TOKEN }}" | npx wrangler secret put CF_API_TOKEN --config packages/workers/wrangler.billing.toml 2>/dev/null || true
       - run: pnpm run deploy
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}

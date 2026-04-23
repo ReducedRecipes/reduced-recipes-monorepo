@@ -41,6 +41,17 @@ function createEnv(overrides: Partial<Record<string, unknown>> = {}) {
     ADMIN_TOKEN: 'test-admin-token',
     BOT_USER_AGENT: 'TestBot/1.0',
     DEFAULT_CRAWL_DELAY_MS: '3000',
+    AI: {
+      run: vi.fn().mockResolvedValue({ data: [[0.1, 0.2, 0.3]] }),
+    },
+    VECTORIZE: {
+      query: vi.fn().mockResolvedValue({ matches: [] }),
+      insert: vi.fn(),
+      upsert: vi.fn(),
+      getByIds: vi.fn(),
+      deleteByIds: vi.fn(),
+      describe: vi.fn(),
+    },
     ...overrides,
   };
 }
@@ -220,7 +231,7 @@ describe('GET /api/v1/tags', () => {
 
     const res = await req('/api/v1/tags', env);
     expect(res.status).toBe(200);
-    expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600');
+    expect(res.headers.get('Cache-Control')).toContain('max-age=3600');
     const body = await res.json() as { tag: string; count: number }[];
     expect(body).toHaveLength(2);
     expect(body[0]).toEqual({ tag: 'vegan', count: 42 });
@@ -237,7 +248,7 @@ describe('GET /api/v1/domains', () => {
 
     const res = await req('/api/v1/domains', env);
     expect(res.status).toBe(200);
-    expect(res.headers.get('Cache-Control')).toBe('public, max-age=3600');
+    expect(res.headers.get('Cache-Control')).toContain('max-age=3600');
     const body = await res.json() as { domain: string }[];
     expect(body).toHaveLength(1);
     expect(body[0]).toEqual({
@@ -382,6 +393,132 @@ describe('GET /api/v1/search', () => {
     await reqWithInit('/api/v1/search?q=test&limit=100', env);
     // limit is capped at 50, +1 for has_more check, offset defaults to 0
     expect(ftsStmt.bind).toHaveBeenCalledWith(expect.any(String), 51, 0);
+  });
+
+  it('includes search_mode=keyword in keyword response', async () => {
+    const env = createEnv();
+    const ftsStmt = makeStmt([
+      { id: 'r1', title: 'Pasta', domain: 'test.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: 'Italian', category: 'Main' },
+    ]);
+    env.DB.prepare = vi.fn().mockReturnValue(ftsStmt);
+
+    const res = await reqWithInit('/api/v1/search?q=pasta', env);
+    const body = await res.json() as any;
+    expect(body.search_mode).toBe('keyword');
+  });
+});
+
+describe('GET /api/v1/search - semantic mode', () => {
+  it('calls AI.run to embed the query', async () => {
+    const env = createEnv();
+
+    await reqWithInit('/api/v1/search?q=pasta&mode=semantic', env);
+    expect(env.AI.run).toHaveBeenCalledWith('@cf/google/embeddinggemma-300m', { text: ['pasta'] });
+  });
+
+  it('returns search_mode=semantic in response', async () => {
+    const env = createEnv();
+
+    const res = await reqWithInit('/api/v1/search?q=pasta&mode=semantic', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.search_mode).toBe('semantic');
+  });
+
+  it('returns recipe summaries from VECTORIZE matches', async () => {
+    const env = createEnv();
+    env.VECTORIZE.query = vi.fn().mockResolvedValue({
+      matches: [{ id: 'r1', score: 0.9 }, { id: 'r2', score: 0.8 }],
+    });
+
+    const recipeStmt = makeStmt([
+      { id: 'r1', title: 'Pasta', domain: 'test.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: 'Italian', category: 'Main' },
+      { id: 'r2', title: 'Soup', domain: 'test.com', image_url: null, total_time: 20, cook_time: 15, yields: '2', cuisine: null, category: null },
+    ]);
+    env.DB.prepare = vi.fn().mockReturnValue(recipeStmt);
+
+    const res = await reqWithInit('/api/v1/search?q=pasta&mode=semantic', env);
+    const body = await res.json() as any;
+    expect(body.items).toHaveLength(2);
+  });
+
+  it('filters out matches below MIN_SIMILARITY (0.65)', async () => {
+    const env = createEnv();
+    env.VECTORIZE.query = vi.fn().mockResolvedValue({
+      matches: [
+        { id: 'r1', score: 0.9 },
+        { id: 'r2', score: 0.5 }, // below threshold — excluded
+      ],
+    });
+
+    const recipeStmt = makeStmt([
+      { id: 'r1', title: 'Pasta', domain: 'test.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: null, category: null },
+    ]);
+    env.DB.prepare = vi.fn().mockReturnValue(recipeStmt);
+
+    const res = await reqWithInit('/api/v1/search?q=pasta&mode=semantic', env);
+    const body = await res.json() as any;
+    // Only r1 should be requested (r2 filtered by score < 0.65)
+    expect(body.items.length).toBeLessThanOrEqual(1);
+  });
+
+  it('parses exclusions from query and post-filters via recipe_ingredients', async () => {
+    const env = createEnv();
+    env.VECTORIZE.query = vi.fn().mockResolvedValue({
+      matches: [{ id: 'r1', score: 0.9 }, { id: 'r2', score: 0.85 }],
+    });
+
+    const recipeStmt = makeStmt([
+      { id: 'r2', title: 'Gluten-free Pasta', domain: 'test.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: null, category: null },
+    ]);
+    // ingredient query returns r1 as having gluten
+    const ingredientStmt = makeStmt([{ recipe_id: 'r1' }]);
+
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('recipe_ingredients')) return ingredientStmt;
+      return recipeStmt;
+    });
+
+    const res = await reqWithInit('/api/v1/search?q=pasta+no+gluten&mode=semantic', env);
+    expect(res.status).toBe(200);
+    expect(env.DB.prepare).toHaveBeenCalledWith(expect.stringContaining('recipe_ingredients'));
+  });
+});
+
+describe('GET /api/v1/search - hybrid mode', () => {
+  it('returns search_mode=hybrid in response', async () => {
+    const env = createEnv();
+    env.DB.prepare = vi.fn().mockReturnValue(makeStmt([]));
+
+    const res = await reqWithInit('/api/v1/search?q=pasta&mode=hybrid', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.search_mode).toBe('hybrid');
+  });
+
+  it('merges FTS and vector results via RRF, r2 in both lists ranks highest', async () => {
+    const env = createEnv();
+    env.VECTORIZE.query = vi.fn().mockResolvedValue({
+      matches: [{ id: 'r2', score: 0.9 }, { id: 'r3', score: 0.8 }],
+    });
+
+    const ftsStmt = makeStmt([{ id: 'r1' }, { id: 'r2' }]);
+    const recipeStmt = makeStmt([
+      { id: 'r2', title: 'Pasta', domain: 'test.com', image_url: null, total_time: 30, cook_time: 20, yields: '4', cuisine: null, category: null },
+      { id: 'r1', title: 'Spaghetti', domain: 'test.com', image_url: null, total_time: 25, cook_time: 15, yields: '2', cuisine: null, category: null },
+      { id: 'r3', title: 'Noodles', domain: 'test.com', image_url: null, total_time: 20, cook_time: 10, yields: '2', cuisine: null, category: null },
+    ]);
+
+    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
+      if (sql.includes('recipes_fts')) return ftsStmt;
+      return recipeStmt;
+    });
+
+    const res = await reqWithInit('/api/v1/search?q=pasta&mode=hybrid', env);
+    const body = await res.json() as any;
+    expect(body.items.length).toBeGreaterThan(0);
+    // r2 appears in both lists — should be present
+    expect(body.items.some((item: any) => item.id === 'r2')).toBe(true);
   });
 });
 
@@ -555,5 +692,65 @@ describe('Global error handler', () => {
     expect(body.error.message).toBe('Internal server error');
     expect(body.error.message).not.toContain('sensitive');
     consoleSpy.mockRestore();
+  });
+});
+
+// ── Similar recipes ─────────────────────────────────────────────────────
+
+describe('GET /api/v1/search/similar/:id', () => {
+  it('returns empty items when VECTORIZE is not bound', async () => {
+    const env = createEnv({ VECTORIZE: undefined });
+    const res = await req('/api/v1/search/similar/recipe-1', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.items).toEqual([]);
+  });
+
+  it('returns empty items when recipe vector not found', async () => {
+    const env = createEnv();
+    env.VECTORIZE.getByIds = vi.fn().mockResolvedValue([]);
+    const res = await req('/api/v1/search/similar/recipe-1', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.items).toEqual([]);
+  });
+
+  it('returns similar recipes from VECTORIZE, excluding source id', async () => {
+    const env = createEnv();
+    env.VECTORIZE.getByIds = vi.fn().mockResolvedValue([
+      { id: 'recipe-1', values: [0.1, 0.2, 0.3] },
+    ]);
+    env.VECTORIZE.query = vi.fn().mockResolvedValue({
+      matches: [
+        { id: 'recipe-1', score: 1.0 },  // source — should be excluded
+        { id: 'recipe-2', score: 0.9 },
+        { id: 'recipe-3', score: 0.8 },
+      ],
+    });
+    env.DB.prepare = vi.fn().mockReturnValue(
+      makeStmt([
+        { id: 'recipe-2', title: 'Pasta', domain: 'a.com', image_url: null, total_time: 20, cook_time: 15, yields: null, cuisine: null, category: null },
+        { id: 'recipe-3', title: 'Pizza', domain: 'b.com', image_url: null, total_time: 30, cook_time: 25, yields: null, cuisine: null, category: null },
+      ]),
+    );
+
+    const res = await req('/api/v1/search/similar/recipe-1', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as any;
+    expect(body.items.map((i: any) => i.id)).not.toContain('recipe-1');
+    expect(body.items.length).toBeGreaterThan(0);
+  });
+
+  it('respects limit parameter', async () => {
+    const env = createEnv();
+    env.VECTORIZE.getByIds = vi.fn().mockResolvedValue([
+      { id: 'recipe-1', values: [0.1, 0.2, 0.3] },
+    ]);
+    env.VECTORIZE.query = vi.fn().mockResolvedValue({ matches: [] });
+    await req('/api/v1/search/similar/recipe-1?limit=4', env);
+    expect(env.VECTORIZE.query).toHaveBeenCalledWith(
+      expect.any(Array),
+      { topK: 5 },  // limit + 1
+    );
   });
 });

@@ -25,9 +25,9 @@ import { createSession, deleteSession } from '../lib/session';
 
 type AuthEnv = { Bindings: Env; Variables: { userId: string; user: User } };
 
-const COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days
+const COOKIE_MAX_AGE = 365 * 24 * 60 * 60; // 1 year
 const AUTH_STATE_TTL = 600; // 10 minutes
-const SESSION_TTL = 30 * 24 * 60 * 60; // 30 days
+const SESSION_TTL = 365 * 24 * 60 * 60; // 1 year
 
 const SAFE_MOBILE_SCHEME = 'reducedrecipes://';
 const DEFAULT_RETURN_TO = '/';
@@ -57,6 +57,7 @@ export function validateReturnTo(returnTo: string, platform: string): string {
     const url = new URL(returnTo);
     if (
       url.hostname === 'reducedrecipes.com' ||
+      url.hostname === 'reduced.recipes' ||
       url.hostname.endsWith('.reduced-recipes.pages.dev') ||
       url.hostname === 'localhost'
     ) {

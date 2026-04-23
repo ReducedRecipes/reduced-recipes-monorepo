@@ -4,65 +4,29 @@ import { chunk, chunks } from '@rr/shared/utils';
 import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
 async function runScheduled(env: Env) {
-    // 1. Pull due URLs — prioritise domains with high-priority URLs first,
-    //    then fill remaining slots with random domains.
-    const priorityDomains = await env.DB.prepare(`
-      SELECT DISTINCT domain FROM crawl_queue
-      WHERE status = 'pending' AND priority <= 3 AND next_crawl <= datetime('now')
-      LIMIT 20
-    `).all<{ domain: string }>();
+    const db = env.CRAWL_DB ?? env.DB;
 
-    const randomDomains = await env.DB.prepare(
-      'SELECT domain FROM domains WHERE active = 1 ORDER BY RANDOM() LIMIT 80',
-    ).all<{ domain: string }>();
+    // 1. Pull pending URLs — simple query, priority first
+    const due = await db.prepare(`
+      SELECT url, domain FROM crawl_queue
+      WHERE status = 'pending' AND next_crawl <= datetime('now')
+      ORDER BY priority ASC, next_crawl ASC
+      LIMIT 500
+    `).all<CrawlJob>();
 
-    // Merge and deduplicate
-    const seen = new Set(priorityDomains.results.map((d) => d.domain));
-    const domains = {
-      results: [
-        ...priorityDomains.results,
-        ...randomDomains.results.filter((d) => !seen.has(d.domain)),
-      ].slice(0, 100),
-    };
-
-    const due: { results: CrawlJob[] } = { results: [] };
-    if (domains.results.length > 0) {
-      // D1 batch limit is 100 statements — split into 2 batches if needed
-      const domainChunks = chunk(domains.results, 50);
-      for (const domainBatch of domainChunks) {
-        const stmts = domainBatch.map((d) =>
-          env.DB.prepare(`
-            SELECT url, domain FROM crawl_queue
-            WHERE status = 'pending' AND domain = ? AND next_crawl <= datetime('now')
-            ORDER BY priority ASC, next_crawl ASC
-            LIMIT 20
-          `).bind(d.domain),
-        );
-        const results = await env.DB.batch(stmts);
-        for (const r of results) {
-          due.results.push(...(r.results as unknown as CrawlJob[]));
-        }
-      }
-    }
-
-    // 3.5. Reset stuck 'crawling' URLs older than 10 minutes
-    await env.DB.prepare(`
+    // 2. Reset stuck 'crawling' URLs older than 10 minutes
+    await db.prepare(`
       UPDATE crawl_queue SET status = 'pending', next_crawl = datetime('now')
       WHERE status = 'crawling' AND next_crawl < datetime('now', '-10 minutes')
     `).run();
 
-    // 4. Ingest up to 3 sitemaps per run to speed up domain onboarding
-    for (let i = 0; i < 3; i++) {
-      await ingestNextSitemap(env);
-    }
+    console.log(`ORCHESTRATOR: ${due.results.length} URLs due`);
 
-    if (!due.results.length) return;
-
-    // 2. Mark as in-flight + 3. Enqueue to crawl-jobs — in batches of 50
+    // 2. Mark as in-flight + 3. Enqueue to crawl-jobs FIRST (before sitemap which can be slow)
     const batches = chunk(due.results, 50);
     for (const batch of batches) {
       const batchUrls = batch.map((r) => r.url);
-      await env.DB.prepare(
+      await db.prepare(
         `UPDATE crawl_queue SET status = 'crawling', next_crawl = datetime('now')
          WHERE url IN (${batchUrls.map(() => '?').join(',')})`,
       ).bind(...batchUrls).run();
@@ -74,6 +38,14 @@ async function runScheduled(env: Env) {
         })),
       );
     }
+
+    // 4. Sitemap ingest disabled temporarily — was causing orchestrator timeouts
+    // TODO: move to a separate worker or queue
+    // try {
+    //   await ingestNextSitemap(env);
+    // } catch (err) {
+    //   console.error('SITEMAP: ingest failed', err);
+    // }
 }
 
 export default {
@@ -95,21 +67,46 @@ export default {
 };
 
 async function ingestNextSitemap(env: Env) {
-  const domain = await env.DB.prepare(`
+  const db = env.CRAWL_DB ?? env.DB;
+  const domain = await db.prepare(`
     SELECT domain, sitemap_url FROM domains
     WHERE active = 1 AND (last_spidered IS NULL OR last_spidered < datetime('now', '-7 days'))
     ORDER BY last_spidered ASC NULLS FIRST
     LIMIT 1
-  `).first<{ domain: string; sitemap_url: string }>();
+  `).first<{ domain: string; sitemap_url: string | null }>();
 
-  if (!domain?.sitemap_url) return;
+  if (!domain) return;
 
-  const urls = await parseSitemap(domain.sitemap_url);
+  console.log(`SITEMAP: processing ${domain.domain} (sitemap: ${domain.sitemap_url ?? 'none'})`);
+
+  // Auto-discover sitemap if missing
+  let sitemapUrl = domain.sitemap_url;
+  if (!sitemapUrl) {
+    sitemapUrl = await discoverSitemap(domain.domain);
+    if (sitemapUrl) {
+      console.log(`SITEMAP: discovered ${sitemapUrl} for ${domain.domain}`);
+      await db.prepare('UPDATE domains SET sitemap_url = ? WHERE domain = ?')
+        .bind(sitemapUrl, domain.domain).run();
+    } else {
+      console.log(`SITEMAP: no sitemap found for ${domain.domain}, seeding homepage`);
+      // No sitemap found — seed the homepage so the parser can discover links
+      await db.prepare(`
+        INSERT OR IGNORE INTO crawl_queue (url, domain, priority, status, next_crawl)
+        VALUES (?, ?, 1, 'pending', datetime('now'))
+      `).bind(`https://www.${domain.domain}/`, domain.domain).run();
+      await db.prepare('UPDATE domains SET last_spidered = datetime(\'now\') WHERE domain = ?')
+        .bind(domain.domain).run();
+      return;
+    }
+  }
+
+  const urls = await parseSitemap(sitemapUrl);
   const recipeUrls = urls.filter((u) => isRecipeUrl(u, domain.domain));
+  console.log(`SITEMAP: ${domain.domain} — ${urls.length} URLs, ${recipeUrls.length} recipe URLs`);
 
   // Upsert into crawl_queue — ignore existing
   const stmts = recipeUrls.map((url) =>
-    env.DB.prepare(`
+    db.prepare(`
       INSERT OR IGNORE INTO crawl_queue (url, domain, status, next_crawl)
       VALUES (?, ?, 'pending', datetime('now'))
     `).bind(url, domain.domain),
@@ -117,10 +114,49 @@ async function ingestNextSitemap(env: Env) {
 
   // D1 batch max is 100
   for (const c of chunks(stmts, 100)) {
-    await env.DB.batch(c);
+    await db.batch(c);
   }
 
-  await env.DB.prepare(
+  await db.prepare(
     `UPDATE domains SET last_spidered = datetime('now') WHERE domain = ?`,
   ).bind(domain.domain).run();
+}
+
+/** Try common sitemap paths for a domain. Returns the first valid one or null. */
+async function discoverSitemap(domain: string): Promise<string | null> {
+  const candidates = [
+    `https://www.${domain}/sitemap.xml`,
+    `https://${domain}/sitemap.xml`,
+    `https://www.${domain}/sitemap_index.xml`,
+    `https://${domain}/sitemap_index.xml`,
+    `https://www.${domain}/robots.txt`,
+  ];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        headers: { 'User-Agent': 'ReducedRecipesBot/1.0' },
+        redirect: 'follow',
+        signal: AbortSignal.timeout(3000),
+      });
+      if (!res.ok) continue;
+
+      // For robots.txt, extract Sitemap: directive
+      if (url.endsWith('robots.txt')) {
+        const text = await res.text();
+        const match = text.match(/^Sitemap:\s*(.+)$/im);
+        if (match) return match[1]!.trim();
+        continue;
+      }
+
+      const text = await res.text();
+      if (text.includes('<urlset') || text.includes('<sitemapindex')) {
+        return url;
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
 }

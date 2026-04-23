@@ -57,11 +57,14 @@ export interface SearchResponse {
   has_more: boolean;
 }
 
+export type SearchMode = "keyword" | "semantic" | "hybrid";
+
 export function searchRecipes(
   q: string,
   limit?: number,
+  mode: SearchMode = "hybrid",
 ): Promise<SearchResponse> {
-  return apiFetch<SearchResponse>(`/search${buildQuery({ q, limit })}`);
+  return apiFetch<SearchResponse>(`/search${buildQuery({ q, limit, mode })}`);
 }
 
 export interface HealthResponse {
@@ -90,6 +93,37 @@ export interface HealthResponse {
 
 export function fetchHealth(): Promise<HealthResponse> {
   return apiFetch<HealthResponse>("/health");
+}
+
+export interface FundingResponse {
+  current_month: string;
+  monthly_cost: number;
+  cost_breakdown: {
+    month: string;
+    d1_reads: number;
+    workers_ai: number;
+    queues: number;
+    kv: number;
+    durable_objects: number;
+    r2: number;
+    workers_base: number;
+    other: number;
+    total: number;
+    notes: string | null;
+  } | null;
+  cost_history: Array<Record<string, unknown>>;
+  funded_this_month: number;
+  funded_all_time: number;
+  recent_donations: Array<{
+    name: string;
+    amount: number;
+    message: string | null;
+    created_at: string;
+  }>;
+}
+
+export function fetchFunding(): Promise<FundingResponse> {
+  return apiFetch<FundingResponse>("/funding");
 }
 
 export function suggestIngredients(q: string, limit = 10): Promise<{ items: { name: string; count: number }[] }> {

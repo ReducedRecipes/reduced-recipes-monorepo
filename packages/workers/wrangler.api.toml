@@ -6,6 +6,10 @@ workers_dev = true
 
 routes = [
   { pattern = "reducedrecipes.com/api/*", zone_name = "reducedrecipes.com" },
+  { pattern = "reducedrecipes.com/sitemap*", zone_name = "reducedrecipes.com" },
+  { pattern = "reducedrecipes.com/robots.txt", zone_name = "reducedrecipes.com" },
+  { pattern = "reduced.recipes/sitemap*", zone_name = "reduced.recipes" },
+  { pattern = "reduced.recipes/robots.txt", zone_name = "reduced.recipes" },
 ]
 
 [[d1_databases]]
@@ -53,6 +57,12 @@ database_id = "3bb2302a-7f7a-43c9-b3e7-de5870824869"
 database_name = "reduced-recipes-users"
 migrations_dir = "../../migrations-users"
 
+[[d1_databases]]
+binding = "CRAWL_DB"
+database_id = "372e4627-76ea-4692-84f3-8dbf33e59e05"
+database_name = "reduced-recipes-crawl"
+migrations_dir = "../../migrations-crawl"
+
 [[kv_namespaces]]
 binding = "SESSION_KV"
 id = "b780ce4935dd4cd6834defdb30c2137f"
@@ -61,9 +71,15 @@ id = "b780ce4935dd4cd6834defdb30c2137f"
 binding = "USER_CACHE_KV"
 id = "41828007810046b2bc6feab80aece86a"
 
+[[d1_databases]]
+binding = "FUNDING_DB"
+database_id = "dc6d2bd6-e3cd-490a-ad86-45ffe7f819b4"
+database_name = "reduced-recipes-funding"
+migrations_dir = "../../migrations-funding"
+
 [[kv_namespaces]]
 binding = "VOTES_KV"
-id = "votes-kv-placeholder"
+id = "d155678de4864fda86916dbd2b03a29d"
 
 [durable_objects]
 bindings = [
@@ -73,6 +89,10 @@ bindings = [
 [[migrations]]
 tag = "v1"
 new_classes = ["ShoppingListDO"]
+
+[[vectorize]]
+binding = "VECTORIZE"
+index_name = "rr-recipes"
 
 [ai]
 binding = "AI"
@@ -85,8 +105,8 @@ ENVIRONMENT = "production"
 
 # Hot ranking
 HOT_DECAY_SECONDS = "90000"
-HOT_MIN_VOTES_FEATURED = "3"
-HOT_MIN_TOTAL_VOTES = "100"
+HOT_MIN_VOTES_FEATURED = "1"
+HOT_MIN_TOTAL_VOTES = "3"
 HOT_RATE_LIMIT_PER_DAY = "100"
 HOT_EPOCH = "1704067200"
 

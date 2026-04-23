@@ -4,6 +4,7 @@ import type { Env } from '@rr/shared/env';
 import type { RecipeDocument, RecipeSummary, User } from '@rr/shared';
 import { optionalAuth } from './middleware/auth';
 import { getDietaryMask, applyDietaryFilter } from './helpers/dietary-filter';
+import { parseExclusions } from './helpers/query-parser';
 import { castVote } from './helpers/hot-score';
 import authRoutes from './routes/auth';
 import bookmarkRoutes from './routes/bookmarks';
@@ -14,6 +15,8 @@ import syncRoutes from './routes/sync';
 import shoppingListRoutes from './routes/shopping-lists';
 import ingredientSearchRoutes from './routes/ingredient-search';
 import heartRoutes from './routes/hearts';
+import fundingRoutes from './routes/funding';
+import searchSimilarRoutes from './routes/search-similar';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -67,6 +70,7 @@ app.use(
     origin: (origin) => {
       const allowed = [
         'https://reducedrecipes.com',
+        'https://reduced.recipes',
         'https://reduced-recipes.pages.dev',
         'http://localhost:5173',
       ];
@@ -87,16 +91,26 @@ app.use(
   }),
 );
 
-// ── Health ──────────────────────────────────────────────────────────────
+// ── Health (KV-cached, 5-minute TTL) ────────────────────────────────────
 app.get('/api/v1/health', async (c) => {
+  const HEALTH_CACHE_KEY = 'cache:health';
+  const HEALTH_TTL = 300; // 5 minutes
+
+  // Try KV cache first
+  const cached = await c.env.CACHE_KV.get(HEALTH_CACHE_KEY, 'text');
+  if (cached) {
+    return c.json(JSON.parse(cached), 200, {
+      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+    });
+  }
+
   const minVotesFeatured = parseInt(c.env.HOT_MIN_VOTES_FEATURED ?? '3', 10) || 3;
 
-  const [results, featuredRow] = await Promise.all([
+  const crawlDb = c.env.CRAWL_DB ?? c.env.DB;
+
+  const [results, crawlResults, featuredRow] = await Promise.all([
     c.env.DB.batch([
       c.env.DB.prepare('SELECT COUNT(*) as total FROM recipes'),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='pending'"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='failed'"),
-      c.env.DB.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
       c.env.DB.prepare('SELECT COALESCE(SUM(words_removed), 0) as total FROM recipes'),
       c.env.DB.prepare('SELECT COALESCE(SUM(ads_detected), 0) as total FROM recipes'),
       c.env.DB.prepare('SELECT ROUND(AVG(total_time)) as total FROM recipes WHERE total_time IS NOT NULL AND total_time > 0'),
@@ -112,6 +126,11 @@ app.get('/api/v1/health', async (c) => {
       c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('keto','low-carb','low carb')"),
       c.env.DB.prepare("SELECT COUNT(DISTINCT recipe_id) as total FROM recipe_tags WHERE tag = 'translated'"),
     ]),
+    crawlDb.batch([
+      crawlDb.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='pending'"),
+      crawlDb.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='failed'"),
+      crawlDb.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
+    ]),
     c.env.DB.prepare('SELECT id, title FROM recipes WHERE vote_count >= ? ORDER BY hot_score DESC LIMIT 1')
       .bind(minVotesFeatured)
       .first<{ id: string; title: string }>(),
@@ -120,34 +139,69 @@ app.get('/api/v1/health', async (c) => {
   const getTotal = (r: D1Result | undefined): number =>
     ((r?.results?.[0] as Record<string, number> | undefined)?.total) ?? 0;
 
-  return c.json({
+  const data = {
     ok: true,
     total_recipes: getTotal(results[0]),
-    pending_crawls: getTotal(results[1]),
-    failed_crawls: getTotal(results[2]),
-    active_domains: getTotal(results[3]),
-    total_words_removed: getTotal(results[4]),
-    total_ads_removed: getTotal(results[5]),
-    avg_cook_time: getTotal(results[6]),
-    under_20_min: getTotal(results[7]),
-    under_30_min: getTotal(results[8]),
-    sources_count: getTotal(results[9]),
-    translated_count: getTotal(results[10]),
-    new_this_week: getTotal(results[11]),
-    vegetarian: getTotal(results[12]),
-    vegan: getTotal(results[13]),
-    one_pan: getTotal(results[14]),
-    gluten_free: getTotal(results[15]),
-    keto: getTotal(results[16]),
-    translated_recipes: getTotal(results[17]),
+    pending_crawls: getTotal(crawlResults[0]),
+    failed_crawls: getTotal(crawlResults[1]),
+    active_domains: getTotal(crawlResults[2]),
+    total_words_removed: getTotal(results[1]),
+    total_ads_removed: getTotal(results[2]),
+    avg_cook_time: getTotal(results[3]),
+    under_20_min: getTotal(results[4]),
+    under_30_min: getTotal(results[5]),
+    sources_count: getTotal(results[6]),
+    translated_count: getTotal(results[7]),
+    new_this_week: getTotal(results[8]),
+    vegetarian: getTotal(results[9]),
+    vegan: getTotal(results[10]),
+    one_pan: getTotal(results[11]),
+    gluten_free: getTotal(results[12]),
+    keto: getTotal(results[13]),
+    translated_recipes: getTotal(results[14]),
     featured_recipe_id: featuredRow?.id ?? null,
     featured_recipe_title: featuredRow?.title ?? null,
+  };
+
+  // Store in KV (fire-and-forget)
+  try {
+    c.executionCtx.waitUntil(
+      c.env.CACHE_KV.put(HEALTH_CACHE_KEY, JSON.stringify(data), { expirationTtl: HEALTH_TTL }),
+    );
+  } catch {
+    // No execution context (tests) — skip
+  }
+
+  return c.json(data, 200, {
+    'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
   });
 });
 
 // ── Recipe detail ───────────────────────────────────────────────────────
 app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
   const id = c.req.param('id');
+  const userId = c.get('userId');
+
+  // Serve from edge cache for anonymous users (skip KV entirely)
+  if (!userId) {
+    const cacheKey = new Request(c.req.url, c.req.raw);
+    const cache = caches.default;
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+
+    const value = await c.env.RECIPES_KV.get(`recipe:${id}`, 'text');
+    if (value === null) {
+      return c.json({ error: { code: 'NOT_FOUND', message: 'Recipe not found' } }, 404);
+    }
+
+    const response = c.json(JSON.parse(value), 200, {
+      'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
+    });
+    const clone = response.clone();
+    try { c.executionCtx.waitUntil(cache.put(cacheKey, clone)); } catch { /* no ctx */ }
+    return response;
+  }
+
   const value = await c.env.RECIPES_KV.get(`recipe:${id}`, 'text');
 
   if (value === null) {
@@ -155,7 +209,6 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
   }
 
   // Fire-and-forget recipe view tracking + implicit vote for authenticated users
-  const userId = c.get('userId');
   if (userId && c.env.USERS_DB) {
     const usersDb = c.env.USERS_DB;
     const recipesDb = c.env.DB;
@@ -184,12 +237,21 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
 
   const doc: RecipeDocument = JSON.parse(value);
   return c.json(doc, 200, {
-    'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=86400',
   });
 });
 
 // ── List recipes ─────────────────────────────────────────────────────────
 app.get('/api/v1/recipes', optionalAuth, async (c) => {
+  // Edge cache for anonymous users — avoids D1 entirely on repeat requests
+  const authUserId = c.get('userId');
+  if (!authUserId) {
+    const cache = caches.default;
+    const cacheKey = new Request(c.req.url, c.req.raw);
+    const cached = await cache.match(cacheKey);
+    if (cached) return cached;
+  }
+
   const { tag, tags: tagsParam, domain, cuisine, max_time, min_time, cursor, limit: limitParam, sort } = c.req.query();
   const limit = Math.min(Math.max(parseInt(limitParam || '24', 10) || 24, 1), 100);
 
@@ -289,7 +351,18 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
 
   const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
-  return c.json({ items, next_cursor });
+  const response = c.json({ items, next_cursor }, 200, {
+    'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+  });
+
+  // Store in edge cache for anonymous users
+  if (!authUserId) {
+    const cache = caches.default;
+    const cacheKey = new Request(c.req.url, c.req.raw);
+    try { c.executionCtx.waitUntil(cache.put(cacheKey, response.clone())); } catch { /* no ctx */ }
+  }
+
+  return response;
 });
 
 // ── Tags ─────────────────────────────────────────────────────────────────
@@ -304,13 +377,14 @@ app.get('/api/v1/tags', async (c) => {
   });
 
   return c.json(tags, 200, {
-    'Cache-Control': 'public, max-age=3600',
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
   });
 });
 
 // ── Domains ──────────────────────────────────────────────────────────────
 app.get('/api/v1/domains', async (c) => {
-  const result = await c.env.DB.prepare(
+  const crawlDb = c.env.CRAWL_DB ?? c.env.DB;
+  const result = await crawlDb.prepare(
     'SELECT domain, recipe_count, last_spidered FROM domains WHERE active=1 ORDER BY recipe_count DESC',
   ).all();
 
@@ -324,7 +398,7 @@ app.get('/api/v1/domains', async (c) => {
   });
 
   return c.json(domains, 200, {
-    'Cache-Control': 'public, max-age=3600',
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400, stale-while-revalidate=3600',
   });
 });
 
@@ -382,8 +456,106 @@ app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
 
   const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
-  return c.json({ items, next_cursor });
+  return c.json({ items, next_cursor }, 200, {
+    'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+  });
 });
+
+// ── Search helpers ────────────────────────────────────────────────────
+
+const EMBEDDING_MODEL = '@cf/google/embeddinggemma-300m' as const;
+const MIN_SIMILARITY = 0.40;
+
+/** Fetch recipe summaries from D1 by ID list, respecting dietary mask. */
+async function fetchRecipesByIds(
+  db: D1Database,
+  ids: string[],
+  dietaryMask: number,
+): Promise<RecipeSummary[]> {
+  if (ids.length === 0) return [];
+  const placeholders = ids.map(() => '?').join(',');
+  const dietaryClause = dietaryMask > 0 ? 'AND (dietary_bitmask & ?) = ?' : '';
+  const params: (string | number)[] = [...ids];
+  if (dietaryMask > 0) {
+    params.push(dietaryMask, dietaryMask);
+  }
+  const { results } = await db
+    .prepare(
+      `SELECT id, title, domain, image_url, total_time, cook_time, yields, cuisine, category
+       FROM recipes WHERE id IN (${placeholders}) ${dietaryClause}`,
+    )
+    .bind(...params)
+    .all();
+  const rows = (results ?? []) as Record<string, unknown>[];
+  // Preserve the vector ranking order
+  const byId = new Map(rows.map((r) => [r.id as string, r]));
+  const ordered = ids.map((id) => byId.get(id)).filter(Boolean) as Record<string, unknown>[];
+  return ordered.map((r) => toRecipeSummary(r));
+}
+
+/** Post-filter recipe IDs that contain any exclusion ingredient. */
+async function filterExclusions(
+  db: D1Database,
+  ids: string[],
+  exclusions: string[],
+): Promise<string[]> {
+  if (exclusions.length === 0 || ids.length === 0) return ids;
+  const placeholders = ids.map(() => '?').join(',');
+  const excludedIds = new Set<string>();
+  for (const term of exclusions) {
+    const { results } = await db
+      .prepare(
+        `SELECT DISTINCT recipe_id FROM recipe_ingredients
+         WHERE recipe_id IN (${placeholders}) AND ingredient LIKE ?`,
+      )
+      .bind(...ids, `%${term}%`)
+      .all();
+    for (const row of results ?? []) {
+      excludedIds.add((row as { recipe_id: string }).recipe_id);
+    }
+  }
+  return ids.filter((id) => !excludedIds.has(id));
+}
+
+/** Embed a query string and return the vector. */
+async function embedQuery(ai: Ai, text: string): Promise<number[]> {
+  const result = await ai.run(EMBEDDING_MODEL, { text: [text] }) as { data: number[][] };
+  return result.data[0] ?? [];
+}
+
+/** Run FTS keyword search and return ordered IDs. */
+async function keywordSearchIds(
+  db: D1Database,
+  sanitized: string,
+  topK: number,
+  dietaryMask: number,
+): Promise<string[]> {
+  const dietaryClause = dietaryMask > 0 ? 'AND (r.dietary_bitmask & ?3) = ?3' : '';
+  const bindParams: (string | number)[] = [sanitized, topK];
+  if (dietaryMask > 0) bindParams.push(dietaryMask);
+  const { results } = await db
+    .prepare(
+      `SELECT r.id FROM recipes_fts fts
+       JOIN recipes r ON fts.rowid = r.rowid
+       WHERE recipes_fts MATCH ?1 ${dietaryClause}
+       LIMIT ?2`,
+    )
+    .bind(...bindParams)
+    .all();
+  return (results ?? []).map((r) => (r as { id: string }).id);
+}
+
+/** Reciprocal rank fusion of two ranked ID lists (k = 60). */
+function reciprocalRankFusion(listA: string[], listB: string[], k = 60): string[] {
+  const scores = new Map<string, number>();
+  for (const [rank, id] of listA.entries()) {
+    scores.set(id, (scores.get(id) ?? 0) + 1 / (k + rank + 1));
+  }
+  for (const [rank, id] of listB.entries()) {
+    scores.set(id, (scores.get(id) ?? 0) + 1 / (k + rank + 1));
+  }
+  return [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+}
 
 // ── Search ────────────────────────────────────────────────────────────
 app.get('/api/v1/search', optionalAuth, async (c) => {
@@ -392,6 +564,10 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
   const offsetParam = c.req.query('offset');
   const limit = Math.min(Math.max(parseInt(limitParam ?? '24', 10) || 24, 1), 50);
   const offset = Math.max(parseInt(offsetParam ?? '0', 10) || 0, 0);
+  const mode = (c.req.query('mode') ?? 'keyword') as 'keyword' | 'semantic' | 'hybrid';
+  const maxTime = c.req.query('max_time') ? parseInt(c.req.query('max_time')!, 10) : null;
+  const tagsParam = c.req.query('tags');
+  const tagList = tagsParam ? tagsParam.split(',').map((t) => t.trim()).filter(Boolean) : [];
 
   if (q.length < 2) {
     return c.json(
@@ -400,26 +576,143 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     );
   }
 
+  // Check KV cache (5 min TTL, keyed on full query string)
+  const cacheKey = `search:${c.req.url.split('?')[1] ?? ''}`;
+  const cached = await c.env.CACHE_KV.get(cacheKey, 'text');
+  if (cached) {
+    return c.json(JSON.parse(cached), 200, {
+      'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+      'X-Cache': 'HIT',
+    });
+  }
+
+  const dietaryMask = await getDietaryMask(c);
+
+  // ── Semantic / Hybrid modes ───────────────────────────────────────
+  if (mode === 'semantic' || mode === 'hybrid') {
+    if (!c.env.AI || !c.env.VECTORIZE) {
+      // Fall through to keyword if bindings unavailable
+      return c.json({ items: [], has_more: false, search_mode: mode, error: 'AI or Vectorize not configured' }, 200);
+    }
+
+    const { cleanQuery, exclusions } = parseExclusions(q);
+    const queryText = cleanQuery || q;
+
+    let vector: number[];
+    try {
+      vector = await embedQuery(c.env.AI, queryText);
+    } catch (err) {
+      console.error('embedQuery failed:', err);
+      return c.json({ items: [], has_more: false, search_mode: mode }, 200);
+    }
+
+    if (vector.length === 0) {
+      console.error('embedQuery returned empty vector for:', queryText);
+      return c.json({ items: [], has_more: false, search_mode: mode }, 200);
+    }
+
+    const vectorMatches = await c.env.VECTORIZE.query(vector, { topK: 50 });
+    console.log(`Semantic search: query="${queryText}", matches=${vectorMatches.matches?.length ?? 0}, top_score=${vectorMatches.matches?.[0]?.score ?? 'n/a'}`);
+    const semanticIds = (vectorMatches.matches ?? [])
+      .filter((m) => m.score >= MIN_SIMILARITY)
+      .map((m) => m.id);
+
+    let mergedIds: string[];
+
+    if (mode === 'hybrid') {
+      const sanitized = queryText
+        .replace(/\b(AND|OR|NOT)\b/g, ' ')
+        .replace(/[*"():^~\-:]/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      const kw = sanitized ? await keywordSearchIds(c.env.DB, sanitized, 50, dietaryMask) : [];
+      mergedIds = reciprocalRankFusion(kw, semanticIds);
+    } else {
+      mergedIds = semanticIds;
+    }
+
+    const afterExclusions = await filterExclusions(c.env.DB, mergedIds, exclusions);
+    const pagedIds = afterExclusions.slice(offset, offset + limit);
+    const has_more = afterExclusions.length > offset + limit;
+
+    let filteredIds = pagedIds;
+    // Post-filter by max_time and tags for semantic/hybrid
+    if (maxTime || tagList.length > 0) {
+      const allItems = await fetchRecipesByIds(c.env.DB, afterExclusions, dietaryMask);
+      const filtered = allItems.filter((r) => {
+        if (maxTime && (r.total_time == null || r.total_time > maxTime)) return false;
+        if (tagList.length > 0 && r.tags) {
+          for (const t of tagList) {
+            if (!r.tags.includes(t)) return false;
+          }
+        }
+        return true;
+      });
+      const paged = filtered.slice(offset, offset + limit);
+      const body = { items: paged, has_more: filtered.length > offset + limit, search_mode: mode };
+      c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+      return c.json(body, 200, {
+        'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+      });
+    }
+
+    const items = await fetchRecipesByIds(c.env.DB, filteredIds, dietaryMask);
+
+    const body = { items, has_more, search_mode: mode };
+    c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+    return c.json(body, 200, {
+      'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+    });
+  }
+
+  // ── Keyword (default) mode ────────────────────────────────────────
   const sanitized = q.replace(/\b(AND|OR|NOT)\b/g, ' ').replace(/[*"():^~\-:]/g, ' ').replace(/\s+/g, ' ').trim();
   if (!sanitized) {
     return c.json({ items: [], next_cursor: null }, 200);
   }
 
-  // Dietary bitmask filtering for search
-  const dietaryMask = await getDietaryMask(c);
-  const dietaryClause = dietaryMask > 0 ? 'AND (r.dietary_bitmask & ?4) = ?4' : '';
-  const bindParams: (string | number)[] = [sanitized, limit + 1, offset];
-  if (dietaryMask > 0) bindParams.push(dietaryMask);
+  // Build filters with numbered params to avoid positional/numbered mixing
+  const allParams: (string | number)[] = [sanitized]; // ?1 = query
+  let paramIdx = 2; // next available param number
+
+  let tagJoin = '';
+  if (tagList.length > 0) {
+    tagList.forEach((t, i) => {
+      const alias = `srt${i}`;
+      tagJoin += ` JOIN recipe_tags ${alias} ON ${alias}.recipe_id = r.id AND ${alias}.tag = ?${paramIdx}`;
+      allParams.push(t);
+      paramIdx++;
+    });
+  }
+
+  const whereClauses: string[] = [];
+  if (dietaryMask > 0) {
+    whereClauses.push(`(r.dietary_bitmask & ?${paramIdx}) = ?${paramIdx + 1}`);
+    allParams.push(dietaryMask, dietaryMask);
+    paramIdx += 2;
+  }
+  if (maxTime) {
+    whereClauses.push(`r.total_time IS NOT NULL AND r.total_time <= ?${paramIdx}`);
+    allParams.push(maxTime);
+    paramIdx++;
+  }
+
+  const limitIdx = paramIdx;
+  const offsetIdx = paramIdx + 1;
+  allParams.push(limit + 1, offset);
+
+  const extraWhere = whereClauses.length > 0 ? 'AND ' + whereClauses.join(' AND ') : '';
 
   const { results } = await c.env.DB.prepare(
     `SELECT r.id, r.title, r.domain, r.image_url, r.total_time, r.cook_time,
             r.yields, r.cuisine, r.category
      FROM recipes_fts fts
      JOIN recipes r ON fts.rowid = r.rowid
-     WHERE recipes_fts MATCH ?1 ${dietaryClause}
-     LIMIT ?2 OFFSET ?3`,
+     ${tagJoin}
+     WHERE recipes_fts MATCH ?1 ${extraWhere}
+     LIMIT ?${limitIdx} OFFSET ?${offsetIdx}`,
   )
-    .bind(...bindParams)
+    .bind(...allParams)
     .all();
 
   const rows = results ?? [];
@@ -428,8 +721,77 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
 
   const items: RecipeSummary[] = rows.map((row: Record<string, unknown>) => toRecipeSummary(row));
 
-  return c.json({ items, has_more });
+  const body = { items, has_more, search_mode: 'keyword' };
+  c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+  return c.json(body, 200, {
+    'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+    'X-Cache': 'MISS',
+  });
 });
+
+// ── Similar recipes ───────────────────────────────────────────────────
+app.get('/api/v1/search/similar/:id', optionalAuth, async (c) => {
+  const id = c.req.param('id');
+  const limitParam = c.req.query('limit');
+  const limit = Math.min(Math.max(parseInt(limitParam ?? '8', 10) || 8, 1), 24);
+
+  if (!c.env.VECTORIZE || !c.env.AI) {
+    return c.json({ items: [] }, 200);
+  }
+
+  // Fetch the source recipe's vector
+  const sourceVectors = await c.env.VECTORIZE.getByIds([id]);
+  if (!sourceVectors || sourceVectors.length === 0) {
+    return c.json({ items: [] }, 200);
+  }
+
+  const sourceVector = sourceVectors[0]!.values;
+
+  // Query nearest neighbours, fetching extra to exclude the source
+  const matches = await c.env.VECTORIZE.query(sourceVector, { topK: limit + 1 });
+  const similarIds = (matches.matches ?? [])
+    .filter((m) => m.id !== id && m.score >= MIN_SIMILARITY)
+    .slice(0, limit)
+    .map((m) => m.id);
+
+  if (similarIds.length === 0) {
+    return c.json({ items: [] }, 200);
+  }
+
+  const dietaryMask = await getDietaryMask(c);
+  const items = await fetchRecipesByIds(c.env.DB, similarIds, dietaryMask);
+
+  return c.json({ items }, 200, {
+    'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+  });
+});
+
+// ── Robots.txt ────────────────────────────────────────────────────────
+app.get('/robots.txt', (c) => {
+  return c.text(
+    `User-agent: *\nAllow: /\n\nSitemap: https://reduced.recipes/sitemap.xml\n`,
+    200,
+    { 'Cache-Control': 'public, max-age=86400' },
+  );
+});
+
+// ── Sitemaps (served from KV, generated by daily cron) ────────────────
+function sitemapHandler(kvKey: string) {
+  return async (c: { env: { CACHE_KV: KVNamespace }; text: (s: string, status: number) => Response; body: (b: string, status: number, headers: Record<string, string>) => Response }) => {
+    const xml = await c.env.CACHE_KV.get(kvKey, 'text');
+    if (!xml) return c.text('Not found', 404);
+    return c.body(xml, 200, {
+      'Content-Type': 'application/xml',
+      'Cache-Control': 'public, max-age=3600, s-maxage=86400',
+    });
+  };
+}
+
+app.get('/sitemap.xml', sitemapHandler('sitemap:index') as never);
+app.get('/sitemap-static.xml', sitemapHandler('sitemap:static') as never);
+for (let i = 0; i < 50; i++) {
+  app.get(`/sitemap-${i}.xml`, sitemapHandler(`sitemap:chunk:${i}`) as never);
+}
 
 // ── Admin: Seed domain ────────────────────────────────────────────────
 app.post('/api/v1/admin/seed', async (c) => {
@@ -449,7 +811,8 @@ app.post('/api/v1/admin/seed', async (c) => {
     return c.json({ error: { code: 'INVALID_INPUT', message: 'domain is required' } }, 400);
   }
 
-  await c.env.DB.prepare(
+  const crawlDb = c.env.CRAWL_DB ?? c.env.DB;
+  await crawlDb.prepare(
     'INSERT OR IGNORE INTO domains (domain, sitemap_url, crawl_delay_ms, recipe_count, active) VALUES (?1, ?2, ?3, 0, 1)',
   )
     .bind(body.domain, body.sitemap_url ?? null, body.crawl_delay_ms ?? null)
@@ -559,6 +922,81 @@ app.post('/api/v1/admin/backfill-ingredients', async (c) => {
   });
 });
 
+// ── Backfill nutrition via AI ─────────────────────────────────────────
+app.post('/api/v1/admin/backfill-nutrition', async (c) => {
+  const authHeader = c.req.header('Authorization') ?? '';
+  const token = authHeader.replace('Bearer ', '');
+  if (!token || token !== c.env.ADMIN_TOKEN) {
+    return c.json({ error: { code: 401, message: 'Unauthorized' } }, 401);
+  }
+
+  if (!c.env.AI) {
+    return c.json({ error: { code: 500, message: 'AI binding not available' } }, 500);
+  }
+
+  const { estimateNutrition } = await import('./helpers/nutrition-estimate');
+
+  const body = await c.req.json<{ offset?: number; batch_size?: number }>().catch(() => ({} as { offset?: number; batch_size?: number }));
+  const batchSize = Math.min(body.batch_size ?? 200, 500);
+  const offset = body.offset ?? 0;
+
+  // Query D1 for recipes without nutrition data
+  const rows = await c.env.DB.prepare(
+    'SELECT id FROM recipes WHERE calories IS NULL ORDER BY id LIMIT ? OFFSET ?',
+  ).bind(batchSize, offset).all<{ id: string }>();
+
+  const remaining = await c.env.DB.prepare(
+    'SELECT COUNT(*) as cnt FROM recipes WHERE calories IS NULL',
+  ).first<{ cnt: number }>();
+
+  let processed = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  for (const row of rows.results) {
+    try {
+      const value = await c.env.RECIPES_KV.get(`recipe:${row.id}`, 'text');
+      if (!value) { skipped++; continue; }
+
+      const doc: RecipeDocument = JSON.parse(value);
+      if (doc.nutrition) { skipped++; continue; }
+      if (!doc.ingredients || doc.ingredients.length === 0) { skipped++; continue; }
+
+      const nutrition = await estimateNutrition(doc, c.env.AI);
+      if (!nutrition) { skipped++; continue; }
+
+      // Update KV
+      doc.nutrition = nutrition;
+      await c.env.RECIPES_KV.put(`recipe:${row.id}`, JSON.stringify(doc), { expirationTtl: 31_536_000 });
+
+      // Update D1
+      await c.env.DB.prepare(
+        `UPDATE recipes SET calories = ?, protein_g = ?, fat_g = ?, carbs_g = ?,
+         fiber_g = ?, sodium_mg = ?, nutrition_source = ? WHERE id = ?`,
+      ).bind(
+        nutrition.calories, nutrition.protein_g, nutrition.fat_g,
+        nutrition.carbs_g, nutrition.fiber_g, nutrition.sodium_mg,
+        nutrition.source, row.id,
+      ).run();
+
+      processed++;
+    } catch (error) {
+      console.error('Nutrition backfill failed for', row.id, error);
+      errors++;
+    }
+  }
+
+  return c.json({
+    ok: true,
+    processed,
+    skipped,
+    errors,
+    remaining: remaining?.cnt ?? 0,
+    next_offset: offset + batchSize,
+    done: rows.results.length === 0,
+  });
+});
+
 // ── Removal request ──────────────────────────────────────────────────
 app.post('/api/v1/remove', async (c) => {
   const body = await c.req.json<{ url: string; email: string; reason: string }>();
@@ -607,6 +1045,8 @@ app.route('/', syncRoutes);
 app.route('/', shoppingListRoutes);
 app.route('/', ingredientSearchRoutes);
 app.route('/', heartRoutes);
+app.route('/', fundingRoutes);
+app.route('/', searchSimilarRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {

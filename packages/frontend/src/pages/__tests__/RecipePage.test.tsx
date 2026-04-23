@@ -24,14 +24,11 @@ vi.mock("../../components/BookmarkButton", () => ({
 
 vi.mock("../../lib/api", () => ({
   fetchRecipe: vi.fn(),
-  heartRecipe: vi.fn(),
-  unheartRecipe: vi.fn(),
+  fetchRecipes: vi.fn().mockResolvedValue({ items: [], next_cursor: null }),
 }));
 
-import { fetchRecipe, heartRecipe, unheartRecipe } from "../../lib/api";
+import { fetchRecipe } from "../../lib/api";
 const mockFetchRecipe = vi.mocked(fetchRecipe);
-const mockHeartRecipe = vi.mocked(heartRecipe);
-const mockUnheartRecipe = vi.mocked(unheartRecipe);
 
 const mockRecipe: RecipeDocument = {
   id: "abc123",
@@ -298,40 +295,6 @@ describe("RecipePage", () => {
     fireEvent.click(nextBtn);
     expect(screen.getByText("Step 2 of 3")).toBeDefined();
     expect(screen.getAllByText("Mix dry ingredients").length).toBeGreaterThanOrEqual(1);
-  });
-
-  it("renders heart button", async () => {
-    renderPage();
-    await screen.findByText("Chocolate Cake");
-    expect(screen.getByRole("button", { name: "Heart recipe" })).toBeDefined();
-  });
-
-  it("shows vote count when recipe has votes", async () => {
-    mockFetchRecipe.mockResolvedValueOnce({ ...mockRecipe, vote_count: 42 });
-    renderPage();
-    await screen.findByText("Chocolate Cake");
-    expect(screen.getByText("42")).toBeDefined();
-  });
-
-  it("optimistically toggles heart state on click", async () => {
-    mockHeartRecipe.mockResolvedValue({ hearted: true, vote_count: 1 });
-    renderPage();
-    await screen.findByText("Chocolate Cake");
-    const heartBtn = screen.getByRole("button", { name: "Heart recipe" });
-    fireEvent.click(heartBtn);
-    expect(mockHeartRecipe).toHaveBeenCalledWith("abc123");
-  });
-
-  it("calls unheartRecipe when un-hearting", async () => {
-    mockHeartRecipe.mockResolvedValue({ hearted: true, vote_count: 1 });
-    mockUnheartRecipe.mockResolvedValue({ hearted: false, vote_count: 0 });
-    renderPage();
-    await screen.findByText("Chocolate Cake");
-    const heartBtn = screen.getByRole("button", { name: "Heart recipe" });
-    fireEvent.click(heartBtn);
-    await screen.findByRole("button", { name: "Un-heart recipe" });
-    fireEvent.click(screen.getByRole("button", { name: "Un-heart recipe" }));
-    expect(mockUnheartRecipe).toHaveBeenCalledWith("abc123");
   });
 
   it("shows reduction callout when available", async () => {

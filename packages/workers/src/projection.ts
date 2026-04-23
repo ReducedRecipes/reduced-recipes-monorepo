@@ -4,6 +4,8 @@ import { chunk } from '@rr/shared/utils';
 import { inferDietaryBitmask } from './helpers/dietary-inference';
 import { translateRecipe } from './helpers/translate';
 import { extractIngredientNames } from './helpers/ingredient-extract';
+import { estimateNutrition } from './helpers/nutrition-estimate';
+import { embedRecipe } from './helpers/embed';
 
 export default {
   async queue(batch: MessageBatch<ProjectionJob>, env: Env) {
@@ -17,9 +19,12 @@ export default {
         ).bind(doc.title, doc.domain, doc.id).first<{ id: string }>();
 
         if (existing) {
+          console.log(`DEDUP: skipping "${doc.title}" (${doc.domain}) — already exists as ${existing.id}`);
           msg.ack();
           continue;
         }
+
+        console.log(`PROJECTING: "${doc.title}" (${doc.domain}) id=${doc.id}`);
 
         // ── Translate non-English recipes ───────────────────────────
         if (doc.original_language && doc.original_language !== 'en') {
@@ -98,6 +103,20 @@ export default {
           );
         }
 
+        // 1c. Update nutrition data (from Schema.org or AI)
+        if (doc.nutrition) {
+          statements.push(
+            env.DB.prepare(
+              `UPDATE recipes SET calories = ?, protein_g = ?, fat_g = ?, carbs_g = ?,
+               fiber_g = ?, sodium_mg = ?, nutrition_source = ? WHERE id = ?`,
+            ).bind(
+              doc.nutrition.calories, doc.nutrition.protein_g, doc.nutrition.fat_g,
+              doc.nutrition.carbs_g, doc.nutrition.fiber_g, doc.nutrition.sodium_mg,
+              doc.nutrition.source, doc.id,
+            ),
+          );
+        }
+
         // 2. Delete existing tags
         statements.push(
           env.DB.prepare('DELETE FROM recipe_tags WHERE recipe_id = ?').bind(doc.id),
@@ -145,21 +164,20 @@ export default {
           ),
         );
 
-        // 5. Increment domain counter
-        statements.push(
-          env.DB.prepare(`
-            UPDATE domains
-            SET recipe_count = recipe_count + 1,
-                last_spidered = datetime('now')
-            WHERE domain = ?
-          `).bind(doc.domain),
-        );
-
-        // 6. Batch execute — chunk into groups of 100
+        // 5. Batch execute — chunk into groups of 100
         const batches = chunk(statements, 100);
         for (const batch of batches) {
           await env.DB.batch(batch);
         }
+
+        // 5b. Increment domain counter (may live in a separate DB)
+        const crawlDb = env.CRAWL_DB ?? env.DB;
+        await crawlDb.prepare(`
+          UPDATE domains
+          SET recipe_count = recipe_count + 1,
+              last_spidered = datetime('now')
+          WHERE domain = ?
+        `).bind(doc.domain).run();
 
         // 7. Best-effort dietary inference — runs after recipe is stored
         if (env.AI) {
@@ -173,7 +191,51 @@ export default {
           }
         }
 
-        // 8. Best-effort ingredient index
+        // 8. Best-effort nutrition estimation — AI fallback if Schema.org missing
+        if (env.AI && !doc.nutrition) {
+          try {
+            const nutrition = await estimateNutrition(doc, env.AI);
+            if (nutrition) {
+              doc.nutrition = nutrition;
+              await env.RECIPES_KV.put(`recipe:${doc.id}`, JSON.stringify(doc), { expirationTtl: 31_536_000 });
+              await env.DB.prepare(
+                `UPDATE recipes SET calories = ?, protein_g = ?, fat_g = ?, carbs_g = ?,
+                 fiber_g = ?, sodium_mg = ?, nutrition_source = ? WHERE id = ?`,
+              ).bind(
+                nutrition.calories, nutrition.protein_g, nutrition.fat_g,
+                nutrition.carbs_g, nutrition.fiber_g, nutrition.sodium_mg,
+                nutrition.source, doc.id,
+              ).run();
+            }
+          } catch (error) {
+            console.warn('Nutrition estimation failed for recipe', doc.id, error);
+          }
+        }
+
+        // 9. Best-effort vector embedding — index in Vectorize for semantic search
+        if (env.AI && env.VECTORIZE) {
+          try {
+            const vector = await embedRecipe(doc, env.AI);
+            if (vector) {
+              const metadata: Record<string, string | number | boolean> = {
+                recipe_id: doc.id,
+                domain: doc.domain,
+              };
+              if (doc.total_time !== null && doc.total_time !== undefined) {
+                metadata.total_time = doc.total_time;
+              }
+              await env.VECTORIZE.insert([{
+                id: doc.id,
+                values: vector,
+                metadata,
+              }]);
+            }
+          } catch (error) {
+            console.warn('Vector embedding failed for recipe', doc.id, error);
+          }
+        }
+
+        // 9. Best-effort ingredient index
         try {
           const ingredientNames = extractIngredientNames(doc.ingredients);
           if (ingredientNames.length > 0) {
@@ -203,7 +265,8 @@ export default {
         }
 
         msg.ack();
-      } catch {
+      } catch (error) {
+        console.error('PROJECTION ERROR:', (error as Error).message, (error as Error).stack);
         msg.retry();
       }
     }
