@@ -63,7 +63,10 @@ async function translateWithLlama(
   let translated = result?.response?.trim() ?? text;
 
   // Safety: if title translation is way longer than original, Llama hallucinated — keep original
-  if (isTitle && (translated.length > text.length * 2.5 || translated.includes('\n'))) {
+  // Non-Latin scripts (CJK, Korean, Arabic) are much denser, so allow 5x for those
+  const hasNonLatin = /[\u3040-\u9FFF\uAC00-\uD7AF\u0600-\u06FF\u0900-\u097F]/.test(text);
+  const maxRatio = hasNonLatin ? 5 : 2.5;
+  if (isTitle && (translated.length > text.length * maxRatio || translated.includes('\n'))) {
     console.warn(`Title hallucination detected: "${translated.slice(0, 80)}..." — keeping original`);
     return text;
   }
@@ -93,11 +96,16 @@ export async function translateRecipe(
   const translated = { ...doc };
   translated.original_title = doc.title;
 
-  // Translate title
+  // Translate title (retry once on failure)
   try {
     translated.title = await translateWithLlama(doc.title, lang, 'title', ai);
-  } catch {
-    // Keep original on failure
+  } catch (err) {
+    console.warn(`Title translation failed for ${doc.id}, retrying:`, err);
+    try {
+      translated.title = await translateWithLlama(doc.title, lang, 'title', ai);
+    } catch {
+      console.error(`Title translation failed twice for ${doc.id}, keeping original`);
+    }
   }
 
   // Translate ingredients with Llama (m2m100 mistranslates culinary terms like "farina" → "meat")

@@ -265,7 +265,8 @@ export default {
         }
 
         msg.ack();
-      } catch {
+      } catch (error) {
+        console.error('PROJECTION ERROR:', (error as Error).message, (error as Error).stack);
         msg.retry();
       }
     }
