@@ -139,7 +139,7 @@ export function useShoppingList(id: string | undefined) {
     queryFn: () => getShoppingList(id!),
     enabled: isAuthenticated && !!id,
     staleTime: 2 * 60 * 1000,
-    refetchInterval: 5000,
+    refetchInterval: 30_000,
   });
 
   return { list: data, isLoading };
