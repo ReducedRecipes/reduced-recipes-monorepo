@@ -94,7 +94,7 @@ app.use(
 // ── Health (KV-cached, 5-minute TTL) ────────────────────────────────────
 app.get('/api/v1/health', async (c) => {
   const HEALTH_CACHE_KEY = 'cache:health';
-  const HEALTH_TTL = 300; // 5 minutes
+  const HEALTH_TTL = 900; // 15 minutes
 
   // Try KV cache first
   const cached = await c.env.CACHE_KV.get(HEALTH_CACHE_KEY, 'text');
@@ -243,13 +243,25 @@ app.get('/api/v1/recipes/:id', optionalAuth, async (c) => {
 
 // ── List recipes ─────────────────────────────────────────────────────────
 app.get('/api/v1/recipes', optionalAuth, async (c) => {
-  // Edge cache for anonymous users — avoids D1 entirely on repeat requests
+  // KV + edge cache for anonymous users — avoids D1 entirely on repeat requests
   const authUserId = c.get('userId');
+  const recipesKvKey = `recipes:${c.req.url.split('?')[1] ?? ''}`;
   if (!authUserId) {
     const cache = caches.default;
     const cacheKey = new Request(c.req.url, c.req.raw);
     const cached = await cache.match(cacheKey);
     if (cached) return cached;
+
+    // Fall back to KV cache (survives edge eviction)
+    const kvCached = await c.env.CACHE_KV.get(recipesKvKey, 'text');
+    if (kvCached) {
+      const resp = c.json(JSON.parse(kvCached), 200, {
+        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+        'X-Cache': 'KV-HIT',
+      });
+      try { c.executionCtx.waitUntil(cache.put(cacheKey, resp.clone())); } catch {}
+      return resp;
+    }
   }
 
   const { tag, tags: tagsParam, domain, cuisine, max_time, min_time, cursor, limit: limitParam, sort } = c.req.query();
@@ -259,8 +271,16 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
   const hotMinTotalVotes = parseInt(c.env.HOT_MIN_TOTAL_VOTES ?? '100', 10);
   let effectiveSort = sort ?? '';
   if (sort === 'hot') {
-    const totalsRow = await c.env.DB.prepare('SELECT COALESCE(SUM(vote_count), 0) as total FROM recipes').first() as Record<string, number> | null;
-    const totalVotes = totalsRow?.total ?? 0;
+    const HOT_VOTES_KEY = 'cache:hot-votes-total';
+    let totalVotes = 0;
+    const cachedVotes = await c.env.CACHE_KV.get(HOT_VOTES_KEY, 'text');
+    if (cachedVotes) {
+      totalVotes = parseInt(cachedVotes, 10);
+    } else {
+      const totalsRow = await c.env.DB.prepare('SELECT COALESCE(SUM(vote_count), 0) as total FROM recipes').first() as Record<string, number> | null;
+      totalVotes = totalsRow?.total ?? 0;
+      try { c.executionCtx.waitUntil(c.env.CACHE_KV.put(HOT_VOTES_KEY, String(totalVotes), { expirationTtl: 900 })); } catch {}
+    }
     if (totalVotes < hotMinTotalVotes) {
       effectiveSort = 'newest';
     }
@@ -355,11 +375,17 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
     'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
   });
 
-  // Store in edge cache for anonymous users
+  // Store in edge + KV cache for anonymous users
   if (!authUserId) {
     const cache = caches.default;
     const cacheKey = new Request(c.req.url, c.req.raw);
-    try { c.executionCtx.waitUntil(cache.put(cacheKey, response.clone())); } catch { /* no ctx */ }
+    const body = JSON.stringify({ items, next_cursor });
+    try {
+      c.executionCtx.waitUntil(Promise.all([
+        cache.put(cacheKey, response.clone()),
+        c.env.CACHE_KV.put(recipesKvKey, body, { expirationTtl: 300 }),
+      ]));
+    } catch { /* no ctx */ }
   }
 
   return response;

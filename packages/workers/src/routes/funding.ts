@@ -21,6 +21,19 @@ funding.get('/api/v1/funding', async (c) => {
     return c.json({ error: { code: 'NOT_CONFIGURED', message: 'Funding DB not configured' } }, 500);
   }
 
+  // KV cache — funding data changes rarely
+  const FUNDING_CACHE_KEY = 'cache:funding';
+  const FUNDING_TTL = 900; // 15 minutes
+  const kv = (c.env as unknown as Record<string, unknown>).CACHE_KV as KVNamespace | undefined;
+  if (kv) {
+    const cached = await kv.get(FUNDING_CACHE_KEY, 'text');
+    if (cached) {
+      return c.json(JSON.parse(cached), 200, {
+        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+      });
+    }
+  }
+
   // Get current month and last 6 months of costs
   const now = new Date();
   const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
@@ -39,7 +52,7 @@ funding.get('/api/v1/funding', async (c) => {
   const costs = (costsResult.results ?? []) as Record<string, unknown>[];
   const currentCosts = costs.find((r) => r.month === currentMonth) ?? costs[0];
 
-  return c.json({
+  const data = {
     current_month: currentMonth,
     monthly_cost: (currentCosts?.total as number) ?? 0,
     cost_breakdown: currentCosts ?? null,
@@ -55,7 +68,14 @@ funding.get('/api/v1/funding', async (c) => {
         created_at: row.created_at as string,
       };
     }),
-  }, 200, {
+  };
+
+  // Store in KV (fire-and-forget)
+  if (kv) {
+    try { c.executionCtx.waitUntil(kv.put(FUNDING_CACHE_KEY, JSON.stringify(data), { expirationTtl: FUNDING_TTL })); } catch {}
+  }
+
+  return c.json(data, 200, {
     'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
   });
 });
