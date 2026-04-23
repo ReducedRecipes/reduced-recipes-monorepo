@@ -612,9 +612,16 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     }
 
     const vectorMatches = await c.env.VECTORIZE.query(vector, { topK: 50 });
-    console.log(`Semantic search: query="${queryText}", matches=${vectorMatches.matches?.length ?? 0}, top_score=${vectorMatches.matches?.[0]?.score ?? 'n/a'}`);
+    const topScore = vectorMatches.matches?.[0]?.score ?? 0;
+    // Dynamic threshold: use MIN_SIMILARITY normally, but relax to 0.30
+    // for broad queries that return too few results at the strict threshold
+    let threshold = MIN_SIMILARITY;
+    const strictResults = (vectorMatches.matches ?? []).filter((m) => m.score >= MIN_SIMILARITY);
+    if (strictResults.length < 6 && topScore >= 0.30) {
+      threshold = 0.30;
+    }
     const semanticIds = (vectorMatches.matches ?? [])
-      .filter((m) => m.score >= MIN_SIMILARITY)
+      .filter((m) => m.score >= threshold)
       .map((m) => m.id);
 
     let mergedIds: string[];
