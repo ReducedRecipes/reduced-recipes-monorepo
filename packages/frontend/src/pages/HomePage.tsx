@@ -651,18 +651,16 @@ export default function HomePage() {
       {/* ——— Browse by country ——— */}
       <section
         style={{
-          padding: "60px 0",
-          borderBottom: "1px solid var(--rule)",
+          padding: "48px 0 60px",
         }}
       >
-        <Rule label="Fig. 007 — Browse by country" />
+        <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 20 }}>◆ Fig. 007 — Browse by country</div>
         <div
           style={{
             display: "grid",
             gridTemplateColumns: "repeat(4, 1fr)",
-            gap: 1,
+            gap: 0,
             marginTop: 20,
-            background: "var(--rule)",
           }}
         >
           {[
@@ -693,15 +691,15 @@ export default function HomePage() {
           ].map((col, ci) => (
             <div
               key={ci}
-              style={{ background: "var(--bg)", padding: "22px 20px" }}
+              style={{ padding: "22px 20px", borderRight: ci < 3 ? "1px solid var(--rule)" : "none" }}
             >
               <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                {col.map((c) => (
+                {col.map((c, i) => (
                   <li
                     key={c.name}
                     style={{
                       padding: "12px 0",
-                      borderTop: "1px solid var(--rule)",
+                      borderTop: i > 0 ? "1px solid var(--rule)" : "none",
                       fontSize: 15,
                       display: "flex",
                       justifyContent: "space-between",
