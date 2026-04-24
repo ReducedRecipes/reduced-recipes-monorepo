@@ -1,3 +1,4 @@
+import { useRef, useEffect } from "react";
 import type { RecipeSummary } from "@rr/shared/types";
 import RecipeCard from "./RecipeCard";
 
@@ -16,6 +17,23 @@ export default function RecipeGrid({
   isFetchingNextPage,
   emptyMessage = "No recipes found",
 }: RecipeGridProps) {
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const fetchRef = useRef(fetchNextPage);
+  fetchRef.current = fetchNextPage;
+
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) fetchRef.current();
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
   if (items.length === 0) {
     return (
       <p
@@ -46,25 +64,12 @@ export default function RecipeGrid({
         ))}
       </div>
       {hasNextPage && (
-        <div style={{ display: "flex", justifyContent: "center", padding: "32px 0" }}>
-          <button
-            onClick={() => fetchNextPage()}
-            disabled={isFetchingNextPage}
-            className="mono"
-            style={{
-              fontSize: 11,
-              textTransform: "uppercase",
-              letterSpacing: "0.1em",
-              padding: "12px 24px",
-              background: isFetchingNextPage ? "transparent" : "var(--ink)",
-              color: isFetchingNextPage ? "var(--ink-3)" : "var(--bg)",
-              border: "1px solid var(--ink)",
-              cursor: isFetchingNextPage ? "default" : "pointer",
-              opacity: isFetchingNextPage ? 0.5 : 1,
-            }}
-          >
-            {isFetchingNextPage ? "Loading\u2026" : "Load more \u2192"}
-          </button>
+        <div ref={sentinelRef} style={{ padding: "20px 0", textAlign: "center" }}>
+          {isFetchingNextPage && (
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Loading&hellip;
+            </span>
+          )}
         </div>
       )}
     </div>

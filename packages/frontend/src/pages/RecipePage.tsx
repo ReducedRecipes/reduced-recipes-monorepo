@@ -574,6 +574,72 @@ export default function RecipePage() {
             </div>
           </section>
         )}
+
+        {/* ── Browse by country ── */}
+        <section style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid var(--rule)" }}>
+          <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 20 }}>◆ Browse by country</div>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(4, 1fr)",
+              gap: 0,
+            }}
+          >
+            {[
+              [
+                { flag: "🇮🇹", name: "Italian", to: "/cuisine/italian" },
+                { flag: "🇲🇽", name: "Mexican", to: "/cuisine/mexican" },
+                { flag: "🇯🇵", name: "Japanese", to: "/cuisine/japanese" },
+                { flag: "🇮🇳", name: "Indian", to: "/cuisine/indian" },
+              ],
+              [
+                { flag: "🇹🇭", name: "Thai", to: "/cuisine/thai" },
+                { flag: "🇬🇷", name: "Greek", to: "/cuisine/greek" },
+                { flag: "🇫🇷", name: "French", to: "/cuisine/french" },
+                { flag: "🇨🇳", name: "Chinese", to: "/cuisine/chinese" },
+              ],
+              [
+                { flag: "🇰🇷", name: "Korean", to: "/cuisine/korean" },
+                { flag: "🇱🇧", name: "Lebanese", to: "/cuisine/lebanese" },
+                { flag: "🇪🇸", name: "Spanish", to: "/cuisine/spanish" },
+                { flag: "🇻🇳", name: "Vietnamese", to: "/cuisine/vietnamese" },
+              ],
+              [
+                { flag: "🇲🇦", name: "Moroccan", to: "/cuisine/moroccan" },
+                { flag: "🇺🇸", name: "American", to: "/cuisine/american" },
+                { flag: "🇿🇦", name: "South African", to: "/cuisine/south african" },
+                { flag: "🇪🇹", name: "Ethiopian", to: "/cuisine/ethiopian" },
+              ],
+            ].map((col, ci) => (
+              <div
+                key={ci}
+                style={{ padding: "0 20px", borderRight: ci < 3 ? "1px solid var(--rule)" : "none" }}
+              >
+                <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                  {col.map((c, i) => (
+                    <li
+                      key={c.name}
+                      style={{
+                        padding: "10px 0",
+                        borderTop: i > 0 ? "1px solid var(--rule)" : "none",
+                        fontSize: 14,
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                      }}
+                    >
+                      <Link to={c.to} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                        <span style={{ fontSize: 16 }}>{c.flag}</span>
+                        <span>{c.name}</span>
+                      </Link>
+                      <span className="mono" style={{ color: "var(--ink-3)", fontSize: 10 }}>&rarr;</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </section>
       </article>
 
     </>

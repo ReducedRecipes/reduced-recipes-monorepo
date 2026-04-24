@@ -96,7 +96,7 @@ app.get('/api/v1/health', async (c) => {
   const cached = await c.env.CACHE_KV.get('cache:health', 'text');
   if (cached) {
     return c.json(JSON.parse(cached), 200, {
-      'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
     });
   }
 
@@ -196,7 +196,7 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
     const kvCached = await c.env.CACHE_KV.get(recipesKvKey, 'text');
     if (kvCached) {
       const resp = c.json(JSON.parse(kvCached), 200, {
-        'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
         'X-Cache': 'KV-HIT',
       });
       try { c.executionCtx.waitUntil(cache.put(cacheKey, resp.clone())); } catch {}
@@ -312,7 +312,7 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
   const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
   const response = c.json({ items, next_cursor }, 200, {
-    'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+    'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
   });
 
   // Store in edge + KV cache for anonymous users
@@ -423,7 +423,7 @@ app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
   const items = await toRecipeSummaries(c.env.DB, rows as Record<string, unknown>[]);
 
   return c.json({ items, next_cursor }, 200, {
-    'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=300',
+    'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
   });
 });
 
@@ -547,7 +547,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
   const cached = await c.env.CACHE_KV.get(cacheKey, 'text');
   if (cached) {
     return c.json(JSON.parse(cached), 200, {
-      'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
       'X-Cache': 'HIT',
     });
   }
@@ -625,7 +625,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
       const body = { items: paged, has_more: filtered.length > offset + limit, search_mode: mode };
       c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
       return c.json(body, 200, {
-        'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+        'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
       });
     }
 
@@ -634,7 +634,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
     const body = { items, has_more, search_mode: mode };
     c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
     return c.json(body, 200, {
-      'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+      'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
     });
   }
 
@@ -697,7 +697,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
   const body = { items, has_more, search_mode: 'keyword' };
   c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
   return c.json(body, 200, {
-    'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
+    'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
     'X-Cache': 'MISS',
   });
 });
