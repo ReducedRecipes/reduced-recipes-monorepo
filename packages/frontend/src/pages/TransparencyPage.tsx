@@ -75,8 +75,13 @@ export default function TransparencyPage() {
           >
             Buy me a coffee
           </a>
-          <div className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
-            All-time: ${(funding?.funded_all_time ?? 0).toFixed(2)}
+          <div style={{ textAlign: "right" }}>
+            <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", display: "block", marginBottom: 4 }}>
+              All profits go to a local South African charity
+            </span>
+            <span className="mono" style={{ fontSize: 12, color: "var(--ink-3)" }}>
+              All-time: ${(funding?.funded_all_time ?? 0).toFixed(2)}
+            </span>
           </div>
         </div>
       </div>

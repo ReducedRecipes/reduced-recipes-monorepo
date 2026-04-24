@@ -176,13 +176,18 @@ export default function HomePage() {
                   >
                     Buy me a coffee
                   </a>
-                  <Link
-                    to="/transparency"
-                    className="mono"
-                    style={{ fontSize: 11, color: "var(--ink-3)" }}
-                  >
-                    Full breakdown &rarr;
-                  </Link>
+                  <div style={{ textAlign: "right" }}>
+                    <span className="mono" style={{ fontSize: 10, color: "var(--ink-3)", display: "block", marginBottom: 4 }}>
+                      All profits go to a local South African charity
+                    </span>
+                    <Link
+                      to="/transparency"
+                      className="mono"
+                      style={{ fontSize: 11, color: "var(--ink-3)" }}
+                    >
+                      Full breakdown &rarr;
+                    </Link>
+                  </div>
                 </div>
               </div>
             );
