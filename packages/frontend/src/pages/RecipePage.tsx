@@ -10,6 +10,7 @@ import { Rule, Pill, FoodPlaceholder } from "../components/design-system";
 import { StatRail } from "../components/recipe/StatRail";
 import { StickyControls } from "../components/recipe/StickyControls";
 import { CookMode } from "../components/recipe/CookMode";
+import { trackOutboundClick } from "../lib/analytics";
 import { NutritionPanel } from "../components/recipe/NutritionPanel";
 import { scaleIngredient, parseIngredient, formatQty } from "../lib/formatQty";
 import { useSimilarRecipes } from "../hooks/useSimilarRecipes";
@@ -551,6 +552,7 @@ export default function RecipePage() {
             target="_blank"
             rel="noopener noreferrer"
             className="border border-ink bg-ink px-5 py-2.5 font-mono text-xs uppercase tracking-wider text-bg transition-opacity hover:opacity-90"
+            onClick={() => trackOutboundClick(recipe.source_url, recipe.domain, recipe.id, "view_original_button")}
           >
             View original on {recipe.domain}
           </a>
