@@ -234,7 +234,7 @@ app.get('/api/v1/recipes', optionalAuth, async (c) => {
     params.push(domain);
   }
   if (cuisine) {
-    conditions.push('r.cuisine = ?');
+    conditions.push('LOWER(r.cuisine) = LOWER(?)');
     params.push(cuisine);
   }
   if (max_time) {
@@ -378,7 +378,7 @@ app.get('/api/v1/domains/:domain/recipes', optionalAuth, async (c) => {
   const params: (string | number)[] = [domain];
 
   if (cuisine) {
-    conditions.push('r.cuisine = ?');
+    conditions.push('LOWER(r.cuisine) = LOWER(?)');
     params.push(cuisine);
   }
   if (max_time) {
