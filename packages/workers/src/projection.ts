@@ -26,8 +26,20 @@ export default {
 
         console.log(`PROJECTING: "${doc.title}" (${doc.domain}) id=${doc.id}`);
 
-        // ── Translate non-English recipes (PAUSED — reducing AI costs) ──
-        // if (doc.original_language && doc.original_language !== 'en') { ... }
+        // ── Translate non-English recipes ───────────────────────────
+        if (doc.original_language && doc.original_language !== 'en') {
+          if (env.AI) {
+            try {
+              console.log(`TRANSLATING: ${doc.id} (${doc.original_language}) "${doc.title}"`);
+              doc = await translateRecipe(doc, env.AI);
+              console.log(`TRANSLATED: ${doc.id} → "${doc.title}"`);
+            } catch (error) {
+              console.error('Translation FAILED:', doc.id, error);
+            }
+          } else {
+            console.warn('NO AI BINDING for translation:', doc.id);
+          }
+        }
 
         // ── Update KV with translated doc ────────────────────────
         if (doc.original_language && doc.original_language !== 'en') {
