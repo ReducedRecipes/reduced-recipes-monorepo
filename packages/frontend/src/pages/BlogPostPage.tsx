@@ -7,7 +7,7 @@ function renderContent(content: string) {
 
   let i = 0;
   while (i < lines.length) {
-    const line = lines[i];
+    const line = lines[i] ?? "";
 
     if (line.startsWith("## ")) {
       blocks.push({ type: "h2", text: line.slice(3) });
@@ -15,8 +15,8 @@ function renderContent(content: string) {
     } else if (line.startsWith("> ")) {
       let quote = line.slice(2);
       i++;
-      while (i < lines.length && lines[i].startsWith("> ")) {
-        quote += " " + lines[i].slice(2);
+      while (i < lines.length && (lines[i] ?? "").startsWith("> ")) {
+        quote += " " + (lines[i] ?? "").slice(2);
         i++;
       }
       blocks.push({ type: "quote", text: quote });
@@ -25,9 +25,11 @@ function renderContent(content: string) {
     } else {
       let para = line;
       i++;
-      while (i < lines.length && lines[i].trim() !== "" && !lines[i].startsWith("## ") && !lines[i].startsWith("> ")) {
-        para += " " + lines[i];
+      let next = lines[i] ?? "";
+      while (i < lines.length && next.trim() !== "" && !next.startsWith("## ") && !next.startsWith("> ")) {
+        para += " " + next;
         i++;
+        next = lines[i] ?? "";
       }
       blocks.push({ type: "p", text: para });
     }
