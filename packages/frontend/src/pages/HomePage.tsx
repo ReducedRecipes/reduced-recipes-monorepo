@@ -662,8 +662,7 @@ export default function HomePage() {
             gridTemplateColumns: "repeat(4, 1fr)",
             gap: 1,
             marginTop: 20,
-            background: "var(--rule-2)",
-            border: "1px solid var(--rule-2)",
+            background: "var(--rule)",
           }}
         >
           {[

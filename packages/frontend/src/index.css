@@ -244,6 +244,11 @@ body::before {
     overflow: hidden;
   }
 
+  /* Saved page: stack bookmarks above collections */
+  .saved-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   /* Search page: stack mode toggles and results header */
   .search-grid {
     grid-template-columns: 1fr !important;

@@ -565,7 +565,7 @@ export default function RecipePage() {
           <section style={{ marginTop: 48, paddingTop: 32, borderTop: "1px solid var(--rule)" }}>
             <div className="caps" style={{ color: "var(--accent-ink)", marginBottom: 6 }}>◆ More like this</div>
             <div className="serif" style={{ fontSize: 28, fontStyle: "italic", letterSpacing: "-0.015em", marginBottom: 20 }}>
-              {recipe.cuisine ? `More ${recipe.cuisine} recipes` : `More ${recipe.tags[0]} recipes`}
+              {recipe.cuisine ? `More ${recipe.cuisine} recipes` : recipe.tags?.[0] ? `More ${recipe.tags[0]} recipes` : "More like this"}
             </div>
             <div style={{ display: "flex", gap: 16, overflowX: "auto", paddingBottom: 8 }}>
               {similarRecipes.map((r) => (

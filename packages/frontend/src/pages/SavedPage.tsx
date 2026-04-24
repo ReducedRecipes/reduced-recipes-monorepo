@@ -89,6 +89,7 @@ export default function SavedPage() {
       </h1>
 
       <div
+        className="saved-grid"
         style={{
           display: "grid",
           gridTemplateColumns: "1fr 260px",
