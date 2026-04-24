@@ -651,7 +651,7 @@ export default function HomePage() {
       {/* ——— Browse by country ——— */}
       <section
         style={{
-          padding: "48px 0 60px",
+          padding: "48px 0 0",
         }}
       >
         <div className="caps" style={{ color: "var(--ink-3)", marginBottom: 20 }}>◆ Fig. 007 — Browse by country</div>
