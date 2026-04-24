@@ -7,13 +7,17 @@ async function runHotRefresh(env: Env) {
   const decaySeconds = parseFloat(env.HOT_DECAY_SECONDS ?? String(DEFAULT_DECAY_SECONDS));
   const epoch = parseFloat(env.HOT_EPOCH ?? String(DEFAULT_EPOCH));
 
-  await env.DB.prepare(`
-    UPDATE recipes
-    SET hot_score =
-      LOG10(MAX(vote_count, 1)) +
-      (CAST(strftime('%s', COALESCE(first_voted_at, extracted_at)) AS REAL) - ?) / ?
-    WHERE vote_count > 0
-  `).bind(epoch, decaySeconds).run();
+  try {
+    await env.DB.prepare(`
+      UPDATE recipes
+      SET hot_score =
+        LOG10(MAX(vote_count, 1)) +
+        (CAST(strftime('%s', COALESCE(first_voted_at, extracted_at)) AS REAL) - ?) / ?
+      WHERE vote_count > 0
+    `).bind(epoch, decaySeconds).run();
+  } catch (err) {
+    console.warn('Hot score update failed (LOG10 may need newer compat date):', err);
+  }
 
   // ── Pre-compute health stats and write to KV (avoids 15 aggregation queries per health request) ──
   if (env.CACHE_KV) {
