@@ -11,7 +11,7 @@ async function runScheduled(env: Env) {
       SELECT url, domain FROM crawl_queue
       WHERE status = 'pending' AND next_crawl <= datetime('now')
       ORDER BY priority ASC, next_crawl ASC
-      LIMIT 100
+      LIMIT 500
     `).all<CrawlJob>();
 
     // 2. Reset stuck 'crawling' URLs older than 10 minutes
