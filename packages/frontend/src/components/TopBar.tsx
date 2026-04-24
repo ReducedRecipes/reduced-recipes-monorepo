@@ -7,7 +7,8 @@ const SECTIONS = [
   { label: "00 — Index", path: "/" },
   { label: "01 — Browse", path: "/search" },
   { label: "02 — Saved", path: "/saved" },
-  { label: "03 — Manifesto", path: "/about" },
+  { label: "03 — Journal", path: "/blog" },
+  { label: "04 — Manifesto", path: "/about" },
 ] as const;
 
 interface TopBarProps {
