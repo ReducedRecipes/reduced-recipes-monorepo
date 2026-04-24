@@ -26,20 +26,8 @@ export default {
 
         console.log(`PROJECTING: "${doc.title}" (${doc.domain}) id=${doc.id}`);
 
-        // ── Translate non-English recipes ───────────────────────────
-        if (doc.original_language && doc.original_language !== 'en') {
-          if (env.AI) {
-            try {
-              console.log(`TRANSLATING: ${doc.id} (${doc.original_language}) "${doc.title}"`);
-              doc = await translateRecipe(doc, env.AI);
-              console.log(`TRANSLATED: ${doc.id} → "${doc.title}"`);
-            } catch (error) {
-              console.error('Translation FAILED:', doc.id, error);
-            }
-          } else {
-            console.warn('NO AI BINDING for translation:', doc.id);
-          }
-        }
+        // ── Translate non-English recipes (PAUSED — reducing AI costs) ──
+        // if (doc.original_language && doc.original_language !== 'en') { ... }
 
         // ── Update KV with translated doc ────────────────────────
         if (doc.original_language && doc.original_language !== 'en') {
@@ -164,10 +152,16 @@ export default {
           ),
         );
 
-        // 5. Batch execute — chunk into groups of 100
-        const batches = chunk(statements, 100);
-        for (const batch of batches) {
-          await env.DB.batch(batch);
+        // 5. Insert recipe row first (FTS needs the rowid to exist)
+        const recipeInsert = statements.shift()!;
+        await env.DB.batch([recipeInsert]);
+
+        // 5a. Then execute remaining statements (tags, FTS, etc.)
+        if (statements.length > 0) {
+          const batches = chunk(statements, 100);
+          for (const batch of batches) {
+            await env.DB.batch(batch);
+          }
         }
 
         // 5b. Increment domain counter (may live in a separate DB)

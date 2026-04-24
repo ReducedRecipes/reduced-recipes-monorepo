@@ -10,10 +10,20 @@ binding = "DB"
 database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
 database_name = "reduced-recipes-prod"
 
+[[d1_databases]]
+binding = "CRAWL_DB"
+database_id = "372e4627-76ea-4692-84f3-8dbf33e59e05"
+database_name = "reduced-recipes-crawl"
+
+[[kv_namespaces]]
+binding = "CACHE_KV"
+id = "18ffdf8619c84b22b4993371e4eb92c7"
+
 [vars]
 ENVIRONMENT = "production"
 HOT_DECAY_SECONDS = "90000"
 HOT_EPOCH = "1704067200"
+HOT_MIN_VOTES_FEATURED = "1"
 
 [env.preview]
 name = "rr-hot-refresh-preview"

@@ -91,89 +91,29 @@ app.use(
   }),
 );
 
-// ── Health (KV-cached, 5-minute TTL) ────────────────────────────────────
+// ── Health (pre-computed by hot-refresh cron, served from KV only) ────
 app.get('/api/v1/health', async (c) => {
-  const HEALTH_CACHE_KEY = 'cache:health';
-  const HEALTH_TTL = 900; // 15 minutes
-
-  // Try KV cache first
-  const cached = await c.env.CACHE_KV.get(HEALTH_CACHE_KEY, 'text');
+  const cached = await c.env.CACHE_KV.get('cache:health', 'text');
   if (cached) {
     return c.json(JSON.parse(cached), 200, {
       'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
     });
   }
 
-  const minVotesFeatured = parseInt(c.env.HOT_MIN_VOTES_FEATURED ?? '3', 10) || 3;
-
-  const crawlDb = c.env.CRAWL_DB ?? c.env.DB;
-
-  const [results, crawlResults, featuredRow] = await Promise.all([
-    c.env.DB.batch([
-      c.env.DB.prepare('SELECT COUNT(*) as total FROM recipes'),
-      c.env.DB.prepare('SELECT COALESCE(SUM(words_removed), 0) as total FROM recipes'),
-      c.env.DB.prepare('SELECT COALESCE(SUM(ads_detected), 0) as total FROM recipes'),
-      c.env.DB.prepare('SELECT ROUND(AVG(total_time)) as total FROM recipes WHERE total_time IS NOT NULL AND total_time > 0'),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE total_time IS NOT NULL AND total_time <= 20"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE total_time IS NOT NULL AND total_time <= 30"),
-      c.env.DB.prepare('SELECT COUNT(DISTINCT domain) as total FROM recipes'),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE original_language IS NOT NULL AND original_language != 'en'"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipes WHERE extracted_at > datetime('now', '-7 days')"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag = 'vegetarian'"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag = 'vegan'"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('one-pan','one pan','skillet','one-pot','one pot')"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('gluten-free','gluten free')"),
-      c.env.DB.prepare("SELECT COUNT(*) as total FROM recipe_tags WHERE tag IN ('keto','low-carb','low carb')"),
-      c.env.DB.prepare("SELECT COUNT(DISTINCT recipe_id) as total FROM recipe_tags WHERE tag = 'translated'"),
-    ]),
-    crawlDb.batch([
-      crawlDb.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='pending'"),
-      crawlDb.prepare("SELECT COUNT(*) as total FROM crawl_queue WHERE status='failed'"),
-      crawlDb.prepare('SELECT COUNT(*) as total FROM domains WHERE active=1'),
-    ]),
-    c.env.DB.prepare('SELECT id, title FROM recipes WHERE vote_count >= ? ORDER BY hot_score DESC LIMIT 1')
-      .bind(minVotesFeatured)
-      .first<{ id: string; title: string }>(),
-  ]);
-
-  const getTotal = (r: D1Result | undefined): number =>
-    ((r?.results?.[0] as Record<string, number> | undefined)?.total) ?? 0;
-
-  const data = {
+  // KV miss (first deploy or cold start) — return minimal response, cron will populate
+  const countRow = await c.env.DB.prepare('SELECT COUNT(*) as total FROM recipes').first() as Record<string, number> | null;
+  return c.json({
     ok: true,
-    total_recipes: getTotal(results[0]),
-    pending_crawls: getTotal(crawlResults[0]),
-    failed_crawls: getTotal(crawlResults[1]),
-    active_domains: getTotal(crawlResults[2]),
-    total_words_removed: getTotal(results[1]),
-    total_ads_removed: getTotal(results[2]),
-    avg_cook_time: getTotal(results[3]),
-    under_20_min: getTotal(results[4]),
-    under_30_min: getTotal(results[5]),
-    sources_count: getTotal(results[6]),
-    translated_count: getTotal(results[7]),
-    new_this_week: getTotal(results[8]),
-    vegetarian: getTotal(results[9]),
-    vegan: getTotal(results[10]),
-    one_pan: getTotal(results[11]),
-    gluten_free: getTotal(results[12]),
-    keto: getTotal(results[13]),
-    translated_recipes: getTotal(results[14]),
-    featured_recipe_id: featuredRow?.id ?? null,
-    featured_recipe_title: featuredRow?.title ?? null,
-  };
-
-  // Store in KV (fire-and-forget)
-  try {
-    c.executionCtx.waitUntil(
-      c.env.CACHE_KV.put(HEALTH_CACHE_KEY, JSON.stringify(data), { expirationTtl: HEALTH_TTL }),
-    );
-  } catch {
-    // No execution context (tests) — skip
-  }
-
-  return c.json(data, 200, {
-    'Cache-Control': 'public, max-age=60, s-maxage=300, stale-while-revalidate=600',
+    total_recipes: countRow?.total ?? 0,
+    pending_crawls: 0, failed_crawls: 0, active_domains: 0,
+    total_words_removed: 0, total_ads_removed: 0, avg_cook_time: 0,
+    under_20_min: 0, under_30_min: 0, sources_count: 0,
+    translated_count: 0, new_this_week: 0,
+    vegetarian: 0, vegan: 0, one_pan: 0, gluten_free: 0, keto: 0,
+    translated_recipes: 0,
+    featured_recipe_id: null, featured_recipe_title: null,
+  }, 200, {
+    'Cache-Control': 'public, max-age=30, s-maxage=60',
   });
 });
 

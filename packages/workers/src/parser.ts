@@ -41,6 +41,14 @@ export default {
           doc.original_language = sourceLang;
         }
 
+        // ── Skip non-English recipes (paused to reduce AI costs) ──
+        if (sourceLang && sourceLang !== 'en') {
+          console.log(`PARSER: skipping non-English recipe (${sourceLang}): "${doc.title}"`);
+          await updateCrawlStatus(crawlDb, url, 'skipped');
+          msg.ack();
+          continue;
+        }
+
         // ── Calculate content reduction stats ─────────────────────
         doc.reduction = calculateReduction(html, doc);
 
