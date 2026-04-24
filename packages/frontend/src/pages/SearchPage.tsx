@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useSearchParams, Link } from "react-router-dom";
 import { useSearch } from "../hooks/useSearch";
 import type { SearchMode } from "../hooks/useSearch";
@@ -122,6 +122,35 @@ function SearchResultCard({ recipe, highlight }: { recipe: RecipeSummary; highli
         </div>
       </div>
     </Link>
+  );
+}
+
+function InfiniteScrollSentinel({ onIntersect, isFetching }: { onIntersect: () => void; isFetching: boolean }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const onIntersectRef = useRef(onIntersect);
+  onIntersectRef.current = onIntersect;
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) onIntersectRef.current();
+      },
+      { rootMargin: "400px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={ref} style={{ padding: "20px 0", textAlign: "center" }}>
+      {isFetching && (
+        <span className="mono" style={{ fontSize: 11, color: "var(--ink-3)", textTransform: "uppercase", letterSpacing: "0.08em" }}>
+          Loading&hellip;
+        </span>
+      )}
+    </div>
   );
 }
 
@@ -421,19 +450,10 @@ export default function SearchPage() {
               </div>
               {hasNextPage && (
                 <div style={{ marginTop: 32, textAlign: "center" }}>
-                  <button
-                    onClick={() => fetchNextPage()}
-                    disabled={isFetchingNextPage}
-                    className="mono"
-                    style={{
-                      fontSize: 11, textTransform: "uppercase", letterSpacing: "0.08em",
-                      padding: "10px 24px", border: "1px solid var(--ink)",
-                      background: isFetchingNextPage ? "var(--bg-2)" : "var(--bg)",
-                      color: "var(--ink)",
-                    }}
-                  >
-                    {isFetchingNextPage ? "Loading…" : "Load more"}
-                  </button>
+                  <InfiniteScrollSentinel
+                    onIntersect={fetchNextPage}
+                    isFetching={isFetchingNextPage}
+                  />
                 </div>
               )}
             </>

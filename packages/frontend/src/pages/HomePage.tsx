@@ -28,11 +28,13 @@ function pickFeatured(items: RecipeSummary[]): RecipeSummary | null {
 export default function HomePage() {
   const { data, isLoading } = useRecipes({ sort: 'hot', limit: 30 });
   const { data: quickData } = useRecipes({ max_time: 20, limit: 8 });
+  const { data: newestData } = useRecipes({ sort: 'newest', limit: 6 });
   const { health } = useHealth();
   const { funding } = useFunding();
 
   const items = data?.pages.flatMap((p) => p.items) ?? [];
   const quickItems = quickData?.pages.flatMap((p) => p.items) ?? [];
+  const newestItems = newestData?.pages.flatMap((p) => p.items) ?? [];
   const featured =
     (health?.featured_recipe_id
       ? items.find((r) => r.id === health.featured_recipe_id) ?? null
@@ -638,6 +640,93 @@ export default function HomePage() {
         />
       )}
 
+      {/* ——— Recently added shelf ——— */}
+      {newestItems.length > 0 && (
+        <RecipeShelf
+          title="Fig. 007 — Recently added"
+          items={newestItems.slice(0, 6)}
+        />
+      )}
+
+      {/* ——— Browse by country ——— */}
+      <section
+        style={{
+          padding: "60px 0",
+          borderBottom: "1px solid var(--rule)",
+        }}
+      >
+        <Rule label="Fig. 007 — Browse by country" />
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(4, 1fr)",
+            gap: 1,
+            marginTop: 20,
+            background: "var(--rule-2)",
+            border: "1px solid var(--rule-2)",
+          }}
+        >
+          {[
+            [
+              { flag: "🇮🇹", name: "Italian", to: "/cuisine/italian" },
+              { flag: "🇲🇽", name: "Mexican", to: "/cuisine/mexican" },
+              { flag: "🇯🇵", name: "Japanese", to: "/cuisine/japanese" },
+              { flag: "🇮🇳", name: "Indian", to: "/cuisine/indian" },
+            ],
+            [
+              { flag: "🇹🇭", name: "Thai", to: "/cuisine/thai" },
+              { flag: "🇬🇷", name: "Greek", to: "/cuisine/greek" },
+              { flag: "🇫🇷", name: "French", to: "/cuisine/french" },
+              { flag: "🇨🇳", name: "Chinese", to: "/cuisine/chinese" },
+            ],
+            [
+              { flag: "🇰🇷", name: "Korean", to: "/cuisine/korean" },
+              { flag: "🇱🇧", name: "Lebanese", to: "/cuisine/lebanese" },
+              { flag: "🇪🇸", name: "Spanish", to: "/cuisine/spanish" },
+              { flag: "🇻🇳", name: "Vietnamese", to: "/cuisine/vietnamese" },
+            ],
+            [
+              { flag: "🇲🇦", name: "Moroccan", to: "/cuisine/moroccan" },
+              { flag: "🇺🇸", name: "American", to: "/cuisine/american" },
+              { flag: "🇿🇦", name: "South African", to: "/cuisine/south african" },
+              { flag: "🇪🇹", name: "Ethiopian", to: "/cuisine/ethiopian" },
+            ],
+          ].map((col, ci) => (
+            <div
+              key={ci}
+              style={{ background: "var(--bg)", padding: "22px 20px" }}
+            >
+              <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                {col.map((c) => (
+                  <li
+                    key={c.name}
+                    style={{
+                      padding: "12px 0",
+                      borderTop: "1px solid var(--rule)",
+                      fontSize: 15,
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Link to={c.to} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 20 }}>{c.flag}</span>
+                      <span>{c.name}</span>
+                    </Link>
+                    <span
+                      className="mono"
+                      style={{ color: "var(--ink-3)", fontSize: 11 }}
+                    >
+                      &rarr;
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* ——— Browse by axis ——— */}
       <section
         style={{
@@ -645,7 +734,7 @@ export default function HomePage() {
           borderBottom: "1px solid var(--rule)",
         }}
       >
-        <Rule label="Fig. 007 — Browse by axis" />
+        <Rule label="Fig. 009 — Browse by axis" />
         <div
           style={{
             display: "grid",
@@ -685,12 +774,12 @@ export default function HomePage() {
               ],
             },
             {
-              k: "By source",
+              k: "By tag",
               items: [
-                { label: "All sources", to: "/search" },
-                { label: "Popular sites", to: "/search?sort=newest" },
-                { label: "New additions", to: "/search?sort=newest" },
-                { label: "Verified", to: "/search" },
+                { label: "Comfort food", to: "/tag/comfort-food" },
+                { label: "Meal prep", to: "/tag/meal-prep" },
+                { label: "Dessert", to: "/tag/dessert" },
+                { label: "Breakfast", to: "/tag/breakfast" },
               ],
             },
           ].map((col) => (
