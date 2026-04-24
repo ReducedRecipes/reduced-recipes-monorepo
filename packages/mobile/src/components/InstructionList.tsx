@@ -11,9 +11,7 @@ export function InstructionList({ instructions }: InstructionListProps) {
     <View accessibilityRole="list">
       {instructions.map((step, index) => (
         <View key={index} style={s.row} accessibilityRole="summary" accessibilityLabel={`Step ${index + 1}: ${step}`}>
-          <View style={s.badge}>
-            <Text style={s.badgeText}>{index + 1}</Text>
-          </View>
+          <Text style={s.stepNumber}>{String(index + 1).padStart(2, '0')}</Text>
           <Text style={s.stepText}>{step}</Text>
         </View>
       ))}
@@ -22,16 +20,17 @@ export function InstructionList({ instructions }: InstructionListProps) {
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: "row", marginBottom: 16 },
-  badge: {
-    width: 28, height: 28, borderRadius: 14,
-    backgroundColor: colors.orange,
-    alignItems: "center", justifyContent: "center",
-    marginRight: 12, marginTop: 2,
+  row: { flexDirection: "row", marginBottom: 16, borderBottomWidth: 1, borderBottomColor: colors.rule, paddingBottom: 16 },
+  stepNumber: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.inkFaint,
+    marginRight: 12,
+    marginTop: 2,
+    letterSpacing: 0.5,
   },
-  badgeText: { color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
   stepText: {
-    flex: 1, fontFamily: fonts.body, fontSize: 15,
+    flex: 1, fontFamily: fonts.sans, fontSize: 15,
     lineHeight: 22, color: colors.ink,
   },
 });

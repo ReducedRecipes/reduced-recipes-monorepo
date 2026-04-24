@@ -233,8 +233,8 @@ export default function SavedScreen() {
           <Pressable
             key={tab.id}
             onPress={() => handleTabPress(tab.id)}
-            className={`rounded-full px-4 py-2 ${
-              isActive ? 'bg-orange' : 'bg-bgMuted'
+            className={`border border-rule px-4 py-2 ${
+              isActive ? 'bg-accent' : 'bg-bg-muted'
             }`}
             accessibilityRole="tab"
             accessibilityState={{ selected: isActive }}

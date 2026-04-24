@@ -1,10 +1,11 @@
 import React from 'react';
 import { View } from 'react-native';
+import { colors } from '@/constants/theme';
 
 function ShimmerBlock({ style }: { style?: object }) {
   return (
     <View
-      style={[{ backgroundColor: '#E5E5E3', borderRadius: 6, opacity: 0.6 }, style]}
+      style={[{ backgroundColor: colors.rule, opacity: 0.6 }, style]}
     />
   );
 }
@@ -12,16 +13,16 @@ function ShimmerBlock({ style }: { style?: object }) {
 export function RecipeCardSkeleton() {
   return (
     <View
-      className="bg-white rounded-2xl overflow-hidden shadow-sm"
+      style={{ backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.rule, overflow: 'hidden' }}
       accessible
       accessibilityLabel="Loading recipe"
     >
       <ShimmerBlock style={{ width: '100%', aspectRatio: 16 / 10 }} />
-      <View className="p-3">
+      <View style={{ padding: 12 }}>
         <ShimmerBlock style={{ width: '85%', height: 16, marginBottom: 6 }} />
         <ShimmerBlock style={{ width: '55%', height: 16 }} />
-        <View className="flex-row items-center gap-2 mt-2">
-          <ShimmerBlock style={{ width: 80, height: 20, borderRadius: 10 }} />
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8 }}>
+          <ShimmerBlock style={{ width: 80, height: 16 }} />
           <ShimmerBlock style={{ width: 50, height: 16 }} />
         </View>
       </View>

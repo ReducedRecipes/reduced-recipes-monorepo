@@ -23,16 +23,8 @@ const ALL_DIETARY_OPTIONS: { key: DietaryRestriction; label: string }[] = (
 ).map(([key, label]) => ({ key, label }));
 
 type SlideKey = "welcome" | "dietary" | "notifications";
-
-interface SlideData {
-  key: SlideKey;
-}
-
-const SLIDES: SlideData[] = [
-  { key: "welcome" },
-  { key: "dietary" },
-  { key: "notifications" },
-];
+interface SlideData { key: SlideKey }
+const SLIDES: SlideData[] = [{ key: "welcome" }, { key: "dietary" }, { key: "notifications" }];
 
 export default function OnboardingScreen() {
   const router = useRouter();
@@ -42,58 +34,31 @@ export default function OnboardingScreen() {
   const [selectedRestrictions, setSelectedRestrictions] = useState<DietaryRestriction[]>([]);
   const toggleDietary = usePreferencesStore((s) => s.toggleDietary);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-
-  // Live recipe count state
   const [recipeCount, setRecipeCount] = useState<number | null>(null);
   const [recipeCountLoading, setRecipeCountLoading] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Auth state for server sync
   const sessionToken = useAuthStore((s) => s.sessionToken);
 
-  // Fetch live recipe count when selections change
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-
-    if (selectedRestrictions.length === 0) {
-      setRecipeCount(null);
-      return;
-    }
-
+    if (selectedRestrictions.length === 0) { setRecipeCount(null); return; }
     setRecipeCountLoading(true);
     debounceRef.current = setTimeout(async () => {
       try {
         const qs = selectedRestrictions.join(",");
-        const res = await fetch(
-          `${BASE_URL}/dietary-preferences/recipe-count?restrictions=${encodeURIComponent(qs)}`,
-        );
-        if (res.ok) {
-          const data = (await res.json()) as { count: number };
-          setRecipeCount(data.count);
-        }
-      } catch {
-        // Silently fail — recipe count is informational
-      } finally {
-        setRecipeCountLoading(false);
-      }
+        const res = await fetch(`${BASE_URL}/dietary-preferences/recipe-count?restrictions=${encodeURIComponent(qs)}`);
+        if (res.ok) { const data = (await res.json()) as { count: number }; setRecipeCount(data.count); }
+      } catch {} finally { setRecipeCountLoading(false); }
     }, 500);
-
-    return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
   }, [selectedRestrictions]);
 
-  const goToSlide = useCallback(
-    (index: number) => {
-      flatListRef.current?.scrollToIndex({ index, animated: true });
-    },
-    [],
-  );
+  const goToSlide = useCallback((index: number) => {
+    flatListRef.current?.scrollToIndex({ index, animated: true });
+  }, []);
 
   const goNext = useCallback(() => {
-    if (currentIndex < SLIDES.length - 1) {
-      goToSlide(currentIndex + 1);
-    }
+    if (currentIndex < SLIDES.length - 1) goToSlide(currentIndex + 1);
   }, [currentIndex, goToSlide]);
 
   const completeOnboarding = useCallback(() => {
@@ -102,53 +67,31 @@ export default function OnboardingScreen() {
   }, [router]);
 
   const handleDietaryNext = useCallback(async () => {
-    // Sync dietary preferences to local store
     const currentLocal = usePreferencesStore.getState().dietaryFilters;
-    // Clear old and set new
-    for (const f of currentLocal) {
-      toggleDietary(f);
-    }
-    for (const r of selectedRestrictions) {
-      toggleDietary(r);
-    }
-
-    // If authenticated, sync to server
+    for (const f of currentLocal) toggleDietary(f);
+    for (const r of selectedRestrictions) toggleDietary(r);
     if (sessionToken) {
       try {
         await fetch(`${BASE_URL}/users/me/dietary-preferences`, {
           method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${sessionToken}`,
-          },
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${sessionToken}` },
           body: JSON.stringify({ restrictions: selectedRestrictions }),
         });
-      } catch {
-        // Fall back silently — local save already done
-      }
+      } catch {}
     }
-
     goNext();
   }, [selectedRestrictions, sessionToken, toggleDietary, goNext]);
 
   const handleDietaryToggle = useCallback((restriction: DietaryRestriction) => {
-    setSelectedRestrictions((prev) => {
-      if (prev.includes(restriction)) {
-        return prev.filter((r) => r !== restriction);
-      }
-      return [...prev, restriction];
-    });
+    setSelectedRestrictions((prev) =>
+      prev.includes(restriction) ? prev.filter((r) => r !== restriction) : [...prev, restriction],
+    );
   }, []);
 
-  const onViewableItemsChanged = useCallback(
-    ({ viewableItems }: { viewableItems: ViewToken[] }) => {
-      const first = viewableItems[0];
-      if (viewableItems.length > 0 && first && first.index != null) {
-        setCurrentIndex(first.index);
-      }
-    },
-    [],
-  );
+  const onViewableItemsChanged = useCallback(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const first = viewableItems[0];
+    if (viewableItems.length > 0 && first && first.index != null) setCurrentIndex(first.index);
+  }, []);
 
   const viewabilityConfig = useRef({ viewAreaCoveragePercentThreshold: 50 }).current;
 
@@ -157,64 +100,18 @@ export default function OnboardingScreen() {
       switch (item.key) {
         case "welcome":
           return (
-            <View
-              style={{ width, flex: 1, justifyContent: "center", alignItems: "center", padding: 32, backgroundColor: colors.bg }}
-            >
-              <View
-                style={{
-                  width: 120,
-                  height: 120,
-                  borderRadius: 60,
-                  backgroundColor: colors.orangeLight,
-                  justifyContent: "center",
-                  alignItems: "center",
-                  marginBottom: 48,
-                }}
-              >
-                <Text style={{ fontSize: 48 }}>🍳</Text>
-              </View>
-              <Text
-                style={{
-                  fontFamily: fonts.display,
-                  fontSize: 32,
-                  color: colors.ink,
-                  textAlign: "center",
-                  marginBottom: 12,
-                }}
-              >
-                Recipes without the story.
+            <View style={{ width, flex: 1, justifyContent: "center", alignItems: "center", padding: 32, backgroundColor: colors.bg }}>
+              <Text style={{ fontFamily: fonts.mono, fontSize: 11, color: colors.accent, letterSpacing: 1.5, marginBottom: 24 }}>
+                ◆ REDUCED RECIPES
               </Text>
-              <Text
-                style={{
-                  fontFamily: fonts.body,
-                  fontSize: 18,
-                  color: colors.inkMuted,
-                  textAlign: "center",
-                  marginBottom: 48,
-                }}
-              >
+              <Text style={{ fontFamily: fonts.serif, fontSize: 34, color: colors.ink, textAlign: "center", marginBottom: 12, lineHeight: 40 }}>
+                Recipes without{"\n"}the story.
+              </Text>
+              <Text style={{ fontFamily: fonts.serifItalic, fontSize: 20, color: colors.ink2, textAlign: "center", marginBottom: 48 }}>
                 Just the good stuff.
               </Text>
-              <Pressable
-                onPress={goNext}
-                style={{
-                  backgroundColor: colors.orange,
-                  paddingVertical: 16,
-                  paddingHorizontal: 48,
-                  borderRadius: 9999,
-                  minHeight: 44,
-                }}
-              >
-                <Text
-                  style={{
-                    fontFamily: fonts.bodyMed,
-                    fontSize: 17,
-                    color: "#FFFFFF",
-                    textAlign: "center",
-                  }}
-                >
-                  Next
-                </Text>
+              <Pressable onPress={goNext} style={{ backgroundColor: colors.ink, paddingVertical: 16, paddingHorizontal: 48, minHeight: 44 }}>
+                <Text style={{ fontFamily: fonts.mono, fontSize: 13, color: "#FFFFFF", letterSpacing: 1.5 }}>NEXT →</Text>
               </Pressable>
             </View>
           );
@@ -224,36 +121,19 @@ export default function OnboardingScreen() {
             <View style={{ width, flex: 1, padding: 32, backgroundColor: colors.bg }}>
               <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 16 }}>
                 <Pressable onPress={goNext} style={{ minHeight: 44, justifyContent: "center" }}>
-                  <Text style={{ fontFamily: fonts.bodyMed, fontSize: 15, color: colors.inkMuted }}>
-                    Skip
-                  </Text>
+                  <Text style={{ fontFamily: fonts.mono, fontSize: 11, color: colors.inkFaint, letterSpacing: 1 }}>SKIP →</Text>
                 </Pressable>
               </View>
-              <Text
-                style={{
-                  fontFamily: fonts.display,
-                  fontSize: 28,
-                  color: colors.ink,
-                  textAlign: "center",
-                  marginBottom: 16,
-                }}
-              >
+              <Text style={{ fontFamily: fonts.serif, fontSize: 28, color: colors.ink, textAlign: "center", marginBottom: 16 }}>
                 Any dietary preferences?
               </Text>
-              {/* Live recipe count */}
               {selectedRestrictions.length > 0 && (
                 <View style={{ alignItems: "center", marginBottom: 16 }}>
                   {recipeCountLoading ? (
-                    <ActivityIndicator size="small" color={colors.orange} />
+                    <ActivityIndicator size="small" color={colors.accent} />
                   ) : recipeCount !== null ? (
-                    <Text
-                      style={{
-                        fontFamily: fonts.body,
-                        fontSize: 14,
-                        color: colors.inkMuted,
-                      }}
-                    >
-                      {recipeCount} {recipeCount === 1 ? "recipe matches" : "recipes match"} your preferences
+                    <Text style={{ fontFamily: fonts.mono, fontSize: 12, color: colors.inkFaint, letterSpacing: 0.5 }}>
+                      {recipeCount} {recipeCount === 1 ? "recipe matches" : "recipes match"}
                     </Text>
                   ) : null}
                 </View>
@@ -266,22 +146,13 @@ export default function OnboardingScreen() {
                       key={key}
                       onPress={() => handleDietaryToggle(key)}
                       style={{
-                        paddingVertical: 12,
-                        paddingHorizontal: 24,
-                        borderRadius: 9999,
-                        borderWidth: 2,
-                        borderColor: isActive ? colors.orange : colors.inkFaint,
-                        backgroundColor: isActive ? colors.orangeLight : "transparent",
+                        paddingVertical: 12, paddingHorizontal: 24,
+                        borderWidth: 1, borderColor: isActive ? colors.accent : colors.rule,
+                        backgroundColor: isActive ? colors.accentLight : "transparent",
                         minHeight: 44,
                       }}
                     >
-                      <Text
-                        style={{
-                          fontFamily: fonts.bodyMed,
-                          fontSize: 15,
-                          color: isActive ? colors.orange : colors.ink,
-                        }}
-                      >
+                      <Text style={{ fontFamily: fonts.mono, fontSize: 12, color: isActive ? colors.accent : colors.ink, letterSpacing: 0.5, textTransform: "uppercase" }}>
                         {label}
                       </Text>
                     </Pressable>
@@ -289,19 +160,8 @@ export default function OnboardingScreen() {
                 })}
               </View>
               <View style={{ flex: 1 }} />
-              <Pressable
-                onPress={handleDietaryNext}
-                style={{
-                  backgroundColor: colors.orange,
-                  paddingVertical: 16,
-                  borderRadius: 9999,
-                  alignItems: "center",
-                  minHeight: 44,
-                }}
-              >
-                <Text style={{ fontFamily: fonts.bodyMed, fontSize: 17, color: "#FFFFFF" }}>
-                  Next
-                </Text>
+              <Pressable onPress={handleDietaryNext} style={{ backgroundColor: colors.ink, paddingVertical: 16, alignItems: "center", minHeight: 44 }}>
+                <Text style={{ fontFamily: fonts.mono, fontSize: 13, color: "#FFFFFF", letterSpacing: 1.5 }}>NEXT →</Text>
               </Pressable>
             </View>
           );
@@ -311,73 +171,30 @@ export default function OnboardingScreen() {
             <View style={{ width, flex: 1, padding: 32, backgroundColor: colors.bg }}>
               <View style={{ flexDirection: "row", justifyContent: "flex-end", marginBottom: 16 }}>
                 <Pressable onPress={completeOnboarding} style={{ minHeight: 44, justifyContent: "center" }}>
-                  <Text style={{ fontFamily: fonts.bodyMed, fontSize: 15, color: colors.inkMuted }}>
-                    Skip
-                  </Text>
+                  <Text style={{ fontFamily: fonts.mono, fontSize: 11, color: colors.inkFaint, letterSpacing: 1 }}>SKIP →</Text>
                 </Pressable>
               </View>
               <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-                <Text
-                  style={{
-                    fontFamily: fonts.display,
-                    fontSize: 28,
-                    color: colors.ink,
-                    textAlign: "center",
-                    marginBottom: 16,
-                  }}
-                >
+                <Text style={{ fontFamily: fonts.serif, fontSize: 28, color: colors.ink, textAlign: "center", marginBottom: 16 }}>
                   Stay updated
                 </Text>
-                <Text
-                  style={{
-                    fontFamily: fonts.body,
-                    fontSize: 16,
-                    color: colors.inkMuted,
-                    textAlign: "center",
-                    marginBottom: 32,
-                    lineHeight: 24,
-                  }}
-                >
+                <Text style={{ fontFamily: fonts.sans, fontSize: 16, color: colors.inkFaint, textAlign: "center", marginBottom: 32, lineHeight: 24 }}>
                   Get notified when new recipes are added from your favorite sites
                 </Text>
                 <Pressable
-                  onPress={() => {
-                    mmkv.set("NOTIFICATIONS_ENABLED", "true");
-                    setNotificationsEnabled(true);
-                  }}
+                  onPress={() => { mmkv.set("NOTIFICATIONS_ENABLED", "true"); setNotificationsEnabled(true); }}
                   style={{
-                    backgroundColor: notificationsEnabled ? colors.bgMuted : colors.orange,
-                    paddingVertical: 16,
-                    paddingHorizontal: 32,
-                    borderRadius: 9999,
-                    minHeight: 44,
+                    backgroundColor: notificationsEnabled ? colors.bgMuted : colors.accent,
+                    paddingVertical: 16, paddingHorizontal: 32, minHeight: 44,
                   }}
                 >
-                  <Text
-                    style={{
-                      fontFamily: fonts.bodyMed,
-                      fontSize: 17,
-                      color: notificationsEnabled ? colors.inkMuted : "#FFFFFF",
-                      textAlign: "center",
-                    }}
-                  >
-                    {notificationsEnabled ? "Notifications Enabled" : "Enable Notifications"}
+                  <Text style={{ fontFamily: fonts.mono, fontSize: 13, color: notificationsEnabled ? colors.inkFaint : "#FFFFFF", letterSpacing: 1, textAlign: "center" }}>
+                    {notificationsEnabled ? "ENABLED ✓" : "ENABLE NOTIFICATIONS"}
                   </Text>
                 </Pressable>
               </View>
-              <Pressable
-                onPress={completeOnboarding}
-                style={{
-                  backgroundColor: colors.orange,
-                  paddingVertical: 16,
-                  borderRadius: 9999,
-                  alignItems: "center",
-                  minHeight: 44,
-                }}
-              >
-                <Text style={{ fontFamily: fonts.bodyMed, fontSize: 17, color: "#FFFFFF" }}>
-                  Get Started
-                </Text>
+              <Pressable onPress={completeOnboarding} style={{ backgroundColor: colors.ink, paddingVertical: 16, alignItems: "center", minHeight: 44 }}>
+                <Text style={{ fontFamily: fonts.mono, fontSize: 13, color: "#FFFFFF", letterSpacing: 1.5 }}>GET STARTED →</Text>
               </Pressable>
             </View>
           );
@@ -402,30 +219,15 @@ export default function OnboardingScreen() {
         bounces={false}
         onViewableItemsChanged={onViewableItemsChanged}
         viewabilityConfig={viewabilityConfig}
-        getItemLayout={(_, index) => ({
-          length: width,
-          offset: width * index,
-          index,
-        })}
+        getItemLayout={(_, index) => ({ length: width, offset: width * index, index })}
       />
-      {/* Page indicator dots */}
-      <View
-        style={{
-          flexDirection: "row",
-          justifyContent: "center",
-          paddingBottom: 48,
-          gap: 8,
-          backgroundColor: colors.bg,
-        }}
-      >
+      <View style={{ flexDirection: "row", justifyContent: "center", paddingBottom: 48, gap: 8, backgroundColor: colors.bg }}>
         {SLIDES.map((slide, index) => (
           <View
             key={slide.key}
             style={{
-              width: index === currentIndex ? 24 : 8,
-              height: 8,
-              borderRadius: 4,
-              backgroundColor: index === currentIndex ? colors.orange : colors.inkFaint,
+              width: index === currentIndex ? 24 : 8, height: 2,
+              backgroundColor: index === currentIndex ? colors.accent : colors.rule,
             }}
           />
         ))}

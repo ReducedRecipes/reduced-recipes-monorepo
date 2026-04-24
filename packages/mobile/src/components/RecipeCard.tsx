@@ -3,8 +3,9 @@ import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import type { RecipeSummary } from '@rr/shared';
-import { colors, fonts, shadow } from '@/constants/theme';
-import { BookmarkIcon } from './icons';
+import { colors, fonts } from '@/constants/theme';
+import { BookmarkIcon, HeartIcon } from './icons';
+import { useHeart } from '@/hooks/useHeart';
 
 export interface RecipeCardProps {
   recipe: RecipeSummary;
@@ -23,11 +24,12 @@ function formatTime(minutes: number | null): string | null {
 export function RecipeCard({ recipe, bookmarked = false, onToggleBookmark }: RecipeCardProps) {
   const router = useRouter();
   const time = formatTime(recipe.total_time ?? recipe.cook_time);
+  const heart = useHeart(recipe.id);
 
   return (
     <Pressable
       onPress={() => router.push(`/recipe/${recipe.id}`)}
-      style={[s.card, shadow.sm]}
+      style={s.card}
       accessible
       accessibilityRole="button"
       accessibilityLabel={`View recipe: ${recipe.title}`}
@@ -57,21 +59,45 @@ export function RecipeCard({ recipe, bookmarked = false, onToggleBookmark }: Rec
             ) : null}
           </View>
 
-          {onToggleBookmark && (
+          <View style={s.metaRight}>
+            {/* Heart button */}
             <Pressable
-              onPress={() => onToggleBookmark(recipe.id)}
-              hitSlop={12}
-              style={s.bookmarkBtn}
+              onPress={heart.toggle}
+              hitSlop={8}
+              style={s.actionBtn}
               accessible
               accessibilityRole="button"
-              accessibilityLabel={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
+              accessibilityLabel={heart.hearted ? 'Unlike recipe' : 'Like recipe'}
             >
-              <BookmarkIcon
-                color={bookmarked ? colors.orange : colors.inkFaint}
-                size={20}
+              <HeartIcon
+                color={heart.hearted ? colors.accent : colors.inkFaint}
+                size={16}
+                filled={heart.hearted}
               />
+              {heart.count > 0 && (
+                <Text style={[s.heartCount, heart.hearted && { color: colors.accent }]}>
+                  {heart.count}
+                </Text>
+              )}
             </Pressable>
-          )}
+
+            {/* Bookmark button */}
+            {onToggleBookmark && (
+              <Pressable
+                onPress={() => onToggleBookmark(recipe.id)}
+                hitSlop={8}
+                style={s.actionBtn}
+                accessible
+                accessibilityRole="button"
+                accessibilityLabel={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
+              >
+                <BookmarkIcon
+                  color={bookmarked ? colors.accent : colors.inkFaint}
+                  size={16}
+                />
+              </Pressable>
+            )}
+          </View>
         </View>
       </View>
     </Pressable>
@@ -80,8 +106,9 @@ export function RecipeCard({ recipe, bookmarked = false, onToggleBookmark }: Rec
 
 const s = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
+    backgroundColor: colors.bgCard,
+    borderWidth: 1,
+    borderColor: colors.rule,
     overflow: 'hidden',
   },
   image: {
@@ -92,9 +119,9 @@ const s = StyleSheet.create({
     padding: 12,
   },
   title: {
-    fontFamily: fonts.display,
-    fontSize: 15,
-    lineHeight: 20,
+    fontFamily: fonts.serif,
+    fontSize: 16,
+    lineHeight: 22,
     color: colors.ink,
   },
   meta: {
@@ -109,24 +136,36 @@ const s = StyleSheet.create({
     gap: 8,
   },
   domain: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.inkMuted,
-    backgroundColor: colors.bgMuted,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 99,
-    overflow: 'hidden',
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.inkFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   time: {
-    fontFamily: fonts.body,
-    fontSize: 11,
-    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.inkFaint,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  bookmarkBtn: {
-    minWidth: 44,
-    minHeight: 44,
+  metaRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  actionBtn: {
+    minWidth: 36,
+    minHeight: 36,
     alignItems: 'center',
     justifyContent: 'center',
+    flexDirection: 'row',
+    gap: 3,
+  },
+  heartCount: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.inkFaint,
+    letterSpacing: 0.5,
   },
 });

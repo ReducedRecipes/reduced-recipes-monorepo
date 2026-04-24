@@ -23,11 +23,14 @@ const CUISINES = [
   'Thai', 'French', 'Mediterranean', 'Korean', 'American',
 ];
 
-function getGreeting(): string {
-  const hour = new Date().getHours();
-  if (hour < 12) return 'Good morning';
-  if (hour < 18) return 'Good afternoon';
-  return 'Good evening';
+function SectionLabel({ label }: { label: string }) {
+  return (
+    <View style={s.sectionLabelRow}>
+      <Text style={s.sectionDiamond}>◆</Text>
+      <Text style={s.sectionLabel}>{label}</Text>
+      <View style={s.sectionRule} />
+    </View>
+  );
 }
 
 function HorizontalRecipeList({
@@ -75,7 +78,7 @@ function CuisinePill({ name, onPress }: { name: string; onPress: () => void }) {
 function LoadingFooter() {
   return (
     <View style={s.footer}>
-      <ActivityIndicator size="small" color={colors.orange} />
+      <ActivityIndicator size="small" color={colors.accent} />
       <Text style={s.footerText}>Loading more recipes...</Text>
     </View>
   );
@@ -84,7 +87,6 @@ function LoadingFooter() {
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const greeting = useMemo(getGreeting, []);
 
   const featured = useRecipes({ limit: 5 });
   const quickEasy = useRecipes({ max_time: 30, limit: 10 });
@@ -146,26 +148,43 @@ export default function HomeScreen() {
 
   const header = (
     <>
-      {/* Greeting */}
-      <View style={[s.greetingWrap, { paddingTop: 12 }]}>
-        <Text style={s.greeting}>{greeting}</Text>
+      {/* Manifesto */}
+      <View style={[s.manifestoWrap, { paddingTop: insets.top + 12 }]}>
+        <Text style={s.manifestoLabel}>◆ FIG. 001 — MANIFESTO</Text>
+        <Text style={s.manifestoHeading}>
+          Recipes,{'\n'}
+          <Text style={s.manifestoItalic}>reduced</Text> to what{'\n'}
+          you actually need.
+        </Text>
+        <Text style={s.manifestoBody}>
+          No backstory about a trip to Tuscany. No ads between steps. No scroll to the bottom to find the ingredients. Just the list, the method, and the number of minutes until dinner.
+        </Text>
       </View>
 
-      {/* Search Bar */}
-      <Pressable
-        onPress={() => router.push('/(tabs)/search')}
-        style={s.searchBar}
-        accessibilityRole="button"
-        accessibilityLabel="Search recipes"
-      >
-        <SearchIcon color={colors.inkMuted} size={20} />
-        <Text style={s.searchPlaceholder}>Search recipes...</Text>
-      </Pressable>
+      {/* CTA buttons */}
+      <View style={s.ctaRow}>
+        <Pressable
+          onPress={() => router.push('/(tabs)/search')}
+          style={s.ctaPrimary}
+          accessibilityRole="button"
+          accessibilityLabel="Search recipes"
+        >
+          <Text style={s.ctaPrimaryText}>→ SEE A RECIPE</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => router.push('/(tabs)/search')}
+          style={s.ctaSecondary}
+          accessibilityRole="button"
+          accessibilityLabel="Browse index"
+        >
+          <Text style={s.ctaSecondaryText}>BROWSE THE INDEX</Text>
+        </Pressable>
+      </View>
 
       {/* Featured */}
       {featuredRecipes.length > 0 && (
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Featured</Text>
+          <SectionLabel label="FEATURE OF THE WEEK" />
           <HorizontalRecipeList
             recipes={featuredRecipes}
             bookmarkedIds={bookmarkedIds}
@@ -177,7 +196,7 @@ export default function HomeScreen() {
       {/* Quick & Easy */}
       {quickRecipes.length > 0 && (
         <View style={s.section}>
-          <Text style={s.sectionTitle}>Quick & Easy</Text>
+          <SectionLabel label="QUICK & EASY" />
           <HorizontalRecipeList
             recipes={quickRecipes}
             bookmarkedIds={bookmarkedIds}
@@ -188,7 +207,7 @@ export default function HomeScreen() {
 
       {/* Cuisines */}
       <View style={s.section}>
-        <Text style={s.sectionTitle}>Cuisines</Text>
+        <SectionLabel label="BROWSE BY CUISINE" />
         <FlatList
           data={CUISINES}
           renderItem={({ item }) => (
@@ -206,7 +225,7 @@ export default function HomeScreen() {
 
       {/* Recently Added header */}
       <View style={[s.section, { paddingHorizontal: 16 }]}>
-        <Text style={[s.sectionTitle, { paddingHorizontal: 0 }]}>Recently Added</Text>
+        <SectionLabel label="RECENTLY ADDED" />
       </View>
     </>
   );
@@ -234,7 +253,7 @@ export default function HomeScreen() {
       onEndReached={handleEndReached}
       onEndReachedThreshold={0.5}
       refreshControl={
-        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.orange} />
+        <RefreshControl refreshing={isLoading} onRefresh={handleRefresh} tintColor={colors.accent} />
       }
       contentContainerStyle={{ paddingBottom: 32 }}
       contentInsetAdjustmentBehavior="automatic"
@@ -248,51 +267,105 @@ const s = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.bg,
   },
-  greetingWrap: {
+  manifestoWrap: {
     paddingHorizontal: 16,
-    paddingBottom: 4,
+    paddingBottom: 24,
   },
-  greeting: {
-    fontFamily: fonts.display,
-    fontSize: 26,
+  manifestoLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.accent,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 16,
+  },
+  manifestoHeading: {
+    fontFamily: fonts.serif,
+    fontSize: 34,
     color: colors.ink,
+    lineHeight: 40,
   },
-  searchBar: {
-    marginHorizontal: 16,
-    marginVertical: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: colors.bgMuted,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+  manifestoItalic: {
+    fontFamily: fonts.serifItalic,
+    fontStyle: 'italic',
   },
-  searchPlaceholder: {
-    marginLeft: 12,
-    fontFamily: fonts.body,
+  manifestoBody: {
+    fontFamily: fonts.sans,
     fontSize: 15,
-    color: colors.inkFaint,
+    color: colors.ink2,
+    lineHeight: 22,
+    marginTop: 16,
+  },
+  ctaRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 12,
+    marginBottom: 32,
+  },
+  ctaPrimary: {
+    backgroundColor: colors.ink,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  ctaPrimaryText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: '#FFFFFF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+  },
+  ctaSecondary: {
+    borderWidth: 1,
+    borderColor: colors.ink,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+  },
+  ctaSecondaryText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.ink,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   section: {
-    marginTop: 24,
+    marginTop: 32,
   },
-  sectionTitle: {
-    fontFamily: fonts.display,
-    fontSize: 18,
-    color: colors.ink,
+  sectionLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    marginBottom: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  sectionDiamond: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.accent,
+  },
+  sectionLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+  },
+  sectionRule: {
+    flex: 1,
+    height: 1,
+    backgroundColor: colors.rule,
   },
   cuisinePill: {
-    backgroundColor: colors.orangeLight,
+    borderWidth: 1,
+    borderColor: colors.rule,
     paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 99,
+    paddingVertical: 10,
   },
   cuisinePillText: {
-    fontFamily: fonts.bodyMed,
-    fontSize: 13,
-    color: colors.orange,
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.ink,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   footer: {
     flexDirection: 'row',
@@ -302,8 +375,8 @@ const s = StyleSheet.create({
     gap: 10,
   },
   footerText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.sans,
     fontSize: 13,
-    color: colors.inkMuted,
+    color: colors.inkFaint,
   },
 });

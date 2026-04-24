@@ -10,7 +10,7 @@
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FAFAF8"
+      "backgroundColor": "#F3F0EB"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -31,7 +31,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FAFAF8"
+        "backgroundColor": "#F3F0EB"
       },
       "package": "com.reducedrecipes.app",
       "versionCode": 1,
@@ -73,7 +73,7 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#E85D26"
+          "color": "#C45A30"
         }
       ],
       [

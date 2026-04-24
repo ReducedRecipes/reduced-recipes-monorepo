@@ -1,8 +1,16 @@
 export const fonts = {
-  display: "Lora_600SemiBold",
-  body: "DMSans_400Regular",
-  bodyMed: "DMSans_500Medium",
-  mono: "DMSans_400Regular",
+  serif: "InstrumentSerif_400Regular",
+  serifItalic: "InstrumentSerif_400Regular_Italic",
+  sans: "Inter_400Regular",
+  sansMedium: "Inter_500Medium",
+  sansSemiBold: "Inter_600SemiBold",
+  mono: "JetBrainsMono_400Regular",
+  monoMedium: "JetBrainsMono_500Medium",
+
+  // Aliases for backward compat during migration
+  display: "InstrumentSerif_400Regular",
+  body: "Inter_400Regular",
+  bodyMed: "Inter_500Medium",
 } as const;
 
 export const fontSizes = {
@@ -17,25 +25,43 @@ export const fontSizes = {
 } as const;
 
 export const colors = {
-  bg: "#FAFAF8",
+  bg: "#F3F0EB",
+  bg2: "#EDE9E3",
   bgCard: "#FFFFFF",
-  bgMuted: "#F3F2EF",
-  ink: "#1A1A18",
-  inkMuted: "#6B7280",
-  inkFaint: "#9CA3AF",
-  orange: "#E85D26",
-  orangeLight: "#FEF0E7",
+  bgMuted: "#EDE9E3",
+  ink: "#2D2923",
+  ink2: "#5C5549",
+  inkMuted: "#5C5549",
+  inkFaint: "#8A8379",
+  rule: "#D4CFC8",
+  rule2: "#BFB9B0",
+  accent: "#C45A30",
+  accentInk: "#5C2415",
+  accentLight: "#F5E6DD",
+
+  // Aliases
+  orange: "#C45A30",
+  orangeLight: "#F5E6DD",
+
   success: "#16A34A",
   warning: "#D97706",
   error: "#DC2626",
+
   dark: {
     bg: "#141412",
+    bg2: "#1C1C1A",
     bgCard: "#1C1C1A",
     bgMuted: "#242422",
     ink: "#F5F4F0",
-    inkMuted: "#9CA3AF",
+    ink2: "#B8B3AB",
+    inkMuted: "#B8B3AB",
     inkFaint: "#6B7280",
-    orange: "#FF7A45",
+    rule: "#3A3835",
+    rule2: "#4A4845",
+    accent: "#E07B52",
+    accentInk: "#F5C4A8",
+    accentLight: "#3D2A20",
+    orange: "#E07B52",
     orangeLight: "#3D2A20",
     success: "#4ADE80",
     warning: "#FBBF24",
@@ -66,26 +92,27 @@ export const spacing = {
 } as const;
 
 export const radius = {
-  sm: 6,
-  md: 10,
-  lg: 16,
-  xl: 24,
+  none: 0,
+  sm: 2,
+  md: 4,
+  lg: 8,
+  xl: 12,
   full: 9999,
 } as const;
 
 export const shadow = {
   sm: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
   md: {
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.08,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: "transparent",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0,
+    shadowRadius: 0,
+    elevation: 0,
   },
 } as const;

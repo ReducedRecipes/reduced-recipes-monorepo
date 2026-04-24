@@ -5,6 +5,19 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useFonts } from 'expo-font';
+import {
+  InstrumentSerif_400Regular,
+  InstrumentSerif_400Regular_Italic,
+} from '@expo-google-fonts/instrument-serif';
+import {
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+} from '@expo-google-fonts/inter';
+import {
+  JetBrainsMono_400Regular,
+  JetBrainsMono_500Medium,
+} from '@expo-google-fonts/jetbrains-mono';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text } from 'react-native';
@@ -23,9 +36,9 @@ const queryClient = new QueryClient({
 
 function ErrorFallback({ error }: { error: Error }) {
   return (
-    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#FAFAF8' }}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: '#1A1A18' }}>Something went wrong</Text>
-      <Text style={{ fontSize: 14, color: '#6B7280', textAlign: 'center' }}>{error.message}</Text>
+    <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20, backgroundColor: '#F3F0EB' }}>
+      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 10, color: '#2D2923' }}>Something went wrong</Text>
+      <Text style={{ fontSize: 14, color: '#5C5549', textAlign: 'center' }}>{error.message}</Text>
     </View>
   );
 }
@@ -34,9 +47,13 @@ export default function RootLayout() {
   const [error, setError] = useState<Error | null>(null);
 
   const [fontsLoaded, fontError] = useFonts({
-    Lora_600SemiBold: require('../assets/fonts/Lora-SemiBold.ttf'),
-    DMSans_400Regular: require('../assets/fonts/DMSans-Regular.ttf'),
-    DMSans_500Medium: require('../assets/fonts/DMSans-Medium.ttf'),
+    InstrumentSerif_400Regular,
+    InstrumentSerif_400Regular_Italic,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    JetBrainsMono_400Regular,
+    JetBrainsMono_500Medium,
   });
 
   useEffect(() => {

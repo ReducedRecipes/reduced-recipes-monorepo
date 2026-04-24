@@ -13,6 +13,9 @@
     "lint": "eslint ."
   },
   "dependencies": {
+    "@expo-google-fonts/instrument-serif": "^0.4.1",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/jetbrains-mono": "^0.4.1",
     "@expo/metro-runtime": "~6.1.2",
     "@gorhom/bottom-sheet": "^4.6.0",
     "@react-native-async-storage/async-storage": "2.2.0",

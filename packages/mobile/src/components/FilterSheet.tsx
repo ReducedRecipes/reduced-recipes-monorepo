@@ -11,24 +11,12 @@ export interface SearchFilters {
 const COOK_TIMES = [15, 30, 45, 60] as const;
 
 const CUISINES = [
-  'Italian',
-  'Japanese',
-  'Mexican',
-  'Indian',
-  'Thai',
-  'Chinese',
-  'French',
-  'American',
-  'Mediterranean',
-  'Korean',
+  'Italian', 'Japanese', 'Mexican', 'Indian', 'Thai',
+  'Chinese', 'French', 'American', 'Mediterranean', 'Korean',
 ] as const;
 
 const DIETARY_OPTIONS = [
-  'Vegan',
-  'Vegetarian',
-  'Gluten-free',
-  'Dairy-free',
-  'Keto',
+  'Vegan', 'Vegetarian', 'Gluten-free', 'Dairy-free', 'Keto',
 ] as const;
 
 export interface FilterChipGroupProps {
@@ -37,25 +25,21 @@ export interface FilterChipGroupProps {
   onToggle: (value: string) => void;
 }
 
-export function FilterChipGroup({
-  options,
-  selected,
-  onToggle,
-}: FilterChipGroupProps) {
+export function FilterChipGroup({ options, selected, onToggle }: FilterChipGroupProps) {
   return (
     <View className="mb-4 flex-row flex-wrap gap-2">
       {options.map((item) => (
         <Pressable
           key={item}
           onPress={() => onToggle(item)}
-          className={`rounded-full px-4 py-2 ${
-            selected.includes(item) ? 'bg-orange' : 'bg-bgMuted'
+          className={`border px-4 py-2 ${
+            selected.includes(item) ? 'bg-accent border-accent' : 'border-rule'
           }`}
           accessibilityRole="button"
           accessibilityLabel={item}
         >
           <Text
-            className={`text-sm ${
+            className={`font-mono text-xs uppercase tracking-wider ${
               selected.includes(item) ? 'text-white' : 'text-ink'
             }`}
           >
@@ -118,36 +102,23 @@ export const FilterSheet = forwardRef<BottomSheetRef, FilterSheetProps>(
         onClose={onDismiss}
       >
         <ScrollView className="flex-1 px-4 pb-6">
-          <Text className="mb-4 text-xl font-semibold text-ink">Filters</Text>
+          <Text className="mb-4 font-serif text-xl text-ink">Filters</Text>
 
-          {/* Active filter chips */}
           {hasActiveFilters && (
             <View className="mb-4 flex-row flex-wrap gap-2">
               {maxTime !== undefined && (
-                <Chip
-                  label={`≤${maxTime} min`}
-                  onRemove={() => removeChip('time')}
-                />
+                <Chip label={`≤${maxTime} min`} onRemove={() => removeChip('time')} />
               )}
               {cuisines.map((c) => (
-                <Chip
-                  key={c}
-                  label={c}
-                  onRemove={() => removeChip('cuisine', c)}
-                />
+                <Chip key={c} label={c} onRemove={() => removeChip('cuisine', c)} />
               ))}
               {dietary.map((d) => (
-                <Chip
-                  key={d}
-                  label={d}
-                  onRemove={() => removeChip('dietary', d)}
-                />
+                <Chip key={d} label={d} onRemove={() => removeChip('dietary', d)} />
               ))}
             </View>
           )}
 
-          {/* Cook time */}
-          <Text className="mb-2 text-sm font-medium text-inkMuted">
+          <Text className="mb-2 font-mono text-xs uppercase tracking-widest text-ink-faint">
             Cook time
           </Text>
           <View className="mb-4 flex-row gap-2">
@@ -155,14 +126,14 @@ export const FilterSheet = forwardRef<BottomSheetRef, FilterSheetProps>(
               <Pressable
                 key={t}
                 onPress={() => setMaxTime(maxTime === t ? undefined : t)}
-                className={`rounded-full px-4 py-2 ${
-                  maxTime === t ? 'bg-orange' : 'bg-bgMuted'
+                className={`border px-4 py-2 ${
+                  maxTime === t ? 'bg-accent border-accent' : 'border-rule'
                 }`}
                 accessibilityRole="button"
                 accessibilityLabel={`${t === 60 ? '60+' : t} minutes`}
               >
                 <Text
-                  className={`text-sm ${
+                  className={`font-mono text-xs uppercase tracking-wider ${
                     maxTime === t ? 'text-white' : 'text-ink'
                   }`}
                 >
@@ -172,36 +143,25 @@ export const FilterSheet = forwardRef<BottomSheetRef, FilterSheetProps>(
             ))}
           </View>
 
-          {/* Cuisine */}
-          <Text className="mb-2 text-sm font-medium text-inkMuted">
+          <Text className="mb-2 font-mono text-xs uppercase tracking-widest text-ink-faint">
             Cuisine
           </Text>
-          <FilterChipGroup
-            options={CUISINES}
-            selected={cuisines}
-            onToggle={toggleCuisine}
-          />
+          <FilterChipGroup options={CUISINES} selected={cuisines} onToggle={toggleCuisine} />
 
-          {/* Dietary */}
-          <Text className="mb-2 text-sm font-medium text-inkMuted">
+          <Text className="mb-2 font-mono text-xs uppercase tracking-widest text-ink-faint">
             Dietary
           </Text>
-          <FilterChipGroup
-            options={DIETARY_OPTIONS}
-            selected={dietary}
-            onToggle={toggleDietary}
-          />
+          <FilterChipGroup options={DIETARY_OPTIONS} selected={dietary} onToggle={toggleDietary} />
 
-          {/* Apply button */}
           <Pressable
             onPress={handleApply}
-            className="mt-2 items-center rounded-full bg-orange py-4"
+            className="mt-2 items-center bg-ink py-4"
             style={{ minHeight: 44 }}
             accessibilityRole="button"
             accessibilityLabel="Apply filters"
           >
-            <Text className="text-base font-semibold text-white">
-              Apply Filters
+            <Text className="font-mono text-sm uppercase tracking-wider text-white">
+              APPLY FILTERS →
             </Text>
           </Pressable>
         </ScrollView>
@@ -212,15 +172,15 @@ export const FilterSheet = forwardRef<BottomSheetRef, FilterSheetProps>(
 
 function Chip({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <View className="flex-row items-center rounded-full bg-orangeLight px-3 py-1">
-      <Text className="mr-1 text-sm text-orange">{label}</Text>
+    <View className="flex-row items-center border border-accent px-3 py-1">
+      <Text className="mr-1 font-mono text-xs text-accent">{label}</Text>
       <Pressable
         onPress={onRemove}
         hitSlop={8}
         accessibilityRole="button"
         accessibilityLabel={`Remove ${label} filter`}
       >
-        <Text className="text-sm text-orange">×</Text>
+        <Text className="text-sm text-accent">×</Text>
       </Pressable>
     </View>
   );

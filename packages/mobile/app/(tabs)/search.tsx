@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -13,18 +13,49 @@ import { RecipeCardSkeleton } from '@/components/RecipeCardSkeleton';
 import { EmptyState } from '@/components/EmptyState';
 import { ErrorState } from '@/components/ErrorState';
 import { SearchIcon } from '@/components/icons';
+import {
+  SearchFilterSheet,
+  type SearchFilterSheetRef,
+  type FullSearchFilters,
+  type SearchMode,
+} from '@/components/SearchFilterSheet';
 import { useSearch } from '@/hooks/useSearch';
 import { colors, fonts } from '@/constants/theme';
 import type { RecipeSummary } from '@rr/shared';
 
+const MODES: { label: string; value: SearchMode }[] = [
+  { label: 'KEYWORD', value: 'keyword' },
+  { label: 'SEMANTIC', value: 'semantic' },
+  { label: 'HYBRID', value: 'hybrid' },
+];
+
+const DEFAULT_FILTERS: FullSearchFilters = {
+  mode: 'keyword',
+  sort: 'newest',
+  dietary: [],
+  method: [],
+};
+
 export default function SearchScreen() {
   const [query, setQuery] = useState('');
+  const [filters, setFilters] = useState<FullSearchFilters>(DEFAULT_FILTERS);
+  const filterSheetRef = useRef<SearchFilterSheetRef>(null);
 
-  const { data, isLoading, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useSearch(query);
+  const { data, isLoading, isError, refetch, hasNextPage, isFetchingNextPage, fetchNextPage } = useSearch(query, {
+    max_time: filters.maxTime,
+    tag: filters.dietary.length > 0 ? filters.dietary[0]?.toLowerCase() : undefined,
+  });
 
   const handleSearch = useCallback((text: string) => {
     setQuery(text);
   }, []);
+
+  const handleApplyFilters = useCallback((f: FullSearchFilters) => {
+    setFilters(f);
+  }, []);
+
+  const activeFilterCount = (filters.maxTime ? 1 : 0) + filters.dietary.length + filters.method.length +
+    (filters.sort !== 'newest' ? 1 : 0);
 
   const trimmedQuery = query.trim();
   const showResults = trimmedQuery.length >= 2;
@@ -47,18 +78,77 @@ export default function SearchScreen() {
 
   return (
     <View style={s.container}>
-      {/* Search bar */}
-      <View style={s.searchWrap}>
-        <SearchBar onSearch={handleSearch} autoFocus />
+      {/* Search bar + filter button */}
+      <View style={s.searchRow}>
+        <View style={s.searchBarWrap}>
+          <SearchBar onSearch={handleSearch} autoFocus />
+        </View>
+        <Pressable
+          onPress={() => filterSheetRef.current?.open()}
+          style={[s.filterBtn, activeFilterCount > 0 && s.filterBtnActive]}
+          accessibilityRole="button"
+          accessibilityLabel="Open filters"
+        >
+          <Text style={[s.filterBtnText, activeFilterCount > 0 && s.filterBtnTextActive]}>
+            {activeFilterCount > 0 ? activeFilterCount : '⚙'}
+          </Text>
+        </Pressable>
       </View>
+
+      {/* Mode toggle */}
+      {showResults && (
+        <View style={s.modeRow}>
+          {MODES.map((m) => (
+            <Pressable
+              key={m.value}
+              onPress={() => setFilters((f) => ({ ...f, mode: m.value }))}
+              style={[s.modeChip, filters.mode === m.value && s.modeChipActive]}
+            >
+              <Text style={[s.modeChipText, filters.mode === m.value && s.modeChipTextActive]}>
+                {m.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+
+      {/* Active filter chips */}
+      {activeFilterCount > 0 && (
+        <View style={s.activeFiltersRow}>
+          {filters.maxTime && (
+            <View style={s.activeChip}>
+              <Text style={s.activeChipText}>≤ {filters.maxTime} MIN</Text>
+              <Pressable onPress={() => setFilters((f) => ({ ...f, maxTime: undefined }))} hitSlop={8}>
+                <Text style={s.activeChipX}>×</Text>
+              </Pressable>
+            </View>
+          )}
+          {filters.dietary.map((d) => (
+            <View key={d} style={s.activeChip}>
+              <Text style={s.activeChipText}>{d.toUpperCase()}</Text>
+              <Pressable onPress={() => setFilters((f) => ({ ...f, dietary: f.dietary.filter((x) => x !== d) }))} hitSlop={8}>
+                <Text style={s.activeChipX}>×</Text>
+              </Pressable>
+            </View>
+          ))}
+          {filters.method.map((m) => (
+            <View key={m} style={s.activeChip}>
+              <Text style={s.activeChipText}>{m.toUpperCase()}</Text>
+              <Pressable onPress={() => setFilters((f) => ({ ...f, method: f.method.filter((x) => x !== m) }))} hitSlop={8}>
+                <Text style={s.activeChipX}>×</Text>
+              </Pressable>
+            </View>
+          ))}
+        </View>
+      )}
 
       {/* Initial state */}
       {!showResults && !isLoading && (
         <View style={s.initialState}>
-          <SearchIcon color={colors.bgMuted} size={64} />
+          <SearchIcon color={colors.rule} size={64} />
           <Text style={s.initialTitle}>Find your next meal</Text>
           <Text style={s.initialSubtitle}>
-            Search 56,000+ recipes by name, ingredient, or cuisine
+            Search 159,000+ recipes by name, ingredient, or cuisine
           </Text>
         </View>
       )}
@@ -93,6 +183,7 @@ export default function SearchScreen() {
         <>
           <Text style={s.resultCount}>
             {recipes.length} result{recipes.length !== 1 ? 's' : ''}
+            {filters.sort !== 'newest' ? ` · sorted by ${filters.sort.replace('_', ' ')}` : ''}
           </Text>
           <FlatList
             data={recipes}
@@ -105,7 +196,7 @@ export default function SearchScreen() {
             ListFooterComponent={
               isFetchingNextPage ? (
                 <View style={s.footer}>
-                  <ActivityIndicator size="small" color={colors.orange} />
+                  <ActivityIndicator size="small" color={colors.accent} />
                   <Text style={s.footerText}>Loading more...</Text>
                 </View>
               ) : null
@@ -113,6 +204,13 @@ export default function SearchScreen() {
           />
         </>
       )}
+
+      {/* Filter bottom sheet */}
+      <SearchFilterSheet
+        ref={filterSheetRef}
+        filters={filters}
+        onApply={handleApplyFilters}
+      />
     </View>
   );
 }
@@ -123,7 +221,85 @@ const s = StyleSheet.create({
     backgroundColor: colors.bg,
     paddingTop: 54,
   },
-  searchWrap: {},
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 16,
+  },
+  searchBarWrap: {
+    flex: 1,
+  },
+  filterBtn: {
+    width: 40,
+    height: 40,
+    borderWidth: 1,
+    borderColor: colors.rule,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  filterBtnActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  filterBtnText: {
+    fontFamily: fonts.mono,
+    fontSize: 14,
+    color: colors.ink,
+  },
+  filterBtnTextActive: {
+    color: '#FFFFFF',
+  },
+  modeRow: {
+    flexDirection: 'row',
+    paddingHorizontal: 16,
+    gap: 8,
+    marginBottom: 8,
+  },
+  modeChip: {
+    borderWidth: 1,
+    borderColor: colors.rule,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  modeChipActive: {
+    backgroundColor: colors.ink,
+    borderColor: colors.ink,
+  },
+  modeChipText: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.inkFaint,
+    letterSpacing: 1,
+  },
+  modeChipTextActive: {
+    color: '#FFFFFF',
+  },
+  activeFiltersRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    gap: 6,
+    marginBottom: 8,
+  },
+  activeChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.accent,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  activeChipText: {
+    fontFamily: fonts.mono,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 0.5,
+  },
+  activeChipX: {
+    fontSize: 14,
+    color: colors.accent,
+  },
   cardWrap: {
     paddingHorizontal: 16,
     marginBottom: 12,
@@ -135,16 +311,16 @@ const s = StyleSheet.create({
     paddingHorizontal: 48,
   },
   initialTitle: {
-    fontFamily: fonts.display,
-    fontSize: 22,
+    fontFamily: fonts.serif,
+    fontSize: 24,
     color: colors.ink,
     marginTop: 16,
     textAlign: 'center',
   },
   initialSubtitle: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.sans,
     fontSize: 14,
-    color: colors.inkMuted,
+    color: colors.inkFaint,
     marginTop: 8,
     textAlign: 'center',
     lineHeight: 20,
@@ -153,11 +329,13 @@ const s = StyleSheet.create({
     paddingTop: 8,
   },
   resultCount: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
     paddingHorizontal: 16,
     paddingBottom: 8,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   footer: {
     flexDirection: 'row',
@@ -167,8 +345,8 @@ const s = StyleSheet.create({
     gap: 10,
   },
   footerText: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.sans,
     fontSize: 13,
-    color: colors.inkMuted,
+    color: colors.inkFaint,
   },
 });

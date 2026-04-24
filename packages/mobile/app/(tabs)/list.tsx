@@ -131,7 +131,7 @@ export default function ShoppingListScreen() {
           <Text className="font-display text-2xl text-ink">Shopping List</Text>
           <TouchableOpacity
             onPress={openAddSheet}
-            className="bg-orange px-4 py-2 rounded-lg"
+            className="bg-accent px-4 py-2 border border-rule"
           >
             <Text className="text-white font-body text-sm">+ Add</Text>
           </TouchableOpacity>
@@ -145,7 +145,7 @@ export default function ShoppingListScreen() {
           <View className="px-5 pt-4">
             <Text className="font-display text-lg text-ink mb-3">Add item</Text>
             <TextInput
-              className="border border-ink-faint rounded-lg px-4 py-3 font-body text-base text-ink"
+              className="border border-ink-faint border border-rule px-4 py-3 font-body text-base text-ink"
               placeholder="e.g. 2 cups flour"
               value={manualText}
               onChangeText={setManualText}
@@ -155,7 +155,7 @@ export default function ShoppingListScreen() {
             />
             <TouchableOpacity
               onPress={handleAddManual}
-              className="bg-orange mt-3 py-3 rounded-lg items-center"
+              className="bg-accent mt-3 py-3 border border-rule items-center"
             >
               <Text className="text-white font-body text-base font-medium">Add to list</Text>
             </TouchableOpacity>
@@ -171,7 +171,7 @@ export default function ShoppingListScreen() {
         <Text className="font-display text-2xl text-ink">Shopping List</Text>
         <TouchableOpacity
           onPress={openAddSheet}
-          className="bg-orange px-4 py-2 rounded-lg"
+          className="bg-accent px-4 py-2 border border-rule"
         >
           <Text className="text-white font-body text-sm">+ Add</Text>
         </TouchableOpacity>
@@ -183,7 +183,7 @@ export default function ShoppingListScreen() {
             <TouchableOpacity
               key={pill.recipeId}
               onPress={() => handleRemoveRecipeItems(pill.recipeId)}
-              className="flex-row items-center bg-orange-light px-3 py-1.5 rounded-full"
+              className="flex-row items-center bg-accent-light px-3 py-1.5 border border-accent"
             >
               <Text className="font-body text-sm text-orange mr-1">{pill.recipeTitle}</Text>
               <Text className="text-orange text-xs">{'\u2715'}</Text>
@@ -209,7 +209,7 @@ export default function ShoppingListScreen() {
           >
             <View
               className={`w-6 h-6 rounded-md border-2 mr-3 items-center justify-center ${
-                item.checked ? 'bg-orange border-orange' : 'border-ink-faint'
+                item.checked ? 'bg-accent border-orange' : 'border-ink-faint'
               }`}
             >
               {item.checked && <Text className="text-white text-xs">{'\u2713'}</Text>}
@@ -242,7 +242,7 @@ export default function ShoppingListScreen() {
         <View className="px-5 pt-4">
           <Text className="font-display text-lg text-ink mb-3">Add item</Text>
           <TextInput
-            className="border border-ink-faint rounded-lg px-4 py-3 font-body text-base text-ink"
+            className="border border-ink-faint border border-rule px-4 py-3 font-body text-base text-ink"
             placeholder="e.g. 2 cups flour"
             value={manualText}
             onChangeText={setManualText}
@@ -251,7 +251,7 @@ export default function ShoppingListScreen() {
           />
           <TouchableOpacity
             onPress={handleAddManual}
-            className="bg-orange mt-3 py-3 rounded-lg items-center"
+            className="bg-accent mt-3 py-3 border border-rule items-center"
           >
             <Text className="text-white font-body text-base font-medium">Add to list</Text>
           </TouchableOpacity>

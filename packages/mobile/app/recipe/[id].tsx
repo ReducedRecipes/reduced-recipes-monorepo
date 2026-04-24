@@ -1,8 +1,8 @@
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
   Animated,
+  FlatList,
   Pressable,
-  ScrollView,
   Share,
   Text,
   View,
@@ -16,8 +16,12 @@ import { useSavedRecipes } from "@/hooks/useSavedRecipes";
 import { IngredientList } from "@/components/IngredientList";
 import { InstructionList } from "@/components/InstructionList";
 import { ErrorState } from "@/components/ErrorState";
-import { BookmarkIcon } from "@/components/icons";
-import { colors, fonts, shadow } from "@/constants/theme";
+import { BookmarkIcon, HeartIcon } from "@/components/icons";
+import { useHeart } from "@/hooks/useHeart";
+import { useSimilarRecipes } from "@/hooks/useSimilarRecipes";
+import { RecipeCard } from "@/components/RecipeCard";
+import { NutritionPanel } from "@/components/NutritionPanel";
+import { colors, fonts } from "@/constants/theme";
 
 type Tab = "ingredients" | "instructions";
 
@@ -27,6 +31,8 @@ export default function RecipeDetailScreen() {
   const { data: recipe, isLoading, error, refetch } = useRecipe(id ?? "");
   const { isSaved, save, unsave } = useSavedRecipes();
   const [activeTab, setActiveTab] = useState<Tab>("ingredients");
+  const heart = useHeart(id ?? "");
+  const { data: similarRecipes } = useSimilarRecipes(id ?? "");
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -108,8 +114,11 @@ export default function RecipeDetailScreen() {
           <Text style={s.floatingBtnText}>←</Text>
         </Pressable>
         <View style={s.floatingRight}>
+          <Pressable onPress={heart.toggle} style={s.floatingBtn} accessibilityLabel={heart.hearted ? "Unlike recipe" : "Like recipe"}>
+            <HeartIcon color={heart.hearted ? colors.accent : "#FFFFFF"} size={20} filled={heart.hearted} />
+          </Pressable>
           <Pressable onPress={handleBookmarkPress} style={s.floatingBtn} accessibilityLabel={saved ? "Remove bookmark" : "Bookmark recipe"}>
-            <BookmarkIcon color={saved ? colors.orange : "#FFFFFF"} size={22} />
+            <BookmarkIcon color={saved ? colors.accent : "#FFFFFF"} size={22} />
           </Pressable>
           <Pressable onPress={handleShare} style={s.floatingBtn} accessibilityLabel="Share recipe">
             <Text style={s.floatingBtnText}>↗</Text>
@@ -148,9 +157,14 @@ export default function RecipeDetailScreen() {
 
           {/* Metadata chips */}
           <View style={s.chipRow}>
+            {heart.count > 0 && (
+              <View style={[s.chip, { borderColor: colors.accent }]}>
+                <Text style={[s.chipText, { color: colors.accent }]}>♥ {heart.count}</Text>
+              </View>
+            )}
             {cookTime != null && (
               <View style={s.chip}>
-                <Text style={s.chipText}>⏱ {cookTime < 60 ? `${cookTime} min` : `${Math.floor(cookTime / 60)}h ${cookTime % 60}m`}</Text>
+                <Text style={s.chipText}>{cookTime < 60 ? `${cookTime} min` : `${Math.floor(cookTime / 60)}h ${cookTime % 60}m`}</Text>
               </View>
             )}
             {recipe.yields && (
@@ -159,8 +173,8 @@ export default function RecipeDetailScreen() {
               </View>
             )}
             {recipe.cuisine && (
-              <View style={[s.chip, { backgroundColor: colors.orangeLight }]}>
-                <Text style={[s.chipText, { color: colors.orange }]}>{recipe.cuisine}</Text>
+              <View style={[s.chip, { borderColor: colors.accent }]}>
+                <Text style={[s.chipText, { color: colors.accent }]}>{recipe.cuisine}</Text>
               </View>
             )}
           </View>
@@ -175,7 +189,7 @@ export default function RecipeDetailScreen() {
             accessibilityState={{ selected: activeTab === "ingredients" }}
           >
             <Text style={[s.segmentText, activeTab === "ingredients" && s.segmentTextActive]}>
-              Ingredients ({recipe.ingredients.length})
+              INGREDIENTS ({recipe.ingredients.length})
             </Text>
           </Pressable>
           <Pressable
@@ -185,7 +199,7 @@ export default function RecipeDetailScreen() {
             accessibilityState={{ selected: activeTab === "instructions" }}
           >
             <Text style={[s.segmentText, activeTab === "instructions" && s.segmentTextActive]}>
-              Steps ({recipe.instructions.length})
+              STEPS ({recipe.instructions.length})
             </Text>
           </Pressable>
         </View>
@@ -202,18 +216,18 @@ export default function RecipeDetailScreen() {
         {/* Actions */}
         <View style={s.actions}>
           <Pressable onPress={handleStartCooking} style={s.primaryBtn} accessibilityLabel="Start cooking">
-            <Text style={s.primaryBtnText}>Start Cooking</Text>
+            <Text style={s.primaryBtnText}>→ START COOKING</Text>
           </Pressable>
 
           <Pressable onPress={handleViewOriginal} style={s.secondaryBtn} accessibilityLabel="View full recipe on original site">
-            <Text style={s.secondaryBtnText}>View Original Recipe ↗</Text>
+            <Text style={s.secondaryBtnText}>OPEN RECIPE → {recipe.domain}</Text>
           </Pressable>
         </View>
 
         {/* Tags */}
         {recipe.tags.length > 0 && (
           <View style={s.tagsSection}>
-            <Text style={s.tagsLabel}>Tags</Text>
+            <Text style={s.tagsLabel}>TAGS</Text>
             <View style={s.tagsRow}>
               {recipe.tags.map((tag) => (
                 <View key={tag} style={s.tag}>
@@ -221,6 +235,32 @@ export default function RecipeDetailScreen() {
                 </View>
               ))}
             </View>
+          </View>
+        )}
+
+        {/* Nutrition panel */}
+        {recipe.nutrition && <NutritionPanel nutrition={recipe.nutrition} />}
+
+        {/* Similar recipes shelf */}
+        {similarRecipes && similarRecipes.length > 0 && (
+          <View style={s.similarSection}>
+            <View style={s.similarLabelRow}>
+              <Text style={s.similarDiamond}>◆</Text>
+              <Text style={s.similarLabel}>MORE LIKE THIS</Text>
+              <View style={s.similarRule} />
+            </View>
+            <FlatList
+              data={similarRecipes}
+              renderItem={({ item }) => (
+                <View style={{ width: 220, marginRight: 12 }}>
+                  <RecipeCard recipe={item} />
+                </View>
+              )}
+              keyExtractor={(item) => item.id}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ paddingHorizontal: 16 }}
+            />
           </View>
         )}
 
@@ -233,7 +273,7 @@ export default function RecipeDetailScreen() {
 const s = StyleSheet.create({
   scroll: { flex: 1, backgroundColor: colors.bg },
   loadingContainer: { flex: 1, backgroundColor: colors.bg, alignItems: "center", justifyContent: "center" },
-  loadingText: { fontFamily: fonts.body, fontSize: 15, color: colors.inkMuted },
+  loadingText: { fontFamily: fonts.sans, fontSize: 15, color: colors.inkFaint },
   errorContainer: { flex: 1, backgroundColor: colors.bg },
   errorBackRow: { paddingTop: 56, paddingHorizontal: 16 },
 
@@ -241,8 +281,10 @@ const s = StyleSheet.create({
     position: "absolute", top: 0, left: 0, right: 0, zIndex: 10,
     paddingTop: 56, paddingBottom: 12, paddingHorizontal: 60,
     backgroundColor: colors.bg,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.rule,
   },
-  headerTitle: { fontFamily: fonts.display, fontSize: 16, color: colors.ink, textAlign: "center" },
+  headerTitle: { fontFamily: fonts.serif, fontSize: 16, color: colors.ink, textAlign: "center" },
 
   floatingRow: {
     position: "absolute", top: 56, left: 16, right: 16, zIndex: 20,
@@ -261,43 +303,49 @@ const s = StyleSheet.create({
   heroPlaceholder: { backgroundColor: colors.bgMuted, alignItems: "center", justifyContent: "center" },
 
   infoSection: { paddingHorizontal: 16, paddingTop: 20, paddingBottom: 12 },
-  title: { fontFamily: fonts.display, fontSize: 26, color: colors.ink, lineHeight: 32 },
+  title: { fontFamily: fonts.serif, fontSize: 28, color: colors.ink, lineHeight: 34 },
   authorRow: { flexDirection: "row", alignItems: "center", marginTop: 8 },
-  authorText: { fontFamily: fonts.body, fontSize: 14, color: colors.inkMuted },
+  authorText: { fontFamily: fonts.sans, fontSize: 14, color: colors.inkFaint },
   dot: { color: colors.inkFaint, fontSize: 14 },
-  domainText: { fontFamily: fonts.body, fontSize: 14, color: colors.orange },
+  domainText: { fontFamily: fonts.mono, fontSize: 12, color: colors.accent, letterSpacing: 0.5 },
 
   chipRow: { flexDirection: "row", alignItems: "center", marginTop: 12, gap: 8, flexWrap: "wrap" },
   chip: {
-    backgroundColor: colors.bgMuted, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 99,
+    borderWidth: 1, borderColor: colors.rule, paddingHorizontal: 10, paddingVertical: 5,
   },
-  chipText: { fontFamily: fonts.body, fontSize: 13, color: colors.inkMuted },
+  chipText: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkFaint, letterSpacing: 0.5, textTransform: "uppercase" },
 
   segmentWrap: {
     flexDirection: "row", marginHorizontal: 16, marginTop: 8, marginBottom: 16,
-    backgroundColor: colors.bgMuted, borderRadius: 10, padding: 3,
+    borderWidth: 1, borderColor: colors.rule,
   },
-  segmentBtn: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 8 },
-  segmentActive: { backgroundColor: "#FFFFFF", ...shadow.sm },
-  segmentText: { fontFamily: fonts.bodyMed, fontSize: 14, color: colors.inkMuted },
-  segmentTextActive: { color: colors.ink },
+  segmentBtn: { flex: 1, paddingVertical: 12, alignItems: "center" },
+  segmentActive: { backgroundColor: colors.ink },
+  segmentText: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkFaint, letterSpacing: 1, textTransform: "uppercase" },
+  segmentTextActive: { color: "#FFFFFF" },
 
   tabContent: { paddingHorizontal: 16 },
 
   actions: { paddingHorizontal: 16, marginTop: 24, gap: 10 },
   primaryBtn: {
-    backgroundColor: colors.orange, paddingVertical: 16, borderRadius: 16, alignItems: "center",
+    backgroundColor: colors.accent, paddingVertical: 16, alignItems: "center",
   },
-  primaryBtnText: { fontFamily: fonts.bodyMed, fontSize: 16, color: "#FFFFFF" },
+  primaryBtnText: { fontFamily: fonts.mono, fontSize: 13, color: "#FFFFFF", letterSpacing: 1.5, textTransform: "uppercase" },
   secondaryBtn: {
-    paddingVertical: 14, borderRadius: 16, alignItems: "center",
-    borderWidth: 1, borderColor: colors.bgMuted,
+    paddingVertical: 14, alignItems: "center",
+    borderWidth: 1, borderColor: colors.rule,
   },
-  secondaryBtnText: { fontFamily: fonts.bodyMed, fontSize: 14, color: colors.inkMuted },
+  secondaryBtnText: { fontFamily: fonts.mono, fontSize: 12, color: colors.inkFaint, letterSpacing: 1, textTransform: "uppercase" },
 
   tagsSection: { paddingHorizontal: 16, marginTop: 24 },
-  tagsLabel: { fontFamily: fonts.bodyMed, fontSize: 14, color: colors.inkMuted, marginBottom: 8 },
+  tagsLabel: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkFaint, marginBottom: 8, letterSpacing: 1.5, textTransform: "uppercase" },
   tagsRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  tag: { backgroundColor: colors.orangeLight, paddingHorizontal: 12, paddingVertical: 6, borderRadius: 99 },
-  tagText: { fontFamily: fonts.body, fontSize: 13, color: colors.orange },
+  tag: { borderWidth: 1, borderColor: colors.rule, paddingHorizontal: 12, paddingVertical: 6 },
+  tagText: { fontFamily: fonts.mono, fontSize: 11, color: colors.ink2, letterSpacing: 0.5 },
+
+  similarSection: { marginTop: 32 },
+  similarLabelRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, marginBottom: 16, gap: 8 },
+  similarDiamond: { fontFamily: fonts.mono, fontSize: 10, color: colors.accent },
+  similarLabel: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkFaint, letterSpacing: 1.5 },
+  similarRule: { flex: 1, height: 1, backgroundColor: colors.rule },
 });

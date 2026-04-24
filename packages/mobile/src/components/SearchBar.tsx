@@ -65,14 +65,14 @@ const s = StyleSheet.create({
   wrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10 },
   inputWrap: {
     flex: 1, flexDirection: 'row', alignItems: 'center',
-    backgroundColor: colors.bgMuted, borderRadius: 12,
+    backgroundColor: colors.bgCard, borderWidth: 1, borderColor: colors.rule,
     paddingHorizontal: 14, paddingVertical: 12,
   },
   input: {
-    flex: 1, fontFamily: fonts.body, fontSize: 15,
+    flex: 1, fontFamily: fonts.sans, fontSize: 15,
     color: colors.ink, marginLeft: 10, padding: 0,
   },
   clearBtn: { fontSize: 14, color: colors.inkFaint, padding: 4 },
   cancelBtn: { marginLeft: 12, minHeight: 44, justifyContent: 'center' },
-  cancelText: { fontFamily: fonts.bodyMed, fontSize: 15, color: colors.orange },
+  cancelText: { fontFamily: fonts.mono, fontSize: 12, color: colors.accent, letterSpacing: 0.5, textTransform: 'uppercase' },
 });

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { colors } from '@/constants/theme';
+import { colors, fonts } from '@/constants/theme';
 import {
   HomeIcon,
   SearchIcon,
@@ -13,11 +13,18 @@ export default function TabLayout() {
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: colors.orange,
-        tabBarInactiveTintColor: colors.inkMuted,
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.inkFaint,
+        tabBarLabelStyle: {
+          fontFamily: fonts.mono,
+          fontSize: 9,
+          letterSpacing: 1,
+          textTransform: 'uppercase',
+        },
         tabBarStyle: {
-          backgroundColor: colors.bgCard,
-          borderTopColor: colors.bgMuted,
+          backgroundColor: colors.bg,
+          borderTopColor: colors.rule,
+          borderTopWidth: 1,
         },
         headerShown: false,
       }}
@@ -25,7 +32,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Discover',
+          title: 'Index',
           tabBarIcon: ({ color, size }) => <HomeIcon color={color} size={size} />,
         }}
       />

@@ -123,7 +123,7 @@ export default function CookingModeScreen() {
           options={{ headerShown: false, presentation: "fullScreenModal" }}
         />
         <View className="flex-1 items-center justify-center bg-bg dark:bg-dark-bg">
-          <ActivityIndicator size="large" color="#E85D26" />
+          <ActivityIndicator size="large" color="#C45A30" />
           <Text className="mt-4 text-base text-inkMuted dark:text-dark-inkMuted">
             Loading recipe…
           </Text>
@@ -166,7 +166,7 @@ export default function CookingModeScreen() {
             onPress={confirmExit}
             accessibilityRole="button"
             accessibilityLabel="Exit cooking mode"
-            className="h-11 w-11 items-center justify-center rounded-full bg-bgMuted dark:bg-dark-bgMuted"
+            className="h-11 w-11 items-center justify-center border border-rule dark:border-dark-rule bg-bg-muted dark:bg-dark-bg-muted"
           >
             <Text className="text-lg text-ink dark:text-dark-ink">✕</Text>
           </Pressable>

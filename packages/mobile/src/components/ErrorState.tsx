@@ -35,14 +35,15 @@ const s = StyleSheet.create({
     marginBottom: 16,
   },
   button: {
-    backgroundColor: colors.orange,
-    borderRadius: 12,
+    backgroundColor: colors.ink,
     paddingHorizontal: 24,
     paddingVertical: 12,
   },
   buttonText: {
-    fontFamily: fonts.bodyMed,
-    fontSize: 15,
+    fontFamily: fonts.mono,
+    fontSize: 12,
     color: '#FFFFFF',
+    letterSpacing: 1,
+    textTransform: 'uppercase',
   },
 });

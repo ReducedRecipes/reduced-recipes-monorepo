@@ -1,4 +1,5 @@
-import { View, Text } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
+import { colors, fonts } from "@/constants/theme";
 
 interface TimeChipProps {
   minutes: number;
@@ -14,11 +15,28 @@ export function formatDuration(minutes: number): string {
 
 export function TimeChip({ minutes }: TimeChipProps) {
   return (
-    <View className="min-h-[44px] min-w-[44px] flex-row items-center gap-1 rounded-full bg-gray-100 px-3 py-1.5">
-      <Text className="text-sm text-gray-500">🕐</Text>
-      <Text className="text-sm font-medium text-gray-700">
-        {formatDuration(minutes)}
-      </Text>
+    <View style={s.chip}>
+      <Text style={s.text}>{formatDuration(minutes)}</Text>
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  chip: {
+    minHeight: 44,
+    minWidth: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.rule,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  text: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+});

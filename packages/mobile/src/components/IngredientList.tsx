@@ -36,7 +36,7 @@ export function IngredientList({
     <View accessibilityRole="list">
       {/* Serving adjuster */}
       <View style={s.servingRow}>
-        <Text style={s.servingLabel}>Servings</Text>
+        <Text style={s.servingLabel}>SERVINGS</Text>
         <View style={s.servingControl}>
           <Pressable onPress={() => setServings((v) => Math.max(1, v - 1))} style={s.servingBtn} accessibilityLabel="Decrease servings">
             <Text style={s.servingBtnText}>−</Text>
@@ -76,7 +76,7 @@ export function IngredientList({
           accessibilityRole="button"
           accessibilityLabel="Add all to shopping list"
         >
-          <Text style={s.addAllText}>Add all to shopping list</Text>
+          <Text style={s.addAllText}>+ ADD ALL TO SHOPPING LIST</Text>
         </Pressable>
       )}
     </View>
@@ -88,35 +88,35 @@ const s = StyleSheet.create({
     flexDirection: "row", alignItems: "center", justifyContent: "space-between",
     marginBottom: 16,
   },
-  servingLabel: { fontFamily: fonts.bodyMed, fontSize: 15, color: colors.ink },
+  servingLabel: { fontFamily: fonts.mono, fontSize: 11, color: colors.inkFaint, letterSpacing: 1.5 },
   servingControl: {
     flexDirection: "row", alignItems: "center",
-    backgroundColor: colors.bgMuted, borderRadius: 10,
+    borderWidth: 1, borderColor: colors.rule,
   },
   servingBtn: { paddingHorizontal: 14, paddingVertical: 6 },
   servingBtnText: { fontSize: 18, fontWeight: "700", color: colors.ink },
   servingCount: {
-    fontFamily: fonts.bodyMed, fontSize: 15, color: colors.ink,
+    fontFamily: fonts.mono, fontSize: 15, color: colors.ink,
     minWidth: 32, textAlign: "center",
   },
   ingredientRow: {
     flexDirection: "row", alignItems: "center",
-    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.bgMuted,
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: colors.rule,
   },
   checkbox: {
-    width: 22, height: 22, borderRadius: 6, marginRight: 12,
+    width: 22, height: 22, marginRight: 12,
     borderWidth: 2, borderColor: colors.inkFaint,
     alignItems: "center", justifyContent: "center",
   },
   checkboxChecked: {
-    backgroundColor: colors.orange, borderColor: colors.orange,
+    backgroundColor: colors.accent, borderColor: colors.accent,
   },
   checkmark: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
-  ingredientText: { flex: 1, fontFamily: fonts.body, fontSize: 15, color: colors.ink },
-  ingredientChecked: { textDecorationLine: "line-through", color: colors.inkMuted },
+  ingredientText: { flex: 1, fontFamily: fonts.sans, fontSize: 15, color: colors.ink },
+  ingredientChecked: { textDecorationLine: "line-through", color: colors.inkFaint },
   addAllBtn: {
-    marginTop: 16, paddingVertical: 14, borderRadius: 12,
-    backgroundColor: colors.orange, alignItems: "center",
+    marginTop: 16, paddingVertical: 14,
+    borderWidth: 1, borderColor: colors.accent, alignItems: "center",
   },
-  addAllText: { fontFamily: fonts.bodyMed, fontSize: 15, color: "#FFFFFF" },
+  addAllText: { fontFamily: fonts.mono, fontSize: 12, color: colors.accent, letterSpacing: 1 },
 });

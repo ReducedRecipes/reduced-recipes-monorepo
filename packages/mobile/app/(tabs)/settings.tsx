@@ -66,15 +66,12 @@ export default function SettingsScreen() {
   const [userInfo, setUserInfo] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Debounce timer for dietary sync
   const dietarySyncTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Hydrate auth on mount
   useEffect(() => {
     hydrateFromStorage();
   }, [hydrateFromStorage]);
 
-  // Fetch user info when authenticated
   useEffect(() => {
     if (!sessionToken) {
       setUserInfo(null);
@@ -124,7 +121,6 @@ export default function SettingsScreen() {
         const parsed = new URL(result.url);
         const token = parsed.searchParams.get('token');
         if (token) {
-          // Fetch user info with the token
           const meRes = await fetch(`${API_BASE}/auth/me`, {
             headers: { Authorization: `Bearer ${token}` },
           });
@@ -150,13 +146,12 @@ export default function SettingsScreen() {
         });
       }
     } catch {
-      // Ignore logout API errors — clear local state regardless
+      // Ignore logout API errors
     }
     clearSession();
     setUserInfo(null);
   };
 
-  // Sync dietary preferences to server when authenticated
   const syncDietaryToServer = useCallback(
     (filters: string[]) => {
       if (!sessionToken) return;
@@ -167,18 +162,14 @@ export default function SettingsScreen() {
           Authorization: `Bearer ${sessionToken}`,
         },
         body: JSON.stringify({ restrictions: filters }),
-      }).catch(() => {
-        // Silent fail — local state is still saved via MMKV
-      });
+      }).catch(() => {});
     },
     [sessionToken],
   );
 
   const handleToggleDietary = (filter: string) => {
     toggleDietary(filter);
-
     if (sessionToken) {
-      // Debounce server sync
       if (dietarySyncTimer.current) clearTimeout(dietarySyncTimer.current);
       const newFilters = dietaryFilters.includes(filter)
         ? dietaryFilters.filter((f) => f !== filter)
@@ -200,9 +191,7 @@ export default function SettingsScreen() {
             try {
               await db?.runAsync('DELETE FROM saved_recipes');
               setDownloadedCount(0);
-            } catch {
-              // ignore
-            }
+            } catch {}
           },
         },
       ],
@@ -215,11 +204,7 @@ export default function SettingsScreen() {
       'This will remove all items from your shopping list. Are you sure?',
       [
         { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Clear',
-          style: 'destructive',
-          onPress: () => clearAll(),
-        },
+        { text: 'Clear', style: 'destructive', onPress: () => clearAll() },
       ],
     );
   };
@@ -227,69 +212,69 @@ export default function SettingsScreen() {
   const version = Constants.expoConfig?.version ?? '1.0.0';
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Settings</Text>
+    <ScrollView style={st.container} contentContainerStyle={st.content}>
+      <Text style={st.title}>Settings</Text>
 
       {/* ACCOUNT */}
-      <Text style={styles.sectionHeader}>ACCOUNT</Text>
-      <View style={styles.section}>
+      <Text style={st.sectionHeader}>ACCOUNT</Text>
+      <View style={st.section}>
         {isAuthenticated && userInfo ? (
           <>
-            <View style={styles.accountRow}>
+            <View style={st.accountRow}>
               {userInfo.picture_url ? (
-                <Image source={{ uri: userInfo.picture_url }} style={styles.avatar} />
+                <Image source={{ uri: userInfo.picture_url }} style={st.avatar} />
               ) : (
-                <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                  <Text style={styles.avatarInitial}>
+                <View style={[st.avatar, st.avatarPlaceholder]}>
+                  <Text style={st.avatarInitial}>
                     {userInfo.name?.charAt(0)?.toUpperCase() || '?'}
                   </Text>
                 </View>
               )}
-              <View style={styles.accountInfo}>
-                <Text style={styles.accountName}>{userInfo.name}</Text>
-                <Text style={styles.accountEmail}>{userInfo.email}</Text>
+              <View style={st.accountInfo}>
+                <Text style={st.accountName}>{userInfo.name}</Text>
+                <Text style={st.accountEmail}>{userInfo.email}</Text>
               </View>
             </View>
-            <TouchableOpacity style={styles.row} onPress={handleSignOut}>
-              <Text style={[styles.rowLabel, styles.destructiveText]}>Sign Out</Text>
+            <TouchableOpacity style={st.row} onPress={handleSignOut}>
+              <Text style={[st.rowLabel, st.destructiveText]}>Sign Out</Text>
             </TouchableOpacity>
           </>
         ) : (
           <TouchableOpacity
-            style={styles.signInButton}
+            style={st.signInButton}
             onPress={handleSignIn}
             disabled={isLoading}
           >
-            <Text style={styles.signInText}>
-              {isLoading ? 'Signing in…' : 'Sign in with Google'}
+            <Text style={st.signInText}>
+              {isLoading ? 'Signing in…' : 'SIGN IN WITH GOOGLE →'}
             </Text>
           </TouchableOpacity>
         )}
       </View>
 
       {/* PREFERENCES */}
-      <Text style={styles.sectionHeader}>PREFERENCES</Text>
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.row} onPress={() => {}}>
-          <Text style={styles.rowLabel}>Dietary filters</Text>
-          <Text style={styles.rowValue}>
+      <Text style={st.sectionHeader}>PREFERENCES</Text>
+      <View style={st.section}>
+        <TouchableOpacity style={st.row} onPress={() => {}}>
+          <Text style={st.rowLabel}>Dietary filters</Text>
+          <Text style={st.rowValue}>
             {dietaryFilters.length > 0 ? dietaryFilters.join(', ') : 'None'}
           </Text>
         </TouchableOpacity>
-        <View style={styles.dietaryOptions}>
+        <View style={st.dietaryOptions}>
           {ALL_DIETARY_OPTIONS.map(({ key, label }) => (
             <TouchableOpacity
               key={key}
               style={[
-                styles.dietaryChip,
-                dietaryFilters.includes(key) && styles.dietaryChipActive,
+                st.dietaryChip,
+                dietaryFilters.includes(key) && st.dietaryChipActive,
               ]}
               onPress={() => handleToggleDietary(key)}
             >
               <Text
                 style={[
-                  styles.dietaryChipText,
-                  dietaryFilters.includes(key) && styles.dietaryChipTextActive,
+                  st.dietaryChipText,
+                  dietaryFilters.includes(key) && st.dietaryChipTextActive,
                 ]}
               >
                 {label}
@@ -298,94 +283,94 @@ export default function SettingsScreen() {
           ))}
         </View>
 
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Default serving size</Text>
-          <View style={styles.stepper}>
+        <View style={st.row}>
+          <Text style={st.rowLabel}>Default serving size</Text>
+          <View style={st.stepper}>
             <TouchableOpacity
-              style={styles.stepperButton}
+              style={st.stepperButton}
               onPress={() => setDefaultServings(Math.max(1, defaultServings - 1))}
             >
-              <Text style={styles.stepperText}>−</Text>
+              <Text style={st.stepperText}>−</Text>
             </TouchableOpacity>
-            <Text style={styles.stepperValue}>{defaultServings}</Text>
+            <Text style={st.stepperValue}>{defaultServings}</Text>
             <TouchableOpacity
-              style={styles.stepperButton}
+              style={st.stepperButton}
               onPress={() => setDefaultServings(Math.min(20, defaultServings + 1))}
             >
-              <Text style={styles.stepperText}>+</Text>
+              <Text style={st.stepperText}>+</Text>
             </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.row} onPress={cycleTextSize}>
-          <Text style={styles.rowLabel}>Text size</Text>
-          <Text style={styles.rowValue}>{TEXT_SIZE_LABELS[textSize]}</Text>
+        <TouchableOpacity style={st.row} onPress={cycleTextSize}>
+          <Text style={st.rowLabel}>Text size</Text>
+          <Text style={st.rowValue}>{TEXT_SIZE_LABELS[textSize]}</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.row} onPress={cycleTheme}>
-          <Text style={styles.rowLabel}>Theme</Text>
-          <Text style={styles.rowValue}>{THEME_LABELS[theme]}</Text>
+        <TouchableOpacity style={st.row} onPress={cycleTheme}>
+          <Text style={st.rowLabel}>Theme</Text>
+          <Text style={st.rowValue}>{THEME_LABELS[theme]}</Text>
         </TouchableOpacity>
       </View>
 
       {/* NOTIFICATIONS */}
-      <Text style={styles.sectionHeader}>NOTIFICATIONS</Text>
-      <View style={styles.section}>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>New recipes from saved sites</Text>
-          <Switch value={false} disabled />
+      <Text style={st.sectionHeader}>NOTIFICATIONS</Text>
+      <View style={st.section}>
+        <View style={st.row}>
+          <Text style={st.rowLabel}>New recipes from saved sites</Text>
+          <Switch value={false} disabled trackColor={{ true: colors.accent }} />
         </View>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Cooking reminders</Text>
-          <Switch value={false} disabled />
+        <View style={st.row}>
+          <Text style={st.rowLabel}>Cooking reminders</Text>
+          <Switch value={false} disabled trackColor={{ true: colors.accent }} />
         </View>
       </View>
 
       {/* DATA */}
-      <Text style={styles.sectionHeader}>DATA</Text>
-      <View style={styles.section}>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Downloaded recipes</Text>
-          <Text style={styles.rowValue}>
+      <Text style={st.sectionHeader}>DATA</Text>
+      <View style={st.section}>
+        <View style={st.row}>
+          <Text style={st.rowLabel}>Downloaded recipes</Text>
+          <Text style={st.rowValue}>
             {downloadedCount !== null ? `${downloadedCount}` : '…'}
           </Text>
         </View>
-        <TouchableOpacity style={styles.row} onPress={handleClearCache}>
-          <Text style={[styles.rowLabel, styles.destructiveText]}>Clear offline cache</Text>
+        <TouchableOpacity style={st.row} onPress={handleClearCache}>
+          <Text style={[st.rowLabel, st.destructiveText]}>Clear offline cache</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.row} onPress={handleClearShoppingList}>
-          <Text style={[styles.rowLabel, styles.destructiveText]}>Clear shopping list</Text>
+        <TouchableOpacity style={st.row} onPress={handleClearShoppingList}>
+          <Text style={[st.rowLabel, st.destructiveText]}>Clear shopping list</Text>
         </TouchableOpacity>
       </View>
 
       {/* ABOUT */}
-      <Text style={styles.sectionHeader}>ABOUT</Text>
-      <View style={styles.section}>
-        <View style={styles.row}>
-          <Text style={styles.rowLabel}>Version</Text>
-          <Text style={styles.rowValue}>{version}</Text>
+      <Text style={st.sectionHeader}>ABOUT</Text>
+      <View style={st.section}>
+        <View style={st.row}>
+          <Text style={st.rowLabel}>Version</Text>
+          <Text style={st.rowValue}>{version}</Text>
         </View>
         <TouchableOpacity
-          style={styles.row}
+          style={st.row}
           onPress={() => WebBrowser.openBrowserAsync('https://reducedrecipes.com/privacy')}
         >
-          <Text style={styles.rowLabel}>Privacy Policy</Text>
+          <Text style={st.rowLabel}>Privacy Policy</Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={styles.row}
+          style={st.row}
           onPress={() => WebBrowser.openBrowserAsync('https://reducedrecipes.com/remove')}
         >
-          <Text style={styles.rowLabel}>Request Recipe Removal</Text>
+          <Text style={st.rowLabel}>Request Recipe Removal</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={styles.row} onPress={() => {}}>
-          <Text style={styles.rowLabel}>Rate the App</Text>
+        <TouchableOpacity style={st.row} onPress={() => {}}>
+          <Text style={st.rowLabel}>Rate the App</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
   );
 }
 
-const styles = StyleSheet.create({
+const st = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors.bg,
@@ -396,22 +381,23 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   title: {
-    fontFamily: fonts.display,
+    fontFamily: fonts.serif,
     fontSize: 28,
     color: colors.ink,
     marginBottom: 24,
   },
   sectionHeader: {
-    fontFamily: fonts.bodyMed,
-    fontSize: 12,
-    color: colors.inkMuted,
-    letterSpacing: 1,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    letterSpacing: 1.5,
     marginTop: 24,
     marginBottom: 8,
   },
   section: {
     backgroundColor: colors.bgCard,
-    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: colors.rule,
     overflow: 'hidden',
   },
   row: {
@@ -420,19 +406,20 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.bgMuted,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.rule,
   },
   rowLabel: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.sans,
     fontSize: 15,
     color: colors.ink,
     flex: 1,
   },
   rowValue: {
-    fontFamily: fonts.body,
-    fontSize: 15,
-    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    color: colors.inkFaint,
+    letterSpacing: 0.5,
   },
   destructiveText: {
     color: colors.error,
@@ -442,8 +429,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: colors.bgMuted,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.rule,
   },
   avatar: {
     width: 44,
@@ -452,27 +439,27 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   avatarPlaceholder: {
-    backgroundColor: colors.orangeLight,
+    backgroundColor: colors.accentLight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   avatarInitial: {
-    fontFamily: fonts.bodyMed,
+    fontFamily: fonts.sansMedium,
     fontSize: 18,
-    color: colors.orange,
+    color: colors.accent,
   },
   accountInfo: {
     flex: 1,
   },
   accountName: {
-    fontFamily: fonts.bodyMed,
+    fontFamily: fonts.sansMedium,
     fontSize: 16,
     color: colors.ink,
   },
   accountEmail: {
-    fontFamily: fonts.body,
+    fontFamily: fonts.sans,
     fontSize: 13,
-    color: colors.inkMuted,
+    color: colors.inkFaint,
     marginTop: 2,
   },
   signInButton: {
@@ -481,9 +468,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   signInText: {
-    fontFamily: fonts.bodyMed,
-    fontSize: 15,
-    color: colors.orange,
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.accent,
+    letterSpacing: 1,
   },
   dietaryOptions: {
     flexDirection: 'row',
@@ -495,19 +483,22 @@ const styles = StyleSheet.create({
   dietaryChip: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 16,
-    backgroundColor: colors.bgMuted,
+    borderWidth: 1,
+    borderColor: colors.rule,
   },
   dietaryChipActive: {
-    backgroundColor: colors.orangeLight,
+    backgroundColor: colors.accentLight,
+    borderColor: colors.accent,
   },
   dietaryChipText: {
-    fontFamily: fonts.body,
-    fontSize: 13,
-    color: colors.inkMuted,
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   dietaryChipTextActive: {
-    color: colors.orange,
+    color: colors.accent,
   },
   stepper: {
     flexDirection: 'row',
@@ -517,18 +508,18 @@ const styles = StyleSheet.create({
   stepperButton: {
     width: 32,
     height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.bgMuted,
+    borderWidth: 1,
+    borderColor: colors.rule,
     alignItems: 'center',
     justifyContent: 'center',
   },
   stepperText: {
-    fontFamily: fonts.bodyMed,
+    fontFamily: fonts.sansMedium,
     fontSize: 18,
     color: colors.ink,
   },
   stepperValue: {
-    fontFamily: fonts.bodyMed,
+    fontFamily: fonts.mono,
     fontSize: 15,
     color: colors.ink,
     minWidth: 20,
