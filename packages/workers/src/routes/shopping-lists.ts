@@ -46,6 +46,7 @@ shoppingLists.get('/api/v1/shopping-lists', requireAuth, async (c) => {
             sl.share_token, sl.share_expires_at, sl.created_at, sl.updated_at,
             (SELECT COUNT(*) FROM shopping_list_items WHERE shopping_list_id = sl.id) AS item_count,
             (SELECT COUNT(DISTINCT recipe_id) FROM shopping_list_recipes WHERE shopping_list_id = sl.id) AS recipe_count,
+            (SELECT GROUP_CONCAT(recipe_id) FROM shopping_list_recipes WHERE shopping_list_id = sl.id) AS recipe_ids,
             (SELECT COUNT(*) FROM shopping_list_members WHERE shopping_list_id = sl.id) AS member_count,
             'owner' AS role,
             0 AS is_shared,
@@ -63,6 +64,7 @@ shoppingLists.get('/api/v1/shopping-lists', requireAuth, async (c) => {
             sl.share_token, sl.share_expires_at, sl.created_at, sl.updated_at,
             (SELECT COUNT(*) FROM shopping_list_items WHERE shopping_list_id = sl.id) AS item_count,
             (SELECT COUNT(DISTINCT recipe_id) FROM shopping_list_recipes WHERE shopping_list_id = sl.id) AS recipe_count,
+            (SELECT GROUP_CONCAT(recipe_id) FROM shopping_list_recipes WHERE shopping_list_id = sl.id) AS recipe_ids,
             0 AS member_count,
             'member' AS role,
             1 AS is_shared,
@@ -153,7 +155,29 @@ shoppingLists.get('/api/v1/shopping-lists/:id', requireAuth, async (c) => {
     .bind(listId)
     .first<{ count: number }>();
 
-  return c.json({ ...list, ...rollupItems(items), member_count: memberRow?.count ?? 0 });
+  // Fetch recipe titles for provenance display
+  const recipes: Record<string, string> = {};
+  if (c.env.DB) {
+    const recipeRows = await c.env.USERS_DB!.prepare(
+      'SELECT recipe_id FROM shopping_list_recipes WHERE shopping_list_id = ?',
+    )
+      .bind(listId)
+      .all();
+    const recipeIds = (recipeRows.results ?? []).map((r: any) => r.recipe_id as string);
+    if (recipeIds.length > 0) {
+      const placeholders = recipeIds.map(() => '?').join(',');
+      const titleRows = await c.env.DB.prepare(
+        `SELECT id, title FROM recipes WHERE id IN (${placeholders})`,
+      )
+        .bind(...recipeIds)
+        .all();
+      for (const row of (titleRows.results ?? []) as { id: string; title: string }[]) {
+        recipes[row.id] = row.title;
+      }
+    }
+  }
+
+  return c.json({ ...list, ...rollupItems(items), member_count: memberRow?.count ?? 0, recipes });
 });
 
 // PATCH /api/v1/shopping-lists/:id — update list name
@@ -244,16 +268,20 @@ shoppingLists.post('/api/v1/shopping-lists/:id/recipes', requireAuth, async (c) 
   }
 
   const now = new Date().toISOString();
-  const items: { id: string; original_text: string }[] = [];
 
-  // Insert recipe junction
-  await c.env.USERS_DB!.prepare(
-    'INSERT INTO shopping_list_recipes (shopping_list_id, recipe_id, added_at) VALUES (?, ?, ?)',
+  // INSERT OR IGNORE — changes=0 means recipe was already on the list
+  const junction = await c.env.USERS_DB!.prepare(
+    'INSERT OR IGNORE INTO shopping_list_recipes (shopping_list_id, recipe_id, added_at) VALUES (?, ?, ?)',
   )
     .bind(listId, body.recipe_id, now)
     .run();
 
-  // Insert items with parsing=1
+  if (!junction.meta.changes) {
+    return c.json({ items: [], already_added: true }, 200);
+  }
+
+  const items: { id: string; original_text: string }[] = [];
+
   for (const raw of body.ingredients) {
     const id = crypto.randomUUID();
     items.push({ id, original_text: raw });
@@ -266,7 +294,6 @@ shoppingLists.post('/api/v1/shopping-lists/:id/recipes', requireAuth, async (c) 
       .run();
   }
 
-  // Send parse job to queue
   if (c.env.INGREDIENT_PARSE_QUEUE) {
     const job: IngredientParseJob = {
       shopping_list_id: listId,
@@ -588,11 +615,34 @@ shoppingLists.get('/api/v1/shared/lists/:token', async (c) => {
     .bind(list.user_id)
     .first<{ name: string }>();
 
+  // Fetch recipe titles for provenance display
+  const recipes: Record<string, string> = {};
+  if (c.env.DB) {
+    const recipeRows = await c.env.USERS_DB!.prepare(
+      'SELECT recipe_id FROM shopping_list_recipes WHERE shopping_list_id = ?',
+    )
+      .bind(list.id)
+      .all();
+    const recipeIds = (recipeRows.results ?? []).map((r: any) => r.recipe_id as string);
+    if (recipeIds.length > 0) {
+      const placeholders = recipeIds.map(() => '?').join(',');
+      const titleRows = await c.env.DB.prepare(
+        `SELECT id, title FROM recipes WHERE id IN (${placeholders})`,
+      )
+        .bind(...recipeIds)
+        .all();
+      for (const row of (titleRows.results ?? []) as { id: string; title: string }[]) {
+        recipes[row.id] = row.title;
+      }
+    }
+  }
+
   return c.json({
     ...list,
     ...rollupItems(items),
     member_count: memberRow?.count ?? 0,
     owner_name: owner?.name ?? null,
+    recipes,
   });
 });
 

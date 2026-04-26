@@ -15,11 +15,13 @@ function RollupItemRow({
   onToggle,
   onDelete,
   isChecked = false,
+  recipes = {},
 }: {
   item: SmartRollupItem;
   onToggle: () => void;
   onDelete: () => void;
   isChecked?: boolean;
+  recipes?: Record<string, string>;
 }) {
   const [expanded, setExpanded] = useState(false);
   const sources = item.sources ?? [];
@@ -74,6 +76,19 @@ function RollupItemRow({
               ({recipeCount} recipes)
             </span>
           )}
+          {recipeCount === 1 && (() => {
+            const recipeId = [...uniqueRecipeIds][0]!;
+            return (
+              <Link
+                to={`/recipe/${recipeId}`}
+                className="mono"
+                style={{ marginLeft: 6, fontSize: 10, color: "var(--ink-3)", textDecoration: "none" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {recipes[recipeId] || "recipe"}
+              </Link>
+            );
+          })()}
         </span>
         <button
           onClick={onDelete}
@@ -119,7 +134,7 @@ function RollupItemRow({
                 }}
               >
                 <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {source.original_text || item.canonical_item}
+                  {recipes[source.recipe_id!] || source.original_text || item.canonical_item}
                   {source.quantity != null && ` (${source.quantity}${item.unit ? ` ${item.unit}` : ""})`}
                 </span>
                 <Link
@@ -141,11 +156,13 @@ function AisleSection({
   items,
   onToggle,
   onDelete,
+  recipes = {},
 }: {
   category: string;
   items: SmartRollupItem[];
   onToggle: (item: SmartRollupItem) => void;
   onDelete: (item: SmartRollupItem) => void;
+  recipes?: Record<string, string>;
 }) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -178,6 +195,7 @@ function AisleSection({
               item={item}
               onToggle={() => onToggle(item)}
               onDelete={() => onDelete(item)}
+              recipes={recipes}
             />
           ))}
         </div>
@@ -263,6 +281,7 @@ export default function ShoppingListPage() {
 
   const uncheckedItems = list.items.unchecked;
   const checkedItems = list.items.checked;
+  const recipeTitleMap = list.recipes ?? {};
 
   // Group unchecked items by aisle category
   const AISLE_ORDER = [
@@ -391,6 +410,7 @@ export default function ShoppingListPage() {
             key={category}
             category={category}
             items={items}
+            recipes={recipeTitleMap}
             onToggle={(item) => {
               for (const s of item.sources ?? []) {
                 updateItem({ itemId: s.item_id, checked: 1 });
@@ -474,6 +494,7 @@ export default function ShoppingListPage() {
                   key={item.canonical_item}
                   item={item}
                   isChecked
+                  recipes={recipeTitleMap}
                   onToggle={() => {
                     for (const s of item.sources ?? []) {
                       updateItem({ itemId: s.item_id, checked: 0 });

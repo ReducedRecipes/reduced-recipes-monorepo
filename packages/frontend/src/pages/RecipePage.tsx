@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "react-router-dom";
 import { useRecipe } from "../hooks/useRecipe";
 import { useRecipes } from "../hooks/useRecipes";
@@ -106,6 +107,7 @@ export default function RecipePage() {
   const { data: vectorSimilar } = useSimilarRecipes(id ?? "");
   const { isAuthenticated } = useAuth();
   const { lists, createListAsync } = useShoppingLists();
+  const queryClient = useQueryClient();
 
   // Fall back to cuisine/tag-based similar recipes if vector search returns nothing
   const similarParams = recipe?.cuisine
@@ -132,12 +134,102 @@ export default function RecipePage() {
   const [cookMode, setCookMode] = useState(false);
   const [showListPicker, setShowListPicker] = useState(false);
   const [addingToList, setAddingToList] = useState<string | null>(null);
-  const [addedToList, setAddedToList] = useState<string | null>(null);
+  const [creatingNew, setCreatingNew] = useState(false);
+  const [newListName, setNewListName] = useState("");
+  const [pickerError, setPickerError] = useState<string | null>(null);
+  const [retryTarget, setRetryTarget] = useState<
+    | { type: "add"; listId: string; listName: string }
+    | { type: "create" }
+    | null
+  >(null);
+  const [confirmation, setConfirmation] = useState<{
+    listId: string;
+    listName: string;
+  } | null>(null);
   useEffect(() => {
     setServings(baseServings);
   }, [baseServings]);
 
   const multiplier = baseServings > 0 ? servings / baseServings : 1;
+
+  useEffect(() => {
+    if (!confirmation) return;
+    const timer = setTimeout(() => setConfirmation(null), 3000);
+    return () => clearTimeout(timer);
+  }, [confirmation]);
+
+  const recipeIdsPerList = useMemo(() => {
+    const map = new Map<string, Set<string>>();
+    for (const list of lists) {
+      if (list.recipe_ids) {
+        map.set(list.id, new Set(list.recipe_ids.split(",")));
+      }
+    }
+    return map;
+  }, [lists]);
+
+  async function handleAddToList(listId: string, listName: string) {
+    if (!recipe) return;
+    setCreatingNew(false);
+    setPickerError(null);
+    setRetryTarget(null);
+    setAddingToList(listId);
+    try {
+      const result = await addRecipeToList(listId, {
+        recipe_id: recipe.id,
+        ingredients: recipe.ingredients,
+      });
+      if (result.already_added) {
+        setPickerError("Ingredients already on this list");
+      } else {
+        setShowListPicker(false);
+        setConfirmation({ listId, listName });
+        queryClient.invalidateQueries({ queryKey: ["shopping-lists"] });
+      }
+    } catch {
+      setPickerError("Something went wrong");
+      setRetryTarget({ type: "add", listId, listName });
+    }
+    setAddingToList(null);
+  }
+
+  async function handleCreateAndAdd() {
+    if (!recipe) return;
+    const name = newListName.trim() || recipe.title;
+    setPickerError(null);
+    setRetryTarget(null);
+    setAddingToList("new");
+    try {
+      const result = await createListAsync({ name });
+      if (!result?.id) throw new Error("No list ID");
+      try {
+        await addRecipeToList(result.id, {
+          recipe_id: recipe.id,
+          ingredients: recipe.ingredients,
+        });
+        setShowListPicker(false);
+        setCreatingNew(false);
+        setConfirmation({ listId: result.id, listName: name });
+        queryClient.invalidateQueries({ queryKey: ["shopping-lists"] });
+      } catch {
+        setPickerError("Something went wrong");
+        setRetryTarget({ type: "add", listId: result.id, listName: name });
+      }
+    } catch {
+      setPickerError("Something went wrong");
+      setRetryTarget({ type: "create" });
+    }
+    setAddingToList(null);
+  }
+
+  async function handleRetry() {
+    if (!retryTarget) return;
+    if (retryTarget.type === "add") {
+      await handleAddToList(retryTarget.listId, retryTarget.listName);
+    } else {
+      await handleCreateAndAdd();
+    }
+  }
 
   // SEO: document title + meta tags
   useEffect(() => {
@@ -391,90 +483,132 @@ export default function RecipePage() {
                 {/* Shopping list integration */}
                 {isAuthenticated && (
                   <div className="relative mt-5">
-                    {addedToList ? (
-                      <p className="font-mono text-xs text-accent-ink">
-                        Added to list{" "}
+                    <Pill
+                      onClick={() => {
+                        setShowListPicker((v) => !v);
+                        setCreatingNew(false);
+                        setPickerError(null);
+                        setRetryTarget(null);
+                      }}
+                    >
+                      + Shopping list
+                    </Pill>
+
+                    {confirmation && (
+                      <p className="mt-2 font-mono text-xs text-accent-ink">
+                        Ingredients added to {confirmation.listName}{" "}
                         <Link
-                          to={`/shopping-lists/${addedToList}`}
+                          to={`/shopping-lists/${confirmation.listId}`}
                           className="underline"
                         >
                           View →
                         </Link>
                       </p>
-                    ) : (
-                      <Pill onClick={() => setShowListPicker((v) => !v)}>
-                        + Shopping list
-                      </Pill>
                     )}
+
                     {showListPicker && (
                       <>
                         <div
                           className="fixed inset-0 z-10"
                           onClick={() => setShowListPicker(false)}
                         />
-                        <div className="absolute left-0 z-20 mt-2 w-56 border border-rule bg-bg shadow-lg">
+                        <div className="absolute left-0 z-20 mt-2 w-64 border border-rule bg-bg shadow-lg">
                           <div className="border-b border-rule px-3 py-2">
-                            <span className="caps text-ink-3">Choose a list</span>
+                            <span className="caps text-ink-3">
+                              Choose a list
+                            </span>
                           </div>
+
+                          {pickerError && (
+                            <div className="flex items-center justify-between border-b border-rule px-3 py-2">
+                              <span className="text-xs text-red-600">
+                                {pickerError}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={handleRetry}
+                                className="ml-2 text-xs font-medium text-ink-2 underline hover:text-ink"
+                              >
+                                Try again
+                              </button>
+                            </div>
+                          )}
+
                           <ul className="max-h-48 overflow-y-auto">
-                            {lists.map((list) => (
-                              <li key={list.id}>
-                                <button
-                                  type="button"
-                                  disabled={addingToList === list.id}
-                                  onClick={async () => {
-                                    if (!recipe) return;
-                                    setAddingToList(list.id);
-                                    try {
-                                      await addRecipeToList(list.id, {
-                                        recipe_id: recipe.id,
-                                        ingredients: recipe.ingredients,
-                                      });
-                                      setAddedToList(list.id);
-                                      setShowListPicker(false);
-                                    } catch {
-                                      /* ignore */
+                            {lists.map((list) => {
+                              const hasRecipe = id
+                                ? (recipeIdsPerList.get(list.id)?.has(id) ??
+                                  false)
+                                : false;
+                              return (
+                                <li key={list.id}>
+                                  <button
+                                    type="button"
+                                    disabled={addingToList === list.id}
+                                    onClick={() =>
+                                      handleAddToList(list.id, list.name)
                                     }
-                                    setAddingToList(null);
-                                  }}
-                                  className="block w-full px-3 py-2 text-left text-sm text-ink-2 transition-colors hover:bg-bg-2 disabled:opacity-50"
-                                >
-                                  {addingToList === list.id
-                                    ? "Adding..."
-                                    : list.name}
-                                </button>
-                              </li>
-                            ))}
-                            {lists.length === 0 && (
-                              <li>
-                                <button
-                                  type="button"
-                                  onClick={async () => {
-                                    const result = await createListAsync({
-                                      name: "My Shopping List",
-                                    });
-                                    if (result?.id && recipe) {
-                                      setAddingToList(result.id);
-                                      try {
-                                        await addRecipeToList(result.id, {
-                                          recipe_id: recipe.id,
-                                          ingredients: recipe.ingredients,
-                                        });
-                                        setAddedToList(result.id);
-                                        setShowListPicker(false);
-                                      } catch {
-                                        /* ignore */
-                                      }
-                                      setAddingToList(null);
-                                    }
-                                  }}
-                                  className="block w-full px-3 py-2 text-left text-sm text-accent-ink transition-colors hover:bg-bg-2"
-                                >
-                                  + Create new list
-                                </button>
-                              </li>
-                            )}
+                                    className="flex w-full items-center justify-between px-3 py-2 text-left text-sm text-ink-2 transition-colors hover:bg-bg-2 disabled:opacity-50"
+                                  >
+                                    <span>
+                                      {addingToList === list.id
+                                        ? "Adding..."
+                                        : list.name}
+                                    </span>
+                                    {hasRecipe && (
+                                      <span className="text-[10px] text-ink-3">
+                                        ✓ Ingredients added
+                                      </span>
+                                    )}
+                                  </button>
+                                </li>
+                              );
+                            })}
                           </ul>
+
+                          <div className="border-t border-rule">
+                            {creatingNew ? (
+                              <div className="px-3 py-2">
+                                <input
+                                  type="text"
+                                  autoFocus
+                                  value={newListName}
+                                  onChange={(e) =>
+                                    setNewListName(e.target.value)
+                                  }
+                                  placeholder={recipe?.title ?? "New list"}
+                                  onKeyDown={(e) => {
+                                    if (e.key === "Enter")
+                                      handleCreateAndAdd();
+                                  }}
+                                  className="w-full border border-rule bg-bg px-2 py-1.5 text-sm text-ink outline-none focus:border-ink"
+                                />
+                                <button
+                                  type="button"
+                                  disabled={addingToList === "new"}
+                                  onClick={handleCreateAndAdd}
+                                  className="mt-1.5 w-full bg-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-wider text-bg transition-opacity hover:opacity-90 disabled:opacity-50"
+                                >
+                                  {addingToList === "new"
+                                    ? "Creating..."
+                                    : "Create & add"}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCreatingNew(true);
+                                  setNewListName("");
+                                  setPickerError(null);
+                                  setRetryTarget(null);
+                                }}
+                                className="block w-full px-3 py-2 text-left text-sm text-accent-ink transition-colors hover:bg-bg-2"
+                              >
+                                + Create new list
+                              </button>
+                            )}
+                          </div>
                         </div>
                       </>
                     )}
