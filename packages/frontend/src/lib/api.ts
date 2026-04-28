@@ -388,6 +388,7 @@ export function syncBookmarks(actions: BookmarkSyncAction[]): Promise<BookmarkSy
 export interface ShoppingListSummary extends ShoppingList {
   item_count: number;
   recipe_count: number;
+  recipe_ids?: string;
   member_count?: number;
   role?: 'owner' | 'member';
   is_shared?: number;
@@ -400,6 +401,7 @@ export interface ShoppingListListResponse {
 
 export interface ShoppingListDetailResponse extends ShoppingList {
   items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
+  recipes?: Record<string, string>;
 }
 
 export interface ShareLinkResponse {
@@ -436,8 +438,8 @@ export function deleteShoppingList(id: string): Promise<void> {
   return apiFetch<void>(`/shopping-lists/${encodeURIComponent(id)}`, { method: "DELETE" });
 }
 
-export function addRecipeToList(listId: string, data: { recipe_id: string; ingredients: string[] }): Promise<{ items: { id: string; original_text: string }[] }> {
-  return apiFetch<{ items: { id: string; original_text: string }[] }>(`/shopping-lists/${encodeURIComponent(listId)}/recipes`, {
+export function addRecipeToList(listId: string, data: { recipe_id: string; ingredients: string[] }): Promise<{ items: { id: string; original_text: string }[]; already_added?: boolean }> {
+  return apiFetch<{ items: { id: string; original_text: string }[]; already_added?: boolean }>(`/shopping-lists/${encodeURIComponent(listId)}/recipes`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(data),

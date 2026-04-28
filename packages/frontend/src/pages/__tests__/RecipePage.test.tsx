@@ -1,21 +1,49 @@
 import { describe, it, expect, vi, afterEach, beforeEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent, waitFor, act } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import RecipePage from "../RecipePage";
 import type { RecipeDocument } from "@rr/shared/types";
 
+const mockAuthState = {
+  user: null,
+  isAuthenticated: false,
+  isLoading: false,
+  isNewUser: false,
+  logout: vi.fn(),
+  login: vi.fn(),
+  checkAuth: vi.fn(),
+};
+
 vi.mock("../../hooks/useAuth", () => ({
-  useAuth: () => ({
-    user: null,
-    isAuthenticated: false,
-    isLoading: false,
-    isNewUser: false,
-    logout: vi.fn(),
-    login: vi.fn(),
-    checkAuth: vi.fn(),
-  }),
+  useAuth: () => mockAuthState,
+}));
+
+const mockShoppingListsState: {
+  lists: any[];
+  isLoading: boolean;
+  createList: ReturnType<typeof vi.fn>;
+  createListAsync: ReturnType<typeof vi.fn>;
+  updateList: ReturnType<typeof vi.fn>;
+  deleteList: ReturnType<typeof vi.fn>;
+  isCreating: boolean;
+  isUpdating: boolean;
+  isDeleting: boolean;
+} = {
+  lists: [],
+  isLoading: false,
+  createList: vi.fn(),
+  createListAsync: vi.fn(),
+  updateList: vi.fn(),
+  deleteList: vi.fn(),
+  isCreating: false,
+  isUpdating: false,
+  isDeleting: false,
+};
+
+vi.mock("../../hooks/useShoppingLists", () => ({
+  useShoppingLists: () => mockShoppingListsState,
 }));
 
 vi.mock("../../components/BookmarkButton", () => ({
@@ -25,10 +53,12 @@ vi.mock("../../components/BookmarkButton", () => ({
 vi.mock("../../lib/api", () => ({
   fetchRecipe: vi.fn(),
   fetchRecipes: vi.fn().mockResolvedValue({ items: [], next_cursor: null }),
+  addRecipeToList: vi.fn(),
 }));
 
-import { fetchRecipe } from "../../lib/api";
+import { fetchRecipe, addRecipeToList } from "../../lib/api";
 const mockFetchRecipe = vi.mocked(fetchRecipe);
+const mockAddRecipeToList = vi.mocked(addRecipeToList);
 
 const mockRecipe: RecipeDocument = {
   id: "abc123",
@@ -273,6 +303,12 @@ describe("RecipePage", () => {
     expect(screen.getByText("Recipe #abc123")).toBeDefined();
   });
 
+  it("does not render shopping list pill when not authenticated", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    expect(screen.queryByText("+ Shopping list")).toBeNull();
+  });
+
   it("renders filed-under card with author and source", async () => {
     renderPage();
     await screen.findByText("Chocolate Cake");
@@ -315,5 +351,306 @@ describe("RecipePage", () => {
     const callout = screen.getByText(/Just the recipe/);
     expect(callout).toBeDefined();
     expect(callout.textContent).toMatch(/94%/);
+  });
+
+  describe("Shopping list picker (authenticated)", () => {
+    const mockList = (overrides: Record<string, unknown> = {}) => ({
+      id: "list-1",
+      user_id: "user-1",
+      collection_id: null,
+      name: "Groceries",
+      is_default: 1,
+      share_token: null,
+      share_expires_at: null,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+      item_count: 3,
+      recipe_count: 1,
+      ...overrides,
+    });
+
+    beforeEach(() => {
+      mockAuthState.isAuthenticated = true;
+      mockShoppingListsState.lists = [];
+      mockShoppingListsState.createListAsync = vi.fn().mockResolvedValue({ id: "new-1" });
+      mockAddRecipeToList.mockResolvedValue({ items: [] });
+    });
+
+    afterEach(() => {
+      mockAuthState.isAuthenticated = false;
+      mockShoppingListsState.lists = [];
+      vi.useRealTimers();
+    });
+
+    it("renders pill when authenticated", async () => {
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      expect(screen.getByText("+ Shopping list")).toBeDefined();
+    });
+
+    it("opens picker dropdown on pill click", async () => {
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      expect(screen.getByText("Choose a list")).toBeDefined();
+    });
+
+    it("shows + Create new list with zero lists", async () => {
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      expect(screen.getByText("+ Create new list")).toBeDefined();
+    });
+
+    it("shows + Create new list alongside existing lists", async () => {
+      mockShoppingListsState.lists = [mockList()];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      expect(screen.getByText("Groceries")).toBeDefined();
+      expect(screen.getByText("+ Create new list")).toBeDefined();
+    });
+
+    it("expands inline input on + Create new list click", async () => {
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("+ Create new list"));
+      expect(screen.getByPlaceholderText("Chocolate Cake")).toBeDefined();
+      expect(screen.getByText("Create & add")).toBeDefined();
+    });
+
+    it("submits with recipe title when input is empty", async () => {
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("+ Create new list"));
+      fireEvent.click(screen.getByText("Create & add"));
+
+      await waitFor(() => {
+        expect(mockShoppingListsState.createListAsync).toHaveBeenCalledWith({
+          name: "Chocolate Cake",
+        });
+      });
+    });
+
+    it("submits with custom name when input is filled", async () => {
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("+ Create new list"));
+      fireEvent.change(screen.getByPlaceholderText("Chocolate Cake"), {
+        target: { value: "Weekend Baking" },
+      });
+      fireEvent.click(screen.getByText("Create & add"));
+
+      await waitFor(() => {
+        expect(mockShoppingListsState.createListAsync).toHaveBeenCalledWith({
+          name: "Weekend Baking",
+        });
+      });
+    });
+
+    it("submits on Enter key in name input", async () => {
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("+ Create new list"));
+      const input = screen.getByPlaceholderText("Chocolate Cake");
+      fireEvent.keyDown(input, { key: "Enter" });
+
+      await waitFor(() => {
+        expect(mockShoppingListsState.createListAsync).toHaveBeenCalled();
+      });
+    });
+
+    it("clicking existing list cancels creation mode", async () => {
+      mockShoppingListsState.lists = [mockList()];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("+ Create new list"));
+      expect(screen.getByPlaceholderText("Chocolate Cake")).toBeDefined();
+
+      fireEvent.click(screen.getByText("Groceries"));
+
+      await waitFor(() => {
+        expect(screen.queryByPlaceholderText("Chocolate Cake")).toBeNull();
+      });
+    });
+
+    it("adds recipe to existing list and shows confirmation", async () => {
+      mockShoppingListsState.lists = [mockList()];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("Groceries"));
+
+      await waitFor(() => {
+        expect(mockAddRecipeToList).toHaveBeenCalledWith("list-1", {
+          recipe_id: "abc123",
+          ingredients: ["2 cups flour", "1 cup sugar", "3 eggs"],
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Ingredients added to Groceries/)).toBeDefined();
+        expect(screen.getByText("View →")).toBeDefined();
+      });
+    });
+
+    it("pill stays visible after adding to list", async () => {
+      mockShoppingListsState.lists = [mockList()];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("Groceries"));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Ingredients added to Groceries/)).toBeDefined();
+      });
+
+      expect(screen.getByText("+ Shopping list")).toBeDefined();
+    });
+
+    it("confirmation auto-dismisses after 3 seconds", async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      mockShoppingListsState.lists = [mockList()];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("Groceries"));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Ingredients added to Groceries/)).toBeDefined();
+      });
+
+      act(() => {
+        vi.advanceTimersByTime(3100);
+      });
+
+      expect(screen.queryByText(/Ingredients added to Groceries/)).toBeNull();
+    });
+
+    it("can re-open picker after adding", async () => {
+      mockShoppingListsState.lists = [mockList()];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("Groceries"));
+
+      await waitFor(() => {
+        expect(screen.getByText(/Ingredients added to Groceries/)).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      expect(screen.getByText("Choose a list")).toBeDefined();
+    });
+
+    it("shows duplicate indicator on lists containing current recipe", async () => {
+      mockShoppingListsState.lists = [
+        mockList({ recipe_ids: "abc123,other-recipe" }),
+      ];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      expect(screen.getByText("✓ Ingredients added")).toBeDefined();
+    });
+
+    it("does not show duplicate indicator when recipe is not in list", async () => {
+      mockShoppingListsState.lists = [
+        mockList({ recipe_ids: "other-recipe" }),
+      ];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      expect(screen.queryByText("✓ Ingredients added")).toBeNull();
+    });
+
+    it("shows inline error on add failure", async () => {
+      mockAddRecipeToList.mockRejectedValueOnce(new Error("Network error"));
+      mockShoppingListsState.lists = [mockList()];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("Groceries"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Something went wrong")).toBeDefined();
+        expect(screen.getByText("Try again")).toBeDefined();
+      });
+
+      expect(screen.getByText("Choose a list")).toBeDefined();
+    });
+
+    it("shows inline error on create failure", async () => {
+      mockShoppingListsState.createListAsync = vi
+        .fn()
+        .mockRejectedValue(new Error("Create failed"));
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("+ Create new list"));
+      fireEvent.change(screen.getByPlaceholderText("Chocolate Cake"), {
+        target: { value: "My List" },
+      });
+      fireEvent.click(screen.getByText("Create & add"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Something went wrong")).toBeDefined();
+      });
+
+      expect(
+        (screen.getByPlaceholderText("Chocolate Cake") as HTMLInputElement)
+          .value,
+      ).toBe("My List");
+    });
+
+    it("retry button retries failed add operation", async () => {
+      mockAddRecipeToList
+        .mockRejectedValueOnce(new Error("Network error"))
+        .mockResolvedValueOnce({ items: [] });
+      mockShoppingListsState.lists = [mockList()];
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("Groceries"));
+
+      await waitFor(() => {
+        expect(screen.getByText("Try again")).toBeDefined();
+      });
+
+      fireEvent.click(screen.getByText("Try again"));
+
+      await waitFor(() => {
+        expect(mockAddRecipeToList).toHaveBeenCalledTimes(2);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Ingredients added to Groceries/)).toBeDefined();
+      });
+    });
+
+    it("creates list and adds recipe in one flow", async () => {
+      renderPage();
+      await screen.findByText("Chocolate Cake");
+      fireEvent.click(screen.getByText("+ Shopping list"));
+      fireEvent.click(screen.getByText("+ Create new list"));
+      fireEvent.click(screen.getByText("Create & add"));
+
+      await waitFor(() => {
+        expect(mockShoppingListsState.createListAsync).toHaveBeenCalledWith({
+          name: "Chocolate Cake",
+        });
+        expect(mockAddRecipeToList).toHaveBeenCalledWith("new-1", {
+          recipe_id: "abc123",
+          ingredients: ["2 cups flour", "1 cup sugar", "3 eggs"],
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByText(/Ingredients added to Chocolate Cake/)).toBeDefined();
+      });
+    });
   });
 });

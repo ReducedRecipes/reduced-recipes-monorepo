@@ -37,6 +37,7 @@ function createMockUsersDB(overrides: {
   items?: Record<string, unknown>[];
   itemById?: Record<string, unknown> | null;
   uncheckChanges?: number;
+  recipeLinks?: Record<string, unknown>[];
 } = {}) {
   const lists = overrides.lists ?? [];
   const listById = overrides.listById === undefined ? null : overrides.listById;
@@ -44,6 +45,7 @@ function createMockUsersDB(overrides: {
   const items = overrides.items ?? [];
   const itemById = overrides.itemById === undefined ? null : overrides.itemById;
   const uncheckChanges = overrides.uncheckChanges ?? 0;
+  const recipeLinks = overrides.recipeLinks ?? [];
 
   return {
     prepare: vi.fn((sql: string) => {
@@ -82,11 +84,11 @@ function createMockUsersDB(overrides: {
           run: vi.fn().mockResolvedValue({ success: true }),
         };
       }
-      // INSERT shopping_list_recipes
-      if (sql.includes('INSERT INTO shopping_list_recipes')) {
+      // INSERT OR IGNORE shopping_list_recipes
+      if (sql.includes('shopping_list_recipes') && sql.includes('INSERT')) {
         return {
           bind: vi.fn().mockReturnThis(),
-          run: vi.fn().mockResolvedValue({ success: true }),
+          run: vi.fn().mockResolvedValue({ success: true, meta: { changes: 1 } }),
         };
       }
       // INSERT shopping_list_items
@@ -152,6 +154,13 @@ function createMockUsersDB(overrides: {
           run: vi.fn().mockResolvedValue({ success: true }),
         };
       }
+      // SELECT recipe_ids linked to a shopping list
+      if (sql.includes('SELECT recipe_id') && sql.includes('shopping_list_recipes')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockResolvedValue(makeD1Result(recipeLinks)),
+        };
+      }
       // Fallback
       return {
         bind: vi.fn().mockReturnThis(),
@@ -163,12 +172,33 @@ function createMockUsersDB(overrides: {
   } as unknown as D1Database;
 }
 
-function makeEnv(usersDB?: D1Database): Env {
+function createMockRecipesDB(recipeTitles: Record<string, string> = {}) {
+  return {
+    prepare: vi.fn((sql: string) => {
+      if (sql.includes('SELECT id, title FROM recipes')) {
+        return {
+          bind: vi.fn().mockReturnThis(),
+          all: vi.fn().mockResolvedValue(makeD1Result(
+            Object.entries(recipeTitles).map(([id, title]) => ({ id, title })),
+          )),
+        };
+      }
+      return {
+        bind: vi.fn().mockReturnThis(),
+        first: vi.fn().mockResolvedValue(null),
+        all: vi.fn().mockResolvedValue(makeD1Result()),
+        run: vi.fn().mockResolvedValue({ success: true }),
+      };
+    }),
+  } as unknown as D1Database;
+}
+
+function makeEnv(usersDB?: D1Database, recipesDB?: D1Database): Env {
   const kvStore = new Map<string, string>();
   kvStore.set('session:valid-token', JSON.stringify({ user_id: 'user-1', created_at: Date.now() }));
 
   return {
-    DB: {} as D1Database,
+    DB: recipesDB ?? createMockRecipesDB(),
     RECIPES_KV: {} as KVNamespace,
     CACHE_KV: {} as KVNamespace,
     IMAGES_R2: {} as R2Bucket,
@@ -292,6 +322,37 @@ describe('GET /api/v1/shopping-lists/:id', () => {
     expect(res.status).toBe(404);
     const json = await res.json() as { error: { code: string } };
     expect(json.error.code).toBe('NOT_FOUND');
+  });
+
+  it('returns recipes map with recipe titles for provenance', async () => {
+    const mockList = { id: 'list-1', user_id: 'user-1', name: 'Dinner', is_default: 1, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' };
+    const mockItems = [
+      { id: 'item-1', shopping_list_id: 'list-1', item: 'Flour', original_text: '2 cups flour', checked: 0, recipe_id: 'recipe-1', quantity: 2, unit: 'cups', parse_failed: 0, parsing: 0, source: 'recipe', position: 0, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    ];
+    const recipeLinks = [{ recipe_id: 'recipe-1' }];
+    const recipeTitles = { 'recipe-1': 'Classic Pancakes' };
+    const env = makeEnv(
+      createMockUsersDB({ listById: mockList, items: mockItems, recipeLinks }),
+      createMockRecipesDB(recipeTitles),
+    );
+
+    const res = await req('/api/v1/shopping-lists/list-1', env, { headers: AUTH_HEADERS });
+    expect(res.status).toBe(200);
+    const json = await res.json() as Record<string, unknown>;
+    expect(json.recipes).toEqual({ 'recipe-1': 'Classic Pancakes' });
+  });
+
+  it('returns empty recipes map when no recipes linked', async () => {
+    const mockList = { id: 'list-1', user_id: 'user-1', name: 'Manual', is_default: 1, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' };
+    const mockItems = [
+      { id: 'item-1', shopping_list_id: 'list-1', item: 'Milk', original_text: 'Milk', checked: 0, recipe_id: null, quantity: null, unit: null, parse_failed: 0, parsing: 0, source: 'manual', position: 0, created_at: '2024-01-01T00:00:00Z', updated_at: '2024-01-01T00:00:00Z' },
+    ];
+    const env = makeEnv(createMockUsersDB({ listById: mockList, items: mockItems }));
+
+    const res = await req('/api/v1/shopping-lists/list-1', env, { headers: AUTH_HEADERS });
+    expect(res.status).toBe(200);
+    const json = await res.json() as Record<string, unknown>;
+    expect(json.recipes).toEqual({});
   });
 });
 
