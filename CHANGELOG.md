@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.1...v1.3.2) (2026-04-28)
+
+
+### Bug Fixes
+
+* configure EAS project for reduced-recipes org ([bb639b4](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/bb639b4743a64b21b61ce0b1abca828da7807df0))
+
 ## [1.3.1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.0...v1.3.1) (2026-04-28)
 
 
