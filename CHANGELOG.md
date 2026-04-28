@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.6](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.5...v1.3.6) (2026-04-28)
+
+
+### Bug Fixes
+
+* automate Play Store submission in CI ([02bce7a](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/02bce7a4e3c7967e4538811467f02ba1cbecc779))
+
 ## [1.3.5](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.4...v1.3.5) (2026-04-28)
 
 
