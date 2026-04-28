@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.4](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.3...v1.3.4) (2026-04-28)
+
+
+### Bug Fixes
+
+* trigger mobile build with EAS credentials ([301dadf](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/301dadf2c51995fa905113bec1e133bede32091d))
+
 ## [1.3.3](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.2...v1.3.3) (2026-04-28)
 
 
