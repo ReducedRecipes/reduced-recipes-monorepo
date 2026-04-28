@@ -3,12 +3,19 @@ name: Mobile Build & Submit
 on:
   push:
     tags: ['v*']
+  workflow_call:
+    inputs:
+      tag_name:
+        required: true
+        type: string
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag_name || github.ref }}
       - uses: pnpm/action-setup@v4
         with:
           version: 9
