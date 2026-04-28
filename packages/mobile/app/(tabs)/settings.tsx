@@ -17,6 +17,7 @@ import { usePreferences } from '@/hooks/usePreferences';
 import { useShoppingList } from '@/hooks/useShoppingList';
 import { colors, fonts } from '@/constants/theme';
 import type { Theme, TextSize } from '@/stores/preferences.store';
+import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { DIETARY_LABELS, type DietaryRestriction } from '@rr/shared/dietary';
 import type { User } from '@rr/shared';
@@ -46,6 +47,7 @@ export default function SettingsScreen() {
     toggleDietary,
   } = usePreferences();
   const { clearAll } = useShoppingList();
+  const router = useRouter();
   const [db, setDb] = useState<SQLite.SQLiteDatabase | null>(null);
   useEffect(() => {
     SQLite.openDatabaseAsync('recipes.db')
@@ -235,6 +237,10 @@ export default function SettingsScreen() {
                 <Text style={st.accountEmail}>{userInfo.email}</Text>
               </View>
             </View>
+            <TouchableOpacity style={st.row} onPress={() => router.push('/profile')}>
+              <Text style={st.rowLabel}>View Profile</Text>
+              <Text style={st.rowValue}>{'\u2192'}</Text>
+            </TouchableOpacity>
             <TouchableOpacity style={st.row} onPress={handleSignOut}>
               <Text style={[st.rowLabel, st.destructiveText]}>Sign Out</Text>
             </TouchableOpacity>
@@ -346,6 +352,14 @@ export default function SettingsScreen() {
       {/* ABOUT */}
       <Text style={st.sectionHeader}>ABOUT</Text>
       <View style={st.section}>
+        <TouchableOpacity style={st.row} onPress={() => router.push('/transparency')}>
+          <Text style={st.rowLabel}>Transparency</Text>
+          <Text style={st.rowValue}>{'\u203A'}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={st.row} onPress={() => router.push('/about')}>
+          <Text style={st.rowLabel}>About</Text>
+          <Text style={st.rowValue}>{'\u203A'}</Text>
+        </TouchableOpacity>
         <View style={st.row}>
           <Text style={st.rowLabel}>Version</Text>
           <Text style={st.rowValue}>{version}</Text>

@@ -16,6 +16,7 @@ vi.mock('react-native', () => ({
   RefreshControl: vi.fn(() => ({ type: 'RefreshControl' })),
   StyleSheet: { create: (s: any) => s },
   ActivityIndicator: vi.fn(() => ({ type: 'ActivityIndicator' })),
+  Linking: { openURL: vi.fn() },
 }));
 
 vi.mock('react-native-safe-area-context', () => ({
@@ -42,11 +43,9 @@ vi.mock('@/hooks/useRecipes', () => ({
   })),
 }));
 
-vi.mock('@/hooks/useSavedRecipes', () => ({
-  useSavedRecipes: () => ({
-    isSaved: () => false,
-    save: vi.fn(),
-    unsave: vi.fn(),
+vi.mock('@/hooks/useFunding', () => ({
+  useFunding: () => ({
+    data: null,
   }),
 }));
 
@@ -97,12 +96,12 @@ describe('HomeScreen (S-26)', () => {
     expect(content).toContain('Recently Added');
   });
 
-  it('has time-based greeting that changes by time of day', () => {
+  it('has manifesto section with brand messaging', () => {
     const filePath = resolve(__dirname, '../../app/(tabs)/index.tsx');
     const content = readFileSync(filePath, 'utf-8');
-    expect(content).toContain('Good morning');
-    expect(content).toContain('Good afternoon');
-    expect(content).toContain('Good evening');
+    expect(content).toContain('MANIFESTO');
+    expect(content).toContain('Recipes');
+    expect(content).toContain('reduced');
   });
 
   it('has a search bar Pressable that navigates to /search', () => {
@@ -152,8 +151,7 @@ describe('HomeScreen (S-26)', () => {
     const filePath = resolve(__dirname, '../../app/(tabs)/index.tsx');
     const content = readFileSync(filePath, 'utf-8');
     expect(content).toContain('RecipeCard');
-    expect(content).toContain('bookmarked');
-    expect(content).toContain('onToggleBookmark');
+    expect(content).toContain('recipe={item}');
   });
 
   it('shows ErrorState when all queries fail', () => {

@@ -4,13 +4,11 @@ import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import type { RecipeSummary } from '@rr/shared';
 import { colors, fonts } from '@/constants/theme';
-import { BookmarkIcon, HeartIcon } from './icons';
+import { HeartIcon } from './icons';
 import { useHeart } from '@/hooks/useHeart';
 
 export interface RecipeCardProps {
   recipe: RecipeSummary;
-  bookmarked?: boolean;
-  onToggleBookmark?: (id: string) => void;
 }
 
 function formatTime(minutes: number | null): string | null {
@@ -21,10 +19,10 @@ function formatTime(minutes: number | null): string | null {
   return m > 0 ? `${h}h ${m}m` : `${h}h`;
 }
 
-export function RecipeCard({ recipe, bookmarked = false, onToggleBookmark }: RecipeCardProps) {
+export function RecipeCard({ recipe }: RecipeCardProps) {
   const router = useRouter();
   const time = formatTime(recipe.total_time ?? recipe.cook_time);
-  const heart = useHeart(recipe.id);
+  const heart = useHeart(recipe.id, recipe.vote_count);
 
   return (
     <Pressable
@@ -52,52 +50,32 @@ export function RecipeCard({ recipe, bookmarked = false, onToggleBookmark }: Rec
         <View style={s.meta}>
           <View style={s.metaLeft}>
             {recipe.domain ? (
-              <Text style={s.domain}>{recipe.domain}</Text>
+              <Text style={s.domain} numberOfLines={1}>{recipe.domain}</Text>
             ) : null}
             {time ? (
               <Text style={s.time}>{time}</Text>
             ) : null}
           </View>
 
-          <View style={s.metaRight}>
-            {/* Heart button */}
-            <Pressable
-              onPress={heart.toggle}
-              hitSlop={8}
-              style={s.actionBtn}
-              accessible
-              accessibilityRole="button"
-              accessibilityLabel={heart.hearted ? 'Unlike recipe' : 'Like recipe'}
-            >
-              <HeartIcon
-                color={heart.hearted ? colors.accent : colors.inkFaint}
-                size={16}
-                filled={heart.hearted}
-              />
-              {heart.count > 0 && (
-                <Text style={[s.heartCount, heart.hearted && { color: colors.accent }]}>
-                  {heart.count}
-                </Text>
-              )}
-            </Pressable>
-
-            {/* Bookmark button */}
-            {onToggleBookmark && (
-              <Pressable
-                onPress={() => onToggleBookmark(recipe.id)}
-                hitSlop={8}
-                style={s.actionBtn}
-                accessible
-                accessibilityRole="button"
-                accessibilityLabel={bookmarked ? 'Remove bookmark' : 'Add bookmark'}
-              >
-                <BookmarkIcon
-                  color={bookmarked ? colors.accent : colors.inkFaint}
-                  size={16}
-                />
-              </Pressable>
+          <Pressable
+            onPress={heart.toggle}
+            hitSlop={8}
+            style={s.heartBtn}
+            accessible
+            accessibilityRole="button"
+            accessibilityLabel={heart.hearted ? 'Unlike recipe' : 'Like recipe'}
+          >
+            <HeartIcon
+              color={heart.hearted ? colors.accent : colors.inkFaint}
+              size={16}
+              filled={heart.hearted}
+            />
+            {heart.count > 0 && (
+              <Text style={[s.heartCount, heart.hearted && { color: colors.accent }]}>
+                {heart.count}
+              </Text>
             )}
-          </View>
+          </Pressable>
         </View>
       </View>
     </Pressable>
@@ -134,6 +112,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+    flex: 1,
   },
   domain: {
     fontFamily: fonts.mono,
@@ -141,6 +120,7 @@ const s = StyleSheet.create({
     color: colors.inkFaint,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+    flexShrink: 1,
   },
   time: {
     fontFamily: fonts.mono,
@@ -149,12 +129,7 @@ const s = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
-  metaRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  actionBtn: {
+  heartBtn: {
     minWidth: 36,
     minHeight: 36,
     alignItems: 'center',

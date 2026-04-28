@@ -22,13 +22,11 @@ describe('BrowseListScreen', () => {
     expect(src).toContain('export interface BrowseListScreenProps');
   });
 
-  it('accepts required props: title, recipes, isLoading, error, onToggleBookmark, isSaved, emptyMessage', () => {
+  it('accepts required props: title, recipes, isLoading, error, emptyMessage', () => {
     const src = readFileSync(filePath, 'utf-8');
     expect(src).toContain('title: string');
     expect(src).toContain('recipes: RecipeSummary[]');
     expect(src).toContain('isLoading: boolean');
-    expect(src).toContain('onToggleBookmark: (id: string) => void');
-    expect(src).toContain('isSaved: (id: string) => boolean');
     expect(src).toContain('emptyMessage: string');
   });
 
@@ -103,11 +101,6 @@ describe('Browse screen refactoring', () => {
       it('uses BrowseListScreen', () => {
         const src = readFileSync(screen.path, 'utf-8');
         expect(src).toContain('BrowseListScreen');
-      });
-
-      it('uses useToggleBookmark hook', () => {
-        const src = readFileSync(screen.path, 'utf-8');
-        expect(src).toContain('useToggleBookmark');
       });
 
       it('is under 25 lines of actual code', () => {

@@ -114,8 +114,8 @@ describe('Projection Worker', () => {
     const tagCall = env.DB.prepare.mock.calls[3]![0] as string;
     expect(tagCall).toContain('INSERT OR IGNORE INTO recipe_tags');
 
-    // batch() called twice: once for recipe statements, once for ingredient index
-    expect(env.DB.batch).toHaveBeenCalledTimes(2);
+    // batch() called three times: recipe insert, tags/FTS/domain, ingredient index
+    expect(env.DB.batch).toHaveBeenCalledTimes(3);
 
     expect(msg.ack).toHaveBeenCalledOnce();
     expect(msg.retry).not.toHaveBeenCalled();

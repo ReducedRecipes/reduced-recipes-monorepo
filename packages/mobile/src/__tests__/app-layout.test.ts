@@ -38,9 +38,9 @@ describe('app/_layout.tsx (root layout)', () => {
 
   it('loads fonts via expo-font/useFonts', () => {
     expect(content).toContain('useFonts');
-    expect(content).toContain('Lora_600SemiBold');
-    expect(content).toContain('DMSans_400Regular');
-    expect(content).toContain('DMSans_500Medium');
+    expect(content).toContain('InstrumentSerif_400Regular');
+    expect(content).toContain('Inter_400Regular');
+    expect(content).toContain('Inter_500Medium');
   });
 
   it('manages splash screen visibility', () => {
@@ -70,8 +70,8 @@ describe('app/(tabs)/_layout.tsx (tab layout)', () => {
     expect(tabScreenCount).toBe(5);
   });
 
-  it('has Discover tab with HomeIcon', () => {
-    expect(content).toContain("title: 'Discover'");
+  it('has Index tab with HomeIcon', () => {
+    expect(content).toContain("title: 'Index'");
     expect(content).toContain('HomeIcon');
   });
 
@@ -95,8 +95,8 @@ describe('app/(tabs)/_layout.tsx (tab layout)', () => {
     expect(content).toContain('SettingsIcon');
   });
 
-  it('uses brand orange as active tab color', () => {
-    expect(content).toContain('colors.orange');
+  it('uses brand accent as active tab color', () => {
+    expect(content).toContain('colors.accent');
     expect(content).toContain('tabBarActiveTintColor');
   });
 

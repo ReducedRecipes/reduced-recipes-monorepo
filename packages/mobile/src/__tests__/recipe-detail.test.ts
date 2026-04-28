@@ -72,12 +72,26 @@ vi.mock('@/hooks/useRecipe', () => ({
   })),
 }));
 
-vi.mock('@/hooks/useSavedRecipes', () => ({
-  useSavedRecipes: () => ({
-    isSaved: () => false,
-    save: vi.fn(),
-    unsave: vi.fn(),
+vi.mock('@/hooks/useHeart', () => ({
+  useHeart: () => ({
+    hearted: false,
+    count: 0,
+    toggle: vi.fn(),
   }),
+}));
+
+vi.mock('@/hooks/useSimilarRecipes', () => ({
+  useSimilarRecipes: () => ({
+    data: null,
+  }),
+}));
+
+vi.mock('@/components/NutritionPanel', () => ({
+  NutritionPanel: vi.fn(() => ({ type: 'NutritionPanel' })),
+}));
+
+vi.mock('@/components/RecipeCard', () => ({
+  RecipeCard: vi.fn(() => ({ type: 'RecipeCard' })),
 }));
 
 vi.mock('@/components/TagPill', () => ({
@@ -105,7 +119,7 @@ vi.mock('@/components/ErrorState', () => ({
 }));
 
 vi.mock('@/components/icons', () => ({
-  BookmarkIcon: vi.fn(() => ({ type: 'BookmarkIcon' })),
+  HeartIcon: vi.fn(() => ({ type: 'HeartIcon' })),
 }));
 
 vi.mock('@/constants/theme', () => ({
@@ -150,8 +164,8 @@ describe('Recipe Detail Screen (S-28)', () => {
       expect(source).toContain('useRecipe');
     });
 
-    it('uses useSavedRecipes for bookmark functionality', () => {
-      expect(source).toContain('useSavedRecipes');
+    it('uses useHeart for like functionality', () => {
+      expect(source).toContain('useHeart');
     });
 
     it('renders hero image with expo-image', () => {
@@ -178,7 +192,7 @@ describe('Recipe Detail Screen (S-28)', () => {
     });
 
     it('has Start Cooking button linking to cook route', () => {
-      expect(source).toContain('Start Cooking');
+      expect(source).toContain('START COOKING');
       expect(source).toContain('/cook/');
     });
 
@@ -209,9 +223,9 @@ describe('Recipe Detail Screen (S-28)', () => {
       expect(source).toContain('refetch');
     });
 
-    it('uses BookmarkIcon for save toggle', () => {
-      expect(source).toContain('BookmarkIcon');
-      expect(source).toContain('handleBookmarkPress');
+    it('uses HeartIcon for like toggle', () => {
+      expect(source).toContain('HeartIcon');
+      expect(source).toContain('heart.toggle');
     });
 
     it('has proper accessibility labels', () => {

@@ -1,5 +1,5 @@
 import React from "react";
-import { View, ActivityIndicator } from "react-native";
+import { View, ActivityIndicator, StyleSheet } from "react-native";
 import { FlashList } from "@shopify/flash-list";
 import { RecipeCard } from "./RecipeCard";
 import { RecipeCardSkeleton } from "./RecipeCardSkeleton";
@@ -15,8 +15,6 @@ export interface BrowseListScreenProps {
   isLoading: boolean;
   error: Error | null;
   onRetry?: () => void;
-  onToggleBookmark: (id: string) => void;
-  isSaved: (id: string) => boolean;
   emptyMessage: string;
   onEndReached?: () => void;
   isFetchingNextPage?: boolean;
@@ -29,8 +27,6 @@ export function BrowseListScreen({
   isLoading,
   error,
   onRetry,
-  onToggleBookmark,
-  isSaved,
   emptyMessage,
   onEndReached,
   isFetchingNextPage,
@@ -38,18 +34,22 @@ export function BrowseListScreen({
 }: BrowseListScreenProps) {
   if (isLoading) {
     return (
-      <View className="flex-1 bg-cream px-4 pt-4">
+      <View style={s.container}>
         {headerComponent}
-        {Array.from({ length: 4 }).map((_, i) => (
-          <RecipeCardSkeleton key={i} />
-        ))}
+        <View style={s.skeletonList}>
+          {Array.from({ length: 4 }).map((_, i) => (
+            <View key={i} style={s.cardWrap}>
+              <RecipeCardSkeleton />
+            </View>
+          ))}
+        </View>
       </View>
     );
   }
 
   if (error) {
     return (
-      <View className="flex-1 bg-cream">
+      <View style={s.container}>
         {headerComponent}
         <ErrorState
           message={`Failed to load recipes for "${title}"`}
@@ -61,10 +61,10 @@ export function BrowseListScreen({
 
   if (recipes.length === 0) {
     return (
-      <View className="flex-1 bg-cream">
+      <View style={s.container}>
         {headerComponent}
         <EmptyState
-          icon={<SearchIcon size={48} color={colors.inkMuted} />}
+          icon={<SearchIcon size={48} color={colors.inkFaint} />}
           title={emptyMessage}
         />
       </View>
@@ -72,29 +72,21 @@ export function BrowseListScreen({
   }
 
   return (
-    <View className="flex-1 bg-cream">
+    <View style={s.container}>
       {headerComponent}
       <FlashList
         data={recipes}
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <View className="px-4 mb-4">
-            <RecipeCard
-              recipe={item}
-              bookmarked={isSaved(item.id)}
-              onToggleBookmark={onToggleBookmark}
-            />
+          <View style={s.cardWrap}>
+            <RecipeCard recipe={item} />
           </View>
         )}
         onEndReached={onEndReached}
         onEndReachedThreshold={0.3}
         ListFooterComponent={
           isFetchingNextPage ? (
-            <ActivityIndicator
-              size="small"
-              color={colors.orange}
-              className="py-4"
-            />
+            <ActivityIndicator size="small" color={colors.accent} style={s.spinner} />
           ) : null
         }
         contentContainerStyle={{ paddingTop: 16 }}
@@ -102,3 +94,21 @@ export function BrowseListScreen({
     </View>
   );
 }
+
+const s = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  skeletonList: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  cardWrap: {
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  spinner: {
+    paddingVertical: 16,
+  },
+});

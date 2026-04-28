@@ -120,7 +120,7 @@ describe("spacing", () => {
 });
 
 describe("radius", () => {
-  const expectedKeys = ["sm", "md", "lg", "xl", "full"];
+  const expectedKeys = ["none", "sm", "md", "lg", "xl", "full"];
 
   it("has all expected keys", () => {
     for (const key of expectedKeys) {
@@ -128,10 +128,10 @@ describe("radius", () => {
     }
   });
 
-  it("has positive numeric values", () => {
+  it("has non-negative numeric values", () => {
     for (const value of Object.values(radius)) {
       expect(typeof value).toBe("number");
-      expect(value).toBeGreaterThan(0);
+      expect(value).toBeGreaterThanOrEqual(0);
     }
   });
 });

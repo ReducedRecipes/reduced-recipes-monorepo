@@ -104,7 +104,7 @@ describe('FilterSheet', () => {
 
   it('has apply button', () => {
     const src = readFileSync(filePath, 'utf-8');
-    expect(src).toContain('Apply Filters');
+    expect(src).toContain('APPLY FILTERS');
     expect(src).toContain('onApply');
   });
 

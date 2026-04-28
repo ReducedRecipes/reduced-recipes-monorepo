@@ -23,6 +23,23 @@ vi.mock("react-native", () => ({
     props,
     children: Array.isArray(children) ? children : [children],
   })),
+  StyleSheet: { create: (s: any) => s },
+}));
+
+vi.mock("@/constants/theme", () => ({
+  colors: {
+    bg: "#F3F0EB", bgCard: "#FFFFFF", bgMuted: "#EDE9E3",
+    ink: "#2D2923", ink2: "#5C5549", inkMuted: "#5C5549", inkFaint: "#8A8379",
+    rule: "#D4CFC8", rule2: "#BFB9B0",
+    accent: "#C45A30", accentLight: "#F5E6DD",
+    orange: "#C45A30", orangeLight: "#F5E6DD",
+  },
+  fonts: {
+    serif: "InstrumentSerif_400Regular", serifItalic: "InstrumentSerif_400Regular_Italic",
+    sans: "Inter_400Regular", sansMedium: "Inter_500Medium",
+    mono: "JetBrainsMono_400Regular", monoMedium: "JetBrainsMono_500Medium",
+    display: "InstrumentSerif_400Regular", body: "Inter_400Regular", bodyMed: "Inter_500Medium",
+  },
 }));
 
 import { routes } from "../constants/routes";
@@ -55,15 +72,14 @@ describe("TagPill", () => {
   it("has minimum 44pt touch target", async () => {
     const { TagPill } = await import("../components/TagPill");
     const result = TagPill({ tag: "test" }) as any;
-    expect(result.props.className).toContain("min-h-[44px]");
-    expect(result.props.className).toContain("min-w-[44px]");
+    expect(result.props.style.minHeight).toBe(44);
+    expect(result.props.style.minWidth).toBe(44);
   });
 
-  it("uses pill shape with orange-light background", async () => {
+  it("uses border styling from StyleSheet", async () => {
     const { TagPill } = await import("../components/TagPill");
     const result = TagPill({ tag: "test" }) as any;
-    expect(result.props.className).toContain("rounded-full");
-    expect(result.props.className).toContain("bg-orange-50");
+    expect(result.props.style.borderWidth).toBe(1);
   });
 });
 
@@ -91,8 +107,8 @@ describe("TimeChip", () => {
   it("has minimum 44pt touch target", async () => {
     const { TimeChip } = await import("../components/TimeChip");
     const result = TimeChip({ minutes: 10 }) as any;
-    expect(result.props.className).toContain("min-h-[44px]");
-    expect(result.props.className).toContain("min-w-[44px]");
+    expect(result.props.style.minHeight).toBe(44);
+    expect(result.props.style.minWidth).toBe(44);
   });
 });
 
@@ -119,13 +135,13 @@ describe("DomainBadge", () => {
   it("has minimum 44pt touch target", async () => {
     const { DomainBadge } = await import("../components/DomainBadge");
     const result = DomainBadge({ domain: "test.com" }) as any;
-    expect(result.props.className).toContain("min-h-[44px]");
-    expect(result.props.className).toContain("min-w-[44px]");
+    expect(result.props.style.minHeight).toBe(44);
+    expect(result.props.style.minWidth).toBe(44);
   });
 
-  it("uses muted background", async () => {
+  it("uses border styling from StyleSheet", async () => {
     const { DomainBadge } = await import("../components/DomainBadge");
     const result = DomainBadge({ domain: "test.com" }) as any;
-    expect(result.props.className).toContain("bg-gray-100");
+    expect(result.props.style.borderWidth).toBe(1);
   });
 });

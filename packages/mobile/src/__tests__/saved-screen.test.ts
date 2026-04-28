@@ -67,14 +67,14 @@ describe('SavedScreen (S-30)', () => {
     expect(content).toBeTruthy();
   });
 
-  it('uses useSQLiteContext for database access', () => {
-    expect(content).toContain('useSQLiteContext');
-    expect(content).toContain('const db = useSQLiteContext()');
+  it('uses expo-sqlite for database access', () => {
+    expect(content).toContain('expo-sqlite');
+    expect(content).toContain('openDatabaseAsync');
   });
 
   it('loads saved recipes from SQLite via getAllSaved', () => {
     expect(content).toContain('getAllSaved');
-    expect(content).toContain('getAllSaved(db)');
+    expect(content).toContain('getAllSaved(db');
   });
 
   it('uses useSavedStore to react to bookmark changes', () => {
@@ -92,10 +92,9 @@ describe('SavedScreen (S-30)', () => {
     expect(content).toContain('numColumns');
   });
 
-  it('shows RecipeCard for each saved recipe with bookmarked=true', () => {
+  it('shows RecipeCard for each saved recipe', () => {
     expect(content).toContain('RecipeCard');
-    expect(content).toContain('bookmarked');
-    expect(content).toContain('onToggleBookmark');
+    expect(content).toContain('recipe={summary}');
   });
 
   it('shows loading skeletons while fetching', () => {

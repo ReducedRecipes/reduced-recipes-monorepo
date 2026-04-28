@@ -6,6 +6,7 @@ import type { ShoppingList, ShoppingListItem } from "@rr/shared";
 import {
   fetchShoppingLists,
   createShoppingList,
+  deleteShoppingList,
   getShoppingList,
   addShoppingListItem,
   updateShoppingListItem,
@@ -44,6 +45,7 @@ interface ShoppingState {
   fetchLists: () => Promise<void>;
   selectList: (listId: string) => Promise<void>;
   createList: (name: string) => Promise<ShoppingList | null>;
+  deleteList: (listId: string) => Promise<void>;
 
   // CRUD operations (server when online, queued when offline)
   addFromRecipe: (
@@ -123,6 +125,28 @@ export const useShoppingStore = create<ShoppingState>()(
           return list;
         } catch {
           return null;
+        }
+      },
+
+      deleteList: async (listId) => {
+        if (!get().isOnline) return;
+        try {
+          await deleteShoppingList(listId);
+          const { lists, activeListId } = get();
+          const remaining = lists.filter((l) => l.id !== listId);
+          if (activeListId === listId) {
+            const nextList = remaining.length > 0 ? remaining[0] : null;
+            set({ lists: remaining, activeListId: nextList?.id ?? null, items: nextList ? get().items : [], serverItems: nextList ? get().serverItems : [] });
+            if (nextList) {
+              get().selectList(nextList.id);
+            } else {
+              set({ items: [], serverItems: [] });
+            }
+          } else {
+            set({ lists: remaining });
+          }
+        } catch {
+          // Silently fail
         }
       },
 

@@ -11,6 +11,10 @@ vi.mock("../hooks/useHealth", () => ({
   useHealth: vi.fn().mockReturnValue({ health: null, isLoading: false }),
 }));
 
+vi.mock("../hooks/useFunding", () => ({
+  useFunding: vi.fn().mockReturnValue({ funding: null }),
+}));
+
 import { useRecipes } from "../hooks/useRecipes";
 import { useHealth } from "../hooks/useHealth";
 import HomePage from "../pages/HomePage";
@@ -73,7 +77,8 @@ describe("HomePage", () => {
   it("shows loading state when loading", () => {
     mockLoading();
     renderPage();
-    expect(screen.getByText(/Loading index/)).toBeDefined();
+    // Loading state shows skeleton placeholders instead of text
+    expect(screen.getByText(/Fig\. 001 — Manifesto/)).toBeDefined();
   });
 
   describe("Hero section", () => {
@@ -220,11 +225,11 @@ describe("HomePage", () => {
   });
 
   describe("Browse matrix", () => {
-    it("renders Fig. 007 browse label", () => {
+    it("renders Fig. 009 browse label", () => {
       mockLoaded();
       renderPage();
       expect(
-        screen.getByText("Fig. 007 — Browse by axis"),
+        screen.getByText("Fig. 009 — Browse by axis"),
       ).toBeDefined();
     });
 

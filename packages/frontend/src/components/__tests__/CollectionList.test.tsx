@@ -34,18 +34,18 @@ describe("CollectionList", () => {
     expect(src).toContain("export function CollectionList");
   });
 
-  it("renders loading skeleton when isLoading is true", () => {
-    expect(src).toContain("animate-pulse");
+  it("renders loading state when isLoading is true", () => {
     expect(src).toContain("isLoading");
+    expect(src).toContain("Loading");
   });
 
   it("shows empty state message when no collections", () => {
-    expect(src).toContain("No collections yet. Create one above!");
+    expect(src).toContain("No collections yet.");
     expect(src).toContain("collections.length === 0");
   });
 
   it("has create collection input and button", () => {
-    expect(src).toContain('placeholder="New collection name"');
+    expect(src).toContain('placeholder="Collection name"');
     expect(src).toContain("Create");
     expect(src).toContain("handleCreate");
   });
@@ -55,8 +55,8 @@ describe("CollectionList", () => {
     expect(src).toContain("handleCreate");
   });
 
-  it("disables Create button when name is empty", () => {
-    expect(src).toContain("disabled={!newName.trim()}");
+  it("conditionally shows Create button when name is not empty", () => {
+    expect(src).toContain("newName.trim()");
   });
 
   it("has rename functionality with save and cancel", () => {

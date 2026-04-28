@@ -23,8 +23,6 @@ vi.mock('@rr/shared/utils', () => ({
   }),
 }));
 
-import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
-
 function createEnv() {
   return {
     DB: {
@@ -34,6 +32,7 @@ function createEnv() {
         }),
         all: vi.fn().mockResolvedValue({ results: [] }),
         first: vi.fn().mockResolvedValue(null),
+        run: vi.fn().mockResolvedValue({}),
       }),
       batch: vi.fn(async () => []),
     },
@@ -58,9 +57,9 @@ afterEach(() => {
 });
 
 describe('Orchestrator Worker', () => {
-  it('does nothing when no pending URLs and no sitemap due', async () => {
+  it('does nothing when no pending URLs', async () => {
     const env = createEnv();
-
+    // Default mock returns empty results for the pending URL query
     await orchestrator.scheduled({} as ScheduledEvent, env, {} as ExecutionContext);
 
     expect(env.CRAWL_QUEUE.sendBatch).not.toHaveBeenCalled();
@@ -77,38 +76,19 @@ describe('Orchestrator Worker', () => {
     env.DB.prepare.mockImplementation(() => {
       callCount++;
       if (callCount === 1) {
-        // DISTINCT domain query
+        // First prepare: SELECT pending URLs from crawl_queue
         return {
-          all: vi.fn().mockResolvedValue({ results: [{ domain: 'example.com' }] }),
+          all: vi.fn().mockResolvedValue({ results: dueUrls }),
         };
       }
-      if (callCount === 2) {
-        // Per-domain URL query — prepare().bind() returns a statement for batch
-        return {
-          bind: vi.fn().mockReturnValue({
-            run: vi.fn().mockResolvedValue({}),
-            all: vi.fn().mockResolvedValue({ results: dueUrls }),
-          }),
-        };
-      }
-      if (callCount === 3) {
-        // ingestNextSitemap: SELECT domain — no domain due
-        return {
-          first: vi.fn().mockResolvedValue(null),
-        };
-      }
-      // Mark in-flight UPDATE
+      // Subsequent: UPDATE crawl_queue SET status + reset stuck
       return {
         bind: vi.fn().mockReturnValue({
           run: vi.fn().mockResolvedValue({}),
         }),
+        run: vi.fn().mockResolvedValue({}),
       };
     });
-
-    // DB.batch returns per-domain URL results
-    env.DB.batch.mockResolvedValueOnce([
-      { results: dueUrls },
-    ]);
 
     await orchestrator.scheduled({} as ScheduledEvent, env, {} as ExecutionContext);
 
@@ -118,46 +98,20 @@ describe('Orchestrator Worker', () => {
     expect(sentBatch[0]!.body).toEqual(dueUrls[0]);
   });
 
-  it('ingests sitemap when domain is due for spidering', async () => {
+  it('returns 200 OK when /trigger is requested', async () => {
     const env = createEnv();
+    const request = new Request('http://localhost/trigger');
+    const response = await orchestrator.fetch(request, env);
 
-    (parseSitemap as ReturnType<typeof vi.fn>).mockResolvedValue([
-      'https://example.com/recipe/1',
-      'https://example.com/about',
-    ]);
-    (isRecipeUrl as ReturnType<typeof vi.fn>).mockImplementation((url: string) =>
-      url.includes('/recipe/'),
-    );
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('OK');
+  });
 
-    let callCount = 0;
-    env.DB.prepare.mockImplementation(() => {
-      callCount++;
-      if (callCount === 1) {
-        // DISTINCT domain query — no pending URLs
-        return {
-          all: vi.fn().mockResolvedValue({ results: [] }),
-        };
-      }
-      if (callCount === 2) {
-        // ingestNextSitemap: SELECT domain due for spidering
-        return {
-          first: vi.fn().mockResolvedValue({
-            domain: 'example.com',
-            sitemap_url: 'https://example.com/sitemap.xml',
-          }),
-        };
-      }
-      // INSERT OR IGNORE for recipe URLs + UPDATE last_spidered
-      return {
-        bind: vi.fn().mockReturnValue({
-          run: vi.fn().mockResolvedValue({}),
-        }),
-      };
-    });
+  it('returns 404 for unknown paths', async () => {
+    const env = createEnv();
+    const request = new Request('http://localhost/unknown');
+    const response = await orchestrator.fetch(request, env);
 
-    await orchestrator.scheduled({} as ScheduledEvent, env, {} as ExecutionContext);
-
-    expect(parseSitemap).toHaveBeenCalledWith('https://example.com/sitemap.xml');
-    expect(env.DB.batch).toHaveBeenCalled();
+    expect(response.status).toBe(404);
   });
 });

@@ -246,7 +246,7 @@ describe('requireAuth middleware', () => {
     expect(newTokenHeader).toBeTruthy();
   });
 
-  it('does not refresh token within 7 days', async () => {
+  it('does not issue a new token within 7 days (only TTL refresh happens)', async () => {
     const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
     const session = makeSession({ created_at: oneDayAgo });
 
@@ -261,9 +261,9 @@ describe('requireAuth middleware', () => {
 
     expect(res.status).toBe(200);
 
-    // SESSION_KV.put should NOT have been called (no refresh needed)
-    const kvPut = (env.SESSION_KV as ReturnType<typeof makeKV>).put;
-    expect(kvPut).not.toHaveBeenCalled();
+    // getSession now refreshes TTL on every read (fire-and-forget kv.put),
+    // but no NEW session token should be issued (no X-New-Session-Token header)
+    expect(res.headers.get('X-New-Session-Token')).toBeNull();
   });
 });
 

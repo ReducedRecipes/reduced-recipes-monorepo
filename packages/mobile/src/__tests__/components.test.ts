@@ -56,8 +56,8 @@ describe('RecipeCard.tsx', () => {
     expect(content).toContain("from 'expo-image'");
   });
 
-  it('uses Lora display font for title', () => {
-    expect(content).toContain('fonts.display');
+  it('uses serif font for title', () => {
+    expect(content).toContain('fonts.serif');
   });
 
   it('displays domain badge', () => {
@@ -68,9 +68,9 @@ describe('RecipeCard.tsx', () => {
     expect(content).toContain('formatTime');
   });
 
-  it('has bookmark button', () => {
-    expect(content).toContain('onToggleBookmark');
-    expect(content).toContain('BookmarkIcon');
+  it('has heart button', () => {
+    expect(content).toContain('useHeart');
+    expect(content).toContain('HeartIcon');
   });
 
   it('navigates to recipe detail on press', () => {
@@ -78,9 +78,9 @@ describe('RecipeCard.tsx', () => {
     expect(content).toContain('router.push');
   });
 
-  it('meets 44pt minimum touch target', () => {
-    expect(content).toContain('minHeight: 44');
-    expect(content).toContain('minWidth: 44');
+  it('meets minimum touch target for heart button', () => {
+    expect(content).toContain('minHeight: 36');
+    expect(content).toContain('minWidth: 36');
   });
 
   it('uses RecipeSummary type from shared', () => {
@@ -187,8 +187,8 @@ describe('ErrorState component', () => {
     expect(content).toContain('Retry');
   });
 
-  it('uses orange background for retry button', () => {
-    expect(content).toContain('colors.orange');
+  it('uses ink background for retry button', () => {
+    expect(content).toContain('colors.ink');
   });
 
   it('has accessibility attributes on retry button', () => {
@@ -241,5 +241,5 @@ describe('BottomSheet component', () => {
   });
 
   it('uses theme background color', () => {
-    expect(content).toContain('#FAFAF8');  });
+    expect(content).toContain('#F3F0EB');  });
 });

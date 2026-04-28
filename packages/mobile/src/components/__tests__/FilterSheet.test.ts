@@ -105,9 +105,9 @@ describe('FilterChipGroup', () => {
       onToggle: vi.fn(),
     }) as any;
     const italianChip = findByLabel(result, 'Italian');
-    expect(italianChip.props.className).toContain('bg-orange');
+    expect(italianChip.props.className).toContain('bg-accent');
     const japaneseChip = findByLabel(result, 'Japanese');
-    expect(japaneseChip.props.className).toContain('bg-bgMuted');
+    expect(japaneseChip.props.className).toContain('border-rule');
   });
 
   it('selected chip text uses white color', async () => {

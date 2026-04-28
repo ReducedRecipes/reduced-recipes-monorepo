@@ -82,14 +82,11 @@ vi.mock('@/constants/theme', () => ({
   fonts: {},
 }));
 
-// After BF-16 refactoring, browse screens delegate rendering to BrowseListScreen
-// and bookmark logic to useToggleBookmark. Tests now verify the delegation pattern.
+// Browse screens delegate rendering to BrowseListScreen.
+// Bookmark logic is handled internally by RecipeCard.
 
 const browseListPath = resolve(__dirname, '../components/BrowseListScreen.tsx');
 const browseListContent = readFileSync(browseListPath, 'utf-8');
-
-const toggleBookmarkPath = resolve(__dirname, '../hooks/useToggleBookmark.ts');
-const toggleBookmarkContent = readFileSync(toggleBookmarkPath, 'utf-8');
 
 describe('TagScreen (app/tag/[tag].tsx)', () => {
   const filePath = resolve(__dirname, '../../app/tag/[tag].tsx');
@@ -143,10 +140,8 @@ describe('TagScreen (app/tag/[tag].tsx)', () => {
     expect(browseListContent).toContain('ErrorState');
   });
 
-  it('uses useToggleBookmark which handles database access', () => {
-    expect(content).toContain('useToggleBookmark');
-    expect(toggleBookmarkContent).toContain('useSQLiteContext');
-    expect(toggleBookmarkContent).toContain('useSavedRecipes');
+  it('delegates to BrowseListScreen for rendering', () => {
+    expect(content).toContain('BrowseListScreen');
   });
 });
 

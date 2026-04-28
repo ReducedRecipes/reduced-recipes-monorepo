@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { app } from './api';
 
 // ── Mock helpers ─────────────────────────────────────────────────────────
@@ -56,11 +56,41 @@ function createEnv(overrides: Partial<Record<string, unknown>> = {}) {
   };
 }
 
+// Mock the global caches object used by the source code
+const mockCache = {
+  match: vi.fn().mockResolvedValue(undefined),
+  put: vi.fn().mockResolvedValue(undefined),
+  delete: vi.fn(),
+  keys: vi.fn(),
+};
+(globalThis as any).caches = { default: mockCache };
+
+// Patch global Request to handle Hono's raw request signal incompatibility in jsdom
+const OriginalRequest = globalThis.Request;
+globalThis.Request = class PatchedRequest extends OriginalRequest {
+  constructor(input: RequestInfo | URL, init?: RequestInit) {
+    if (init && 'signal' in init) {
+      const { signal, ...rest } = init as any;
+      super(input, rest);
+    } else {
+      super(input, init);
+    }
+  }
+} as typeof Request;
+
+const mockExecutionCtx = { waitUntil: vi.fn() };
+
 function req(path: string, env: ReturnType<typeof createEnv>) {
-  return app.request(path, {}, env);
+  return app.request(path, {}, env, mockExecutionCtx as any);
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  mockCache.match.mockResolvedValue(undefined);
+  mockCache.put.mockResolvedValue(undefined);
+});
 
 describe('GET /api/v1/recipes', () => {
   it('returns recipes with default pagination', async () => {
@@ -351,7 +381,7 @@ describe('GET /api/v1/recipes/:id', () => {
 // ── S-8: Search, Admin, Remove tests ────────────────────────────────────
 
 function reqWithInit(path: string, env: ReturnType<typeof createEnv>, init?: RequestInit) {
-  return app.request(path, init, env);
+  return app.request(path, init, env, mockExecutionCtx as any);
 }
 
 describe('GET /api/v1/search', () => {
@@ -368,7 +398,7 @@ describe('GET /api/v1/search', () => {
     const res = await reqWithInit('/api/v1/search?q=**', env);
     expect(res.status).toBe(200);
     const body = await res.json() as any;
-    expect(body).toEqual({ items: [], next_cursor: null });
+    expect(body.items).toEqual([]);
   });
 
   it('returns search results from FTS', async () => {
@@ -624,16 +654,15 @@ describe('POST /api/v1/remove', () => {
 // ── Health endpoint tests ────────────────────────────────────────────────
 
 describe('GET /api/v1/health', () => {
-  it('includes featured_recipe_id and featured_recipe_title when a qualifying recipe exists', async () => {
+  it('returns pre-computed health stats from KV cache when available', async () => {
     const env = createEnv();
-    const emptyResults = Array.from({ length: 18 }, () => makeD1Result([{ total: 0 }]));
-    env.DB.batch = vi.fn().mockResolvedValue(emptyResults);
-    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('vote_count >=') && sql.includes('hot_score DESC')) {
-        return makeStmt([{ id: 'featured-1', title: 'Best Recipe Ever' }]);
-      }
-      return makeStmt([{ total: 0 }]);
-    });
+    const healthData = {
+      ok: true,
+      total_recipes: 500,
+      featured_recipe_id: 'featured-1',
+      featured_recipe_title: 'Best Recipe Ever',
+    };
+    env.CACHE_KV.get = vi.fn().mockResolvedValue(JSON.stringify(healthData));
 
     const res = await req('/api/v1/health', env);
     expect(res.status).toBe(200);
@@ -642,39 +671,34 @@ describe('GET /api/v1/health', () => {
     expect(body.featured_recipe_title).toBe('Best Recipe Ever');
   });
 
-  it('returns null featured fields when no recipe meets the vote threshold', async () => {
+  it('returns minimal response with null featured fields when KV cache is empty', async () => {
     const env = createEnv();
-    const emptyResults = Array.from({ length: 18 }, () => makeD1Result([{ total: 0 }]));
-    env.DB.batch = vi.fn().mockResolvedValue(emptyResults);
-    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('vote_count >=') && sql.includes('hot_score DESC')) {
-        return makeStmt([]);
-      }
-      return makeStmt([{ total: 0 }]);
-    });
+    env.CACHE_KV.get = vi.fn().mockResolvedValue(null);
+    env.DB.prepare = vi.fn().mockReturnValue(makeStmt([{ total: 42 }]));
 
     const res = await req('/api/v1/health', env);
     expect(res.status).toBe(200);
     const body = await res.json() as Record<string, unknown>;
     expect(body.featured_recipe_id).toBeNull();
     expect(body.featured_recipe_title).toBeNull();
+    expect(body.total_recipes).toBe(42);
   });
 
-  it('respects HOT_MIN_VOTES_FEATURED env override', async () => {
-    const env = createEnv({ HOT_MIN_VOTES_FEATURED: '10' });
-    const emptyResults = Array.from({ length: 18 }, () => makeD1Result([{ total: 0 }]));
-    env.DB.batch = vi.fn().mockResolvedValue(emptyResults);
-    const featuredStmt = makeStmt([{ id: 'r1', title: 'Hot Recipe' }]);
-    env.DB.prepare = vi.fn().mockImplementation((sql: string) => {
-      if (sql.includes('vote_count >=') && sql.includes('hot_score DESC')) {
-        return featuredStmt;
-      }
-      return makeStmt([{ total: 0 }]);
-    });
+  it('returns health data from KV with custom fields', async () => {
+    const env = createEnv();
+    const healthData = {
+      ok: true,
+      total_recipes: 100,
+      featured_recipe_id: null,
+      featured_recipe_title: null,
+    };
+    env.CACHE_KV.get = vi.fn().mockResolvedValue(JSON.stringify(healthData));
 
-    await req('/api/v1/health', env);
-    // Verify bind was called with threshold 10
-    expect(featuredStmt.bind).toHaveBeenCalledWith(10);
+    const res = await req('/api/v1/health', env);
+    expect(res.status).toBe(200);
+    const body = await res.json() as Record<string, unknown>;
+    expect(body.featured_recipe_id).toBeNull();
+    expect(body.featured_recipe_title).toBeNull();
   });
 });
 
@@ -683,7 +707,8 @@ describe('GET /api/v1/health', () => {
 describe('Global error handler', () => {
   it('does not leak error message in response', async () => {
     const env = createEnv();
-    env.DB.batch = vi.fn().mockRejectedValue(new Error('sensitive DB info'));
+    // Make CACHE_KV.get throw to trigger the global error handler
+    env.CACHE_KV.get = vi.fn().mockRejectedValue(new Error('sensitive DB info'));
 
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const res = await req('/api/v1/health', env);

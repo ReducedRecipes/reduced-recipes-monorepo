@@ -391,19 +391,19 @@ describe('Pipeline Integration: Orchestrator → Crawler → Parser → Projecti
     // Last: UPDATE domains SET recipe_count = ...
     expect(projStatements.length).toBeGreaterThanOrEqual(5); // dupe check + recipe + delete tags + at least 1 tag + domain update
 
-    const dupeCheck = projStatements[0]!;
-    expect(dupeCheck.sql).toContain('SELECT id FROM recipes WHERE title');
+    const dupeCheck = projStatements.find((s) => s.sql.includes('SELECT id FROM recipes WHERE title'));
+    expect(dupeCheck).toBeTruthy();
 
-    const recipeInsert = projStatements[1]!;
-    expect(recipeInsert.sql).toContain('INSERT OR IGNORE INTO recipes');
-    expect(recipeInsert.params[0]).toBe(storedDoc.id); // id
-    expect(recipeInsert.params[1]).toBe(TEST_URL); // source_url
-    expect(recipeInsert.params[2]).toBe(TEST_DOMAIN); // domain
-    expect(recipeInsert.params[3]).toBe('Integration Test Pasta'); // title
+    const recipeInsert = projStatements.find((s) => s.sql.includes('INSERT OR IGNORE INTO recipes'));
+    expect(recipeInsert).toBeTruthy();
+    expect(recipeInsert!.params[0]).toBe(storedDoc.id); // id
+    expect(recipeInsert!.params[1]).toBe(TEST_URL); // source_url
+    expect(recipeInsert!.params[2]).toBe(TEST_DOMAIN); // domain
+    expect(recipeInsert!.params[3]).toBe('Integration Test Pasta'); // title
 
-    const tagDelete = projStatements[2]!;
-    expect(tagDelete.sql).toContain('DELETE FROM recipe_tags');
-    expect(tagDelete.params[0]).toBe(storedDoc.id);
+    const tagDelete = projStatements.find((s) => s.sql.includes('DELETE FROM recipe_tags'));
+    expect(tagDelete).toBeTruthy();
+    expect(tagDelete!.params[0]).toBe(storedDoc.id);
 
     // Tag inserts — should have tags from keywords + cuisine + category
     const tagInserts = projStatements.filter((s) =>
@@ -414,10 +414,10 @@ describe('Pipeline Integration: Orchestrator → Crawler → Parser → Projecti
     expect(insertedTags).toContain('italian');
     expect(insertedTags).toContain('pasta');
 
-    // Domain update
-    const domainUpdate = projStatements[projStatements.length - 1]!;
-    expect(domainUpdate.sql).toContain('UPDATE domains');
-    expect(domainUpdate.params[0]).toBe(TEST_DOMAIN);
+    // Domain update — no longer last statement (ingredient index stmts follow)
+    const domainUpdate = projStatements.find((s) => s.sql.includes('UPDATE domains'));
+    expect(domainUpdate).toBeTruthy();
+    expect(domainUpdate!.params[0]).toBe(TEST_DOMAIN);
 
     // ── Stage 3: API retrieves the recipe from KV ─────────────────────
     // The parser already stored the doc in our mock KV — verify retrieval

@@ -61,9 +61,9 @@ describe('CookingStep', () => {
   it('displays step progress text', () => {
     const result = CookingStep(baseProps) as any;
     const json = serialize(result);
-    // React splits JSX template literals into ["Step ", 2, " of ", 5]
-    expect(json).toContain('"Step "');
-    expect(json).toContain('"children":["Step ",2," of ",5]');
+    // Step text uses padStart(2, '0') for zero-padded numbers
+    expect(json).toContain('Step ');
+    expect(json).toContain(' of ');
   });
 
   it('displays step instruction text', () => {

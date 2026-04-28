@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,15 @@ import {
   RefreshControl,
   StyleSheet,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { useFunding } from '@/hooks/useFunding';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRecipes } from '@/hooks/useRecipes';
 import { RecipeCard } from '@/components/RecipeCard';
 import { ErrorState } from '@/components/ErrorState';
 import { SearchIcon } from '@/components/icons';
-import { useSavedRecipes } from '@/hooks/useSavedRecipes';
 import { colors, fonts } from '@/constants/theme';
 import type { RecipeSummary } from '@rr/shared';
 
@@ -35,24 +36,16 @@ function SectionLabel({ label }: { label: string }) {
 
 function HorizontalRecipeList({
   recipes,
-  bookmarkedIds,
-  onToggleBookmark,
 }: {
   recipes: RecipeSummary[];
-  bookmarkedIds: Set<string>;
-  onToggleBookmark: (id: string) => void;
 }) {
   const renderItem = useCallback(
     ({ item }: { item: RecipeSummary }) => (
       <View style={{ width: 260, marginRight: 12 }}>
-        <RecipeCard
-          recipe={item}
-          bookmarked={bookmarkedIds.has(item.id)}
-          onToggleBookmark={onToggleBookmark}
-        />
+        <RecipeCard recipe={item} />
       </View>
     ),
-    [bookmarkedIds, onToggleBookmark],
+    [],
   );
 
   return (
@@ -84,6 +77,34 @@ function LoadingFooter() {
   );
 }
 
+function FundingCard() {
+  const { data } = useFunding();
+  if (!data) return null;
+
+  const fundedWidth = Math.min(data.funded_pct, 100);
+
+  return (
+    <View style={s.fundingCard}>
+      <Text style={s.fundingHeader}>◆ FUNDING</Text>
+      <Text style={s.fundingCost}>
+        ${data.monthly_cost.toFixed(2)}<Text style={s.fundingCostLabel}> / month</Text>
+      </Text>
+      <Text style={s.fundingPct}>{data.funded_pct}% funded</Text>
+      <View style={s.fundingTrack}>
+        <View style={[s.fundingFill, { width: `${fundedWidth}%` as unknown as number }]} />
+      </View>
+      <Pressable
+        onPress={() => Linking.openURL('https://ko-fi.com/reducedrecipes')}
+        style={s.fundingSupportButton}
+        accessibilityRole="link"
+        accessibilityLabel="Support us on Ko-fi"
+      >
+        <Text style={s.fundingSupportText}>SUPPORT US →</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -91,32 +112,6 @@ export default function HomeScreen() {
   const featured = useRecipes({ limit: 5 });
   const quickEasy = useRecipes({ max_time: 30, limit: 10 });
   const recent = useRecipes({});
-
-  const { isSaved, save, unsave } = useSavedRecipes();
-
-  const bookmarkedIds = useMemo(() => {
-    const ids = new Set<string>();
-    const allRecipes = [
-      ...(featured.data?.pages.flatMap((p) => p.items) ?? []),
-      ...(quickEasy.data?.pages.flatMap((p) => p.items) ?? []),
-      ...(recent.data?.pages.flatMap((p) => p.items) ?? []),
-    ];
-    for (const r of allRecipes) {
-      if (isSaved(r.id)) ids.add(r.id);
-    }
-    return ids;
-  }, [featured.data, quickEasy.data, recent.data, isSaved]);
-
-  const handleToggleBookmark = useCallback(
-    (id: string) => {
-      if (isSaved(id)) {
-        unsave(id);
-      } else {
-        save(id as any);
-      }
-    },
-    [isSaved, save, unsave],
-  );
 
   const isLoading = featured.isLoading || quickEasy.isLoading || recent.isLoading;
   const isError = featured.isError && quickEasy.isError && recent.isError;
@@ -181,15 +176,26 @@ export default function HomeScreen() {
         </Pressable>
       </View>
 
+      {/* Ingredient Board CTA */}
+      <Pressable
+        onPress={() => router.push('/ingredients')}
+        style={s.fridgeCta}
+        accessibilityRole="button"
+        accessibilityLabel="Search recipes by ingredients"
+      >
+        <Text style={s.fridgeCtaLabel}>◆ INGREDIENT BOARD</Text>
+        <Text style={s.fridgeCtaHeading}>What's in your fridge?</Text>
+        <Text style={s.fridgeCtaBody}>
+          Add what you have on hand and we'll find recipes you can make right now.
+        </Text>
+        <Text style={s.fridgeCtaAction}>→ GET STARTED</Text>
+      </Pressable>
+
       {/* Featured */}
       {featuredRecipes.length > 0 && (
         <View style={s.section}>
           <SectionLabel label="FEATURE OF THE WEEK" />
-          <HorizontalRecipeList
-            recipes={featuredRecipes}
-            bookmarkedIds={bookmarkedIds}
-            onToggleBookmark={handleToggleBookmark}
-          />
+          <HorizontalRecipeList recipes={featuredRecipes} />
         </View>
       )}
 
@@ -197,11 +203,7 @@ export default function HomeScreen() {
       {quickRecipes.length > 0 && (
         <View style={s.section}>
           <SectionLabel label="QUICK & EASY" />
-          <HorizontalRecipeList
-            recipes={quickRecipes}
-            bookmarkedIds={bookmarkedIds}
-            onToggleBookmark={handleToggleBookmark}
-          />
+          <HorizontalRecipeList recipes={quickRecipes} />
         </View>
       )}
 
@@ -223,6 +225,11 @@ export default function HomeScreen() {
         />
       </View>
 
+      {/* Funding */}
+      <View style={{ paddingHorizontal: 16 }}>
+        <FundingCard />
+      </View>
+
       {/* Recently Added header */}
       <View style={[s.section, { paddingHorizontal: 16 }]}>
         <SectionLabel label="RECENTLY ADDED" />
@@ -233,14 +240,10 @@ export default function HomeScreen() {
   const renderRecipe = useCallback(
     ({ item }: { item: RecipeSummary }) => (
       <View style={{ marginBottom: 12, marginHorizontal: 16 }}>
-        <RecipeCard
-          recipe={item}
-          bookmarked={bookmarkedIds.has(item.id)}
-          onToggleBookmark={handleToggleBookmark}
-        />
+        <RecipeCard recipe={item} />
       </View>
     ),
-    [bookmarkedIds, handleToggleBookmark],
+    [],
   );
 
   return (
@@ -327,6 +330,43 @@ const s = StyleSheet.create({
     letterSpacing: 1,
     textTransform: 'uppercase',
   },
+  fridgeCta: {
+    marginHorizontal: 16,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.rule,
+    backgroundColor: colors.bgCard,
+    padding: 16,
+  },
+  fridgeCtaLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.accent,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
+    marginBottom: 8,
+  },
+  fridgeCtaHeading: {
+    fontFamily: fonts.serif,
+    fontSize: 22,
+    color: colors.ink,
+    lineHeight: 28,
+  },
+  fridgeCtaBody: {
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.ink2,
+    lineHeight: 20,
+    marginTop: 6,
+  },
+  fridgeCtaAction: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.accent,
+    letterSpacing: 1,
+    textTransform: 'uppercase',
+    marginTop: 12,
+  },
   section: {
     marginTop: 32,
   },
@@ -378,5 +418,57 @@ const s = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: 13,
     color: colors.inkFaint,
+  },
+  fundingCard: {
+    borderWidth: 1,
+    borderColor: colors.rule,
+    padding: 16,
+    marginTop: 8,
+    marginBottom: 16,
+  },
+  fundingHeader: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    letterSpacing: 1.5,
+    marginBottom: 12,
+  },
+  fundingCost: {
+    fontFamily: fonts.serif,
+    fontSize: 28,
+    color: colors.ink,
+  },
+  fundingCostLabel: {
+    fontFamily: fonts.sans,
+    fontSize: 14,
+    color: colors.inkFaint,
+  },
+  fundingPct: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.inkFaint,
+    letterSpacing: 0.5,
+    marginTop: 4,
+    marginBottom: 8,
+  },
+  fundingTrack: {
+    height: 4,
+    backgroundColor: colors.rule,
+    marginBottom: 12,
+  },
+  fundingFill: {
+    height: 4,
+    backgroundColor: colors.accent,
+  },
+  fundingSupportButton: {
+    backgroundColor: colors.accent,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  fundingSupportText: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: '#FFFFFF',
+    letterSpacing: 1.5,
   },
 });

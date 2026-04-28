@@ -1,8 +1,16 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import Layout from "../components/Layout";
+
+beforeAll(() => {
+  globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }));
+});
 
 // Mock auth and layout sub-components
 vi.mock("../hooks/useAuth", () => ({
@@ -52,6 +60,28 @@ vi.mock("../hooks/useDomainRecipes", () => ({
     data: { items: [] },
     isLoading: false,
     error: null,
+  })),
+}));
+
+vi.mock("../hooks/useHealth", () => ({
+  useHealth: vi.fn(() => ({
+    health: {
+      total_recipes: 142083,
+      total_words_removed: 184000000,
+      total_ads_removed: 50000,
+      avg_cook_time: 35,
+      sources_count: 1200,
+      new_this_week: 500,
+      under_30_min: 40000,
+      vegetarian: 30000,
+      translated_recipes: 5000,
+    },
+  })),
+}));
+
+vi.mock("../hooks/useFunding", () => ({
+  useFunding: vi.fn(() => ({
+    funding: null,
   })),
 }));
 
@@ -112,9 +142,7 @@ describe("main.tsx route definitions", () => {
 
   it("renders SearchPage at /search", () => {
     renderApp("/search");
-    expect(
-      screen.getByText("Enter at least 2 characters to search."),
-    ).toBeDefined();
+    expect(screen.getByText(/Search.*recipes/)).toBeDefined();
   });
 
   it("renders TagPage at /tag/:tag", () => {
@@ -141,7 +169,7 @@ describe("main.tsx route definitions", () => {
     renderApp("/about");
     expect(screen.getByText("We cut the bullshit.")).toBeDefined();
     expect(screen.getByText("Words removed")).toBeDefined();
-    expect(screen.getByText("184M")).toBeDefined();
+    expect(screen.getByText("184.0M")).toBeDefined();
     expect(screen.getByText("Stories per recipe")).toBeDefined();
   });
 

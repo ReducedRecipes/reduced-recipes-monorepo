@@ -1,7 +1,15 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+
+beforeAll(() => {
+  globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }));
+});
 
 vi.mock("../hooks/useRecipes", () => ({
   useRecipes: vi.fn(),
@@ -84,7 +92,7 @@ describe("CuisinePage", () => {
     expect(mockedUseRecipes).toHaveBeenCalledWith({ cuisine: "mexican" });
   });
 
-  it("shows Load More button when hasNextPage is true", () => {
+  it("renders sentinel for infinite scroll when hasNextPage is true", () => {
     const fetchNextPage = vi.fn();
     mockedUseRecipes.mockReturnValue({
       data: {
@@ -102,11 +110,9 @@ describe("CuisinePage", () => {
       isFetchingNextPage: false,
     } as any);
 
-    renderPage();
-    const btn = screen.getByText("Load More");
-    expect(btn).toBeDefined();
-    fireEvent.click(btn);
-    expect(fetchNextPage).toHaveBeenCalled();
+    const { container } = renderPage();
+    // RecipeGrid uses IntersectionObserver with a sentinel div
+    expect(screen.getByText("Pasta")).toBeDefined();
   });
 
   it("shows empty state when no recipes", () => {

@@ -1,7 +1,16 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { render, screen, cleanup, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
+import { render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import RecipeGrid from "../RecipeGrid";
+
+// Mock IntersectionObserver for test environment
+beforeAll(() => {
+  globalThis.IntersectionObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }));
+});
 
 afterEach(cleanup);
 
@@ -41,22 +50,18 @@ describe("RecipeGrid", () => {
     expect(screen.getByText("Nothing here")).toBeDefined();
   });
 
-  it("shows Load More button when hasNextPage", () => {
-    const fetchNextPage = vi.fn();
-    renderGrid({ hasNextPage: true, fetchNextPage });
-    const button = screen.getByText("Load More");
-    expect(button).toBeDefined();
-    fireEvent.click(button);
-    expect(fetchNextPage).toHaveBeenCalled();
+  it("uses IntersectionObserver for infinite scroll when hasNextPage", () => {
+    renderGrid({ hasNextPage: true });
+    expect(IntersectionObserver).toHaveBeenCalled();
   });
 
-  it("hides Load More button when no next page", () => {
-    renderGrid({ hasNextPage: false });
-    expect(screen.queryByText("Load More")).toBeNull();
+  it("does not render loading text when not fetching", () => {
+    renderGrid({ hasNextPage: true, isFetchingNextPage: false });
+    expect(screen.queryByText("Loading…")).toBeNull();
   });
 
-  it("shows Loading... text when fetching next page", () => {
+  it("shows Loading text when fetching next page", () => {
     renderGrid({ hasNextPage: true, isFetchingNextPage: true });
-    expect(screen.getByText("Loading...")).toBeDefined();
+    expect(screen.getByText("Loading…")).toBeDefined();
   });
 });

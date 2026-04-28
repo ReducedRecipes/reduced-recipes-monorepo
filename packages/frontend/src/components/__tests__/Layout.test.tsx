@@ -52,12 +52,13 @@ describe("Layout", () => {
     expect(reduced.closest("a")?.getAttribute("href")).toBe("/");
   });
 
-  it("renders section nav with Index, Browse, Recipe, Manifesto", () => {
+  it("renders section nav with Index, Browse, Saved, Journal, Manifesto", () => {
     renderLayout();
     expect(screen.getByText("00 — Index")).toBeDefined();
     expect(screen.getByText("01 — Browse")).toBeDefined();
-    expect(screen.getByText("02 — Recipe")).toBeDefined();
-    expect(screen.getByText("03 — Manifesto")).toBeDefined();
+    expect(screen.getByText("02 — Saved")).toBeDefined();
+    expect(screen.getByText("03 — Journal")).toBeDefined();
+    expect(screen.getByText("04 — Manifesto")).toBeDefined();
   });
 
   it("renders child route via Outlet", () => {

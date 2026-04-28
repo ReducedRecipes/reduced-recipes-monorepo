@@ -4,8 +4,9 @@ compatibility_date = "2024-05-01"
 
 [[queues.consumers]]
 queue = "projection-jobs"
-max_batch_size = 25
-max_retries = 5
+max_batch_size = 3
+max_retries = 2
+max_concurrency = 1
 dead_letter_queue = "projection-dlq"
 
 [[d1_databases]]

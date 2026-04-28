@@ -49,7 +49,7 @@ describe('app.json', () => {
     const notifPlugin = expo.plugins.find(
       (p: string | [string, unknown]) => Array.isArray(p) && p[0] === 'expo-notifications'
     );
-    expect(notifPlugin[1].color).toBe('#E85D26');
+    expect(notifPlugin[1].color).toBe('#C45A30');
   });
 
   it('has expo-build-properties with correct targets', () => {
@@ -156,15 +156,16 @@ describe('tailwind.config.js', () => {
 
   it('has brand colors', () => {
     const content = fs.readFileSync(configPath, 'utf-8');
-    expect(content).toContain('#E85D26');
-    expect(content).toContain('#1A1A18');
-    expect(content).toContain('#FAFAF8');
+    expect(content).toContain('#C45A30');
+    expect(content).toContain('#2D2923');
+    expect(content).toContain('#F3F0EB');
   });
 
   it('has font families', () => {
     const content = fs.readFileSync(configPath, 'utf-8');
-    expect(content).toContain('Lora_600SemiBold');
-    expect(content).toContain('DMSans_400Regular');
+    expect(content).toContain('InstrumentSerif_400Regular');
+    expect(content).toContain('Inter_400Regular');
+    expect(content).toContain('JetBrainsMono_400Regular');
   });
 });
 

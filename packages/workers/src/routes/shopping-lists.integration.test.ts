@@ -47,6 +47,10 @@ function createStatefulDB() {
           if (sql.includes('SELECT * FROM users')) {
             return TEST_USER;
           }
+          // Owner name lookup for shared view
+          if (sql.includes('SELECT name FROM users')) {
+            return { name: TEST_USER.name };
+          }
           // COUNT existing lists
           if (sql.includes('COUNT(*)') && sql.includes('shopping_lists')) {
             let count = 0;
@@ -54,6 +58,14 @@ function createStatefulDB() {
               if (l.user_id === params[0]) count++;
             }
             return { count };
+          }
+          // getAccessibleList membership check (JOIN shopping_list_members)
+          if (sql.includes('shopping_list_members') && sql.includes('JOIN shopping_lists')) {
+            return null;
+          }
+          // SELECT member count
+          if (sql.includes('COUNT(*)') && sql.includes('shopping_list_members')) {
+            return { count: 0 };
           }
           // SELECT single shopping list by id and user_id
           if (sql.includes('FROM shopping_lists') && sql.includes('WHERE id = ?') && sql.includes('user_id')) {
@@ -81,6 +93,10 @@ function createStatefulDB() {
           return null;
         }),
         all: vi.fn(async () => {
+          // Joined shared lists query (shopping_list_members JOIN)
+          if (sql.includes('shopping_list_members slm') && sql.includes('JOIN shopping_lists')) {
+            return { results: [], success: true };
+          }
           // SELECT all lists for user
           if (sql.includes('FROM shopping_lists sl') && sql.includes('ORDER BY')) {
             const userId = params[0] as string;
@@ -263,8 +279,8 @@ function makeEnv(usersDB: D1Database): Env {
     USERS_DB: usersDB,
     SESSION_KV: {
       get: vi.fn(async (key: string) => kvStore.get(key) ?? null),
-      put: vi.fn(),
-      delete: vi.fn(),
+      put: vi.fn().mockResolvedValue(undefined),
+      delete: vi.fn().mockResolvedValue(undefined),
       list: vi.fn(),
       getWithMetadata: vi.fn(),
     } as unknown as KVNamespace,

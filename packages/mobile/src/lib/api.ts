@@ -11,6 +11,7 @@ import type {
   ShoppingListItemSyncResult,
 } from "@rr/shared";
 import { buildQuery } from "@rr/shared/build-query";
+import { useAuthStore } from "../stores/auth.store";
 
 const BASE_URL = `${process.env.EXPO_PUBLIC_API_BASE || "https://reducedrecipes.com"}/api/v1`;
 
@@ -28,17 +29,24 @@ export class ApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  const token = useAuthStore.getState().sessionToken;
+  const authHeaders: Record<string, string> = {};
+  if (token) authHeaders["Authorization"] = `Bearer ${token}`;
+  console.log(`[API] ${init?.method ?? 'GET'} ${path} auth=${!!token}`);
+
   const res = await fetch(`${BASE_URL}${path}`, {
     ...init,
     headers: {
       "Content-Type": "application/json",
       "X-Client": "rr-mobile/1.0",
+      ...authHeaders,
       ...init?.headers,
     },
   });
 
   if (!res.ok) {
     const body = await res.json().catch(() => null) as { error?: { message?: string } } | null;
+    console.error(`[API] FAIL ${res.status} ${path}:`, body?.error?.message);
     throw new ApiError(
       res.status,
       body?.error?.message ?? `API error ${res.status}: ${res.statusText}`,
@@ -442,9 +450,27 @@ export interface ShoppingListDetailResponse {
   items: ShoppingListItem[];
 }
 
+/** Smart rollup item from the worker. */
+interface SmartRollupSource {
+  item_id: string;
+  recipe_id: string | null;
+  quantity: number | null;
+  original_text: string | null;
+}
+
+interface SmartRollupItem {
+  canonical_item: string;
+  display_text: string;
+  total_quantity: number | null;
+  unit: string | null;
+  category?: string;
+  sources: SmartRollupSource[];
+  parsing?: boolean;
+}
+
 /** Raw response shape from the worker (smart rollup format). */
 interface ShoppingListDetailRawResponse extends ShoppingList {
-  items: { unchecked: ShoppingListItem[]; checked: ShoppingListItem[] };
+  items: { unchecked: SmartRollupItem[]; checked: SmartRollupItem[] };
 }
 
 export function fetchShoppingLists(): Promise<ShoppingListsResponse> {
@@ -461,6 +487,32 @@ export function createShoppingList(body: {
   });
 }
 
+export function deleteShoppingList(id: string): Promise<void> {
+  return request<void>(`/shopping-lists/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+  });
+}
+
+function rollupToListItem(item: SmartRollupItem, checked: boolean): ShoppingListItem {
+  const firstSource = item.sources[0];
+  return {
+    id: firstSource?.item_id ?? item.canonical_item,
+    shopping_list_id: "",
+    original_text: item.display_text,
+    item: item.canonical_item,
+    quantity: item.total_quantity,
+    unit: item.unit,
+    checked: checked ? 1 : 0,
+    recipe_id: firstSource?.recipe_id ?? null,
+    parsing: item.parsing ? 1 : 0,
+    parse_failed: 0,
+    source: "recipe" as const,
+    position: 0,
+    created_at: "",
+    updated_at: "",
+  };
+}
+
 export async function getShoppingList(
   id: string,
 ): Promise<ShoppingListDetailResponse> {
@@ -468,9 +520,11 @@ export async function getShoppingList(
     `/shopping-lists/${encodeURIComponent(id)}`,
   );
   const { items: rolledUp, ...listFields } = raw;
+  const unchecked = rolledUp.unchecked.map((i) => rollupToListItem(i, false));
+  const checked = rolledUp.checked.map((i) => rollupToListItem(i, true));
   return {
     list: listFields,
-    items: [...rolledUp.unchecked, ...rolledUp.checked],
+    items: [...unchecked, ...checked],
   };
 }
 
@@ -556,6 +610,45 @@ export async function syncShoppingListItems(
     .filter((a) => !conflictIds.has(a.item_id))
     .map((a) => ({ item_id: a.item_id, status: 'applied' as const }));
   return { results: [...applied, ...raw.conflicts] };
+}
+
+// ── Shopping List Sharing ──────────────────────────────
+
+export interface ShareShoppingListResponse {
+  token: string;
+  share_url: string;
+}
+
+export function shareShoppingList(
+  listId: string,
+): Promise<ShareShoppingListResponse> {
+  return request<ShareShoppingListResponse>(
+    `/shopping-lists/${encodeURIComponent(listId)}/share`,
+    { method: "POST" },
+  );
+}
+
+export interface JoinSharedListResponse {
+  success: boolean;
+  list_id: string;
+  list_name: string;
+}
+
+export function joinSharedList(
+  token: string,
+): Promise<JoinSharedListResponse> {
+  return request<JoinSharedListResponse>(
+    `/shared/lists/${encodeURIComponent(token)}/join`,
+    { method: "POST" },
+  );
+}
+
+export function fetchSharedList(
+  token: string,
+): Promise<ShoppingListDetailResponse> {
+  return request<ShoppingListDetailResponse>(
+    `/shared/lists/${encodeURIComponent(token)}`,
+  );
 }
 
 export const api = USE_MOCK ? mockApi : realApi;

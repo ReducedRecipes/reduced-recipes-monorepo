@@ -2,16 +2,21 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import hotRefresh from './hot-refresh';
 
 function createEnv(overrides: Record<string, unknown> = {}) {
+  const emptyD1Result = { results: [{ total: 0 }], success: true, meta: {} };
   return {
     DB: {
       prepare: vi.fn().mockReturnValue({
         bind: vi.fn().mockReturnValue({
           run: vi.fn().mockResolvedValue({}),
+          first: vi.fn().mockResolvedValue(null),
         }),
       }),
+      batch: vi.fn().mockResolvedValue(
+        Array.from({ length: 20 }, () => emptyD1Result),
+      ),
     },
     RECIPES_KV: {},
-    CACHE_KV: {},
+    CACHE_KV: { get: vi.fn(), put: vi.fn().mockResolvedValue(undefined) },
     IMAGES_R2: {},
     CRAWL_QUEUE: {},
     PARSE_QUEUE: {},
@@ -40,7 +45,8 @@ describe('Hot Refresh Worker', () => {
 
     await hotRefresh.scheduled({} as ScheduledEvent, env, {} as ExecutionContext);
 
-    expect(env.DB.prepare).toHaveBeenCalledOnce();
+    // First prepare call should be the hot_score UPDATE
+    expect(env.DB.prepare).toHaveBeenCalled();
     const sql: string = env.DB.prepare.mock.calls[0]![0];
     expect(sql).toContain('UPDATE recipes');
     expect(sql).toContain('hot_score');
@@ -48,7 +54,7 @@ describe('Hot Refresh Worker', () => {
     expect(sql).toContain('vote_count > 0');
 
     expect(bindMock).toHaveBeenCalledWith(1704067200, 90000);
-    expect(runMock).toHaveBeenCalledOnce();
+    expect(runMock).toHaveBeenCalled();
   });
 
   it('uses custom HOT_EPOCH and HOT_DECAY_SECONDS from env', async () => {
@@ -76,7 +82,7 @@ describe('Hot Refresh Worker', () => {
   it('returns 200 OK when /trigger is requested', async () => {
     const env = createEnv();
     const runMock = vi.fn().mockResolvedValue({});
-    const bindMock = vi.fn().mockReturnValue({ run: runMock });
+    const bindMock = vi.fn().mockReturnValue({ run: runMock, first: vi.fn().mockResolvedValue(null) });
     env.DB.prepare.mockReturnValue({ bind: bindMock });
 
     const request = new Request('http://localhost/trigger');
@@ -84,7 +90,7 @@ describe('Hot Refresh Worker', () => {
 
     expect(response.status).toBe(200);
     expect(await response.text()).toContain('OK');
-    expect(runMock).toHaveBeenCalledOnce();
+    expect(runMock).toHaveBeenCalled();
   });
 
   it('returns 404 for unknown paths', async () => {
@@ -97,18 +103,22 @@ describe('Hot Refresh Worker', () => {
     expect(env.DB.prepare).not.toHaveBeenCalled();
   });
 
-  it('returns 500 when DB update throws', async () => {
+  it('returns 200 when DB update throws (errors are caught internally)', async () => {
     const env = createEnv();
     env.DB.prepare.mockReturnValue({
       bind: vi.fn().mockReturnValue({
         run: vi.fn().mockRejectedValue(new Error('DB error')),
+        first: vi.fn().mockResolvedValue(null),
       }),
     });
 
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const request = new Request('http://localhost/trigger');
     const response = await hotRefresh.fetch(request, env);
 
-    expect(response.status).toBe(500);
-    expect(await response.text()).toContain('DB error');
+    // Hot score update failure is caught internally; function continues and returns OK
+    expect(response.status).toBe(200);
+    expect(await response.text()).toContain('OK');
+    warnSpy.mockRestore();
   });
 });

@@ -75,12 +75,13 @@ describe("TopBar", () => {
   });
 
   describe("Section nav", () => {
-    it("renders all four section tabs", () => {
+    it("renders all five section tabs", () => {
       renderTopBar();
       expect(screen.getByText("00 — Index")).toBeDefined();
       expect(screen.getByText("01 — Browse")).toBeDefined();
-      expect(screen.getByText("02 — Recipe")).toBeDefined();
-      expect(screen.getByText("03 — Manifesto")).toBeDefined();
+      expect(screen.getByText("02 — Saved")).toBeDefined();
+      expect(screen.getByText("03 — Journal")).toBeDefined();
+      expect(screen.getByText("04 — Manifesto")).toBeDefined();
     });
 
     it("highlights Index tab when on home page", () => {
@@ -95,10 +96,10 @@ describe("TopBar", () => {
       expect(browseTab.className).toContain("border-accent");
     });
 
-    it("highlights Recipe tab when on recipe page", () => {
-      renderTopBar({}, "/recipe/123");
-      const recipeTab = screen.getByText("02 — Recipe");
-      expect(recipeTab.className).toContain("border-accent");
+    it("highlights Saved tab when on saved page", () => {
+      renderTopBar({}, "/saved");
+      const savedTab = screen.getByText("02 — Saved");
+      expect(savedTab.className).toContain("border-accent");
     });
 
     it("does not highlight Index when on another page", () => {

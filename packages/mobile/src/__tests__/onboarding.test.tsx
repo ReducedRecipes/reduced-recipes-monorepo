@@ -102,7 +102,8 @@ describe("Onboarding Screen (S-25)", () => {
 
   it("renders brand text on welcome slide", () => {
     const source = readFileSync(ONBOARDING_FILE, "utf-8");
-    expect(source).toContain("Recipes without the story.");
+    expect(source).toContain("Recipes without");
+    expect(source).toContain("the story.");
     expect(source).toContain("Just the good stuff.");
   });
 
@@ -135,7 +136,7 @@ describe("Onboarding Screen (S-25)", () => {
   it("has notifications slide with enable button", () => {
     const source = readFileSync(ONBOARDING_FILE, "utf-8");
     expect(source).toContain("Stay updated");
-    expect(source).toContain("Enable Notifications");
+    expect(source).toContain("ENABLE NOTIFICATIONS");
   });
 
   it("uses horizontal paging for slide navigation", () => {
@@ -146,7 +147,8 @@ describe("Onboarding Screen (S-25)", () => {
 
   it("uses brand fonts from theme", () => {
     const source = readFileSync(ONBOARDING_FILE, "utf-8");
-    expect(source).toContain("fonts.display");
-    expect(source).toContain("fonts.body");
+    expect(source).toContain("fonts.serif");
+    expect(source).toContain("fonts.sans");
+    expect(source).toContain("fonts.mono");
   });
 });

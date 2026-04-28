@@ -48,12 +48,12 @@ describe('session management', () => {
       expect(parts[1]).toMatch(/^[0-9a-f]+$/);
     });
 
-    it('stores session in KV with 30-day TTL', async () => {
+    it('stores session in KV with 1-year TTL', async () => {
       const { token } = await createSession(kv, 'user-1');
       expect(kv.put).toHaveBeenCalledWith(
         `session:${token}`,
         expect.any(String),
-        { expirationTtl: 30 * 24 * 60 * 60 },
+        { expirationTtl: 365 * 24 * 60 * 60 },
       );
 
       const stored = JSON.parse(kv._store.get(`session:${token}`)!);

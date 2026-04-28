@@ -5,8 +5,10 @@ import {
   ShoppingItem,
 } from "../stores/shopping.store";
 import { useShoppingSyncStore } from "../stores/shopping-sync.store";
+import { useAuthStore } from "../stores/auth.store";
 
 export function useShoppingList() {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const items = useShoppingStore((s) => s.items);
   const lists = useShoppingStore((s) => s.lists);
   const activeListId = useShoppingStore((s) => s.activeListId);
@@ -22,14 +24,21 @@ export function useShoppingList() {
   const fetchLists = useShoppingStore((s) => s.fetchLists);
   const selectList = useShoppingStore((s) => s.selectList);
   const createList = useShoppingStore((s) => s.createList);
+  const deleteList = useShoppingStore((s) => s.deleteList);
   const setOnline = useShoppingStore((s) => s.setOnline);
 
   const pendingMutations = useShoppingSyncStore((s) => s.pendingMutations);
   const syncPending = useShoppingSyncStore((s) => s.sync);
 
   useEffect(() => {
-    fetchLists();
-  }, [fetchLists]);
+    if (!isAuthenticated) return;
+    fetchLists().then(() => {
+      const { lists: currentLists, activeListId: currentId } = useShoppingStore.getState();
+      if (!currentId && currentLists.length > 0 && currentLists[0]) {
+        selectList(currentLists[0].id);
+      }
+    });
+  }, [fetchLists, selectList, isAuthenticated]);
 
   // Listen for connectivity changes: update isOnline and trigger sync on reconnect
   useEffect(() => {
@@ -115,6 +124,7 @@ export function useShoppingList() {
     fetchLists,
     selectList,
     createList,
+    deleteList,
     groupedByCategory,
     checkedCount,
     totalCount,

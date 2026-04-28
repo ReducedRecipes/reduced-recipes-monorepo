@@ -129,7 +129,9 @@ describe('ShoppingListScreen (S-31)', () => {
   });
 
   it('renders checkbox with checked styling', () => {
-    expect(content).toContain('bg-orange border-orange');
-    expect(content).toContain('border-ink-faint');
+    expect(content).toContain('checkboxChecked');
+    expect(content).toContain('checkboxUnchecked');
+    expect(content).toContain('colors.orange');
+    expect(content).toContain('colors.inkFaint');
   });
 });

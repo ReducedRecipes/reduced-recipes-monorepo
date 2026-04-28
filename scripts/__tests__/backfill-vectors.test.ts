@@ -29,10 +29,10 @@ describe('buildEmbeddingText', () => {
     expect(text).toContain('Dinner');
   });
 
-  it('includes joined tags', () => {
-    const text = buildEmbeddingText(baseDoc);
-    expect(text).toContain('indian');
-    expect(text).toContain('curry');
+  it('does not include tags (tags are not part of embedding text)', () => {
+    const doc = { ...baseDoc, tags: ['unique-tag-xyz'] };
+    const text = buildEmbeddingText(doc);
+    expect(text).not.toContain('unique-tag-xyz');
   });
 
   it('includes joined ingredients', () => {

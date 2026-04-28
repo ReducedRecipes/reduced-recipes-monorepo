@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
@@ -12,11 +12,10 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter, Stack } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
 import { useRecipe } from "@/hooks/useRecipe";
-import { useSavedRecipes } from "@/hooks/useSavedRecipes";
 import { IngredientList } from "@/components/IngredientList";
 import { InstructionList } from "@/components/InstructionList";
 import { ErrorState } from "@/components/ErrorState";
-import { BookmarkIcon, HeartIcon } from "@/components/icons";
+import { HeartIcon } from "@/components/icons";
 import { useHeart } from "@/hooks/useHeart";
 import { useSimilarRecipes } from "@/hooks/useSimilarRecipes";
 import { RecipeCard } from "@/components/RecipeCard";
@@ -29,9 +28,8 @@ export default function RecipeDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { data: recipe, isLoading, error, refetch } = useRecipe(id ?? "");
-  const { isSaved, save, unsave } = useSavedRecipes();
   const [activeTab, setActiveTab] = useState<Tab>("ingredients");
-  const heart = useHeart(id ?? "");
+  const heart = useHeart(id ?? "", recipe?.vote_count);
   const { data: similarRecipes } = useSimilarRecipes(id ?? "");
 
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -41,17 +39,6 @@ export default function RecipeDetailScreen() {
     outputRange: [0, 1],
     extrapolate: "clamp",
   });
-
-  const saved = useMemo(() => {
-    if (!recipe) return false;
-    return isSaved(recipe.id);
-  }, [recipe, isSaved]);
-
-  const handleBookmarkPress = useCallback(async () => {
-    if (!recipe) return;
-    if (saved) await unsave(recipe.id);
-    else await save(recipe);
-  }, [recipe, saved, save, unsave]);
 
   const handleShare = useCallback(async () => {
     if (!recipe) return;
@@ -116,9 +103,6 @@ export default function RecipeDetailScreen() {
         <View style={s.floatingRight}>
           <Pressable onPress={heart.toggle} style={s.floatingBtn} accessibilityLabel={heart.hearted ? "Unlike recipe" : "Like recipe"}>
             <HeartIcon color={heart.hearted ? colors.accent : "#FFFFFF"} size={20} filled={heart.hearted} />
-          </Pressable>
-          <Pressable onPress={handleBookmarkPress} style={s.floatingBtn} accessibilityLabel={saved ? "Remove bookmark" : "Bookmark recipe"}>
-            <BookmarkIcon color={saved ? colors.accent : "#FFFFFF"} size={22} />
           </Pressable>
           <Pressable onPress={handleShare} style={s.floatingBtn} accessibilityLabel="Share recipe">
             <Text style={s.floatingBtnText}>↗</Text>
@@ -292,11 +276,11 @@ const s = StyleSheet.create({
   },
   floatingRight: { flexDirection: "row", gap: 8 },
   floatingBtn: {
-    width: 44, height: 44, borderRadius: 22,
-    backgroundColor: "rgba(0,0,0,0.45)",
+    width: 44, height: 44,
+    backgroundColor: "rgba(0,0,0,0.55)",
     alignItems: "center", justifyContent: "center",
   },
-  floatingBtnText: { color: "#FFFFFF", fontSize: 20, fontWeight: "600" },
+  floatingBtnText: { color: "#FFFFFF", fontSize: 20, fontWeight: "600", lineHeight: 22, textAlign: "center" },
 
   heroWrap: { width: "100%", aspectRatio: 16 / 9 },
   heroImage: { width: "100%", height: "100%" },
