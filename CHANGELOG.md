@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.8](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.7...v1.3.8) (2026-04-28)
+
+
+### Bug Fixes
+
+* grant admin permissions to Play Store service account ([efc30b1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/efc30b180dbb35c34cc6d2df98d20a6060cc5855))
+
 ## [1.3.7](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.6...v1.3.7) (2026-04-28)
 
 
