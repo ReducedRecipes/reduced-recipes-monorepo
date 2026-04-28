@@ -1,6 +1,6 @@
 {
   "name": "@rr/mobile",
-  "version": "1.3.2",
+  "version": "1.3.3",
   "main": "expo-router/entry",
   "private": true,
   "scripts": {
