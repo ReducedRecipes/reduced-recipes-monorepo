@@ -9,6 +9,9 @@ on:
         required: true
         type: string
 
+env:
+  EAS_BUILD_NO_EXPO_GO_WARNING: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -35,24 +38,10 @@ jobs:
           eas-version: latest
           token: ${{ secrets.EXPO_TOKEN }}
 
-      - name: Build iOS
-        working-directory: packages/mobile
-        run: eas build --platform ios --profile production --non-interactive
-
       - name: Build Android
         working-directory: packages/mobile
-        run: eas build --platform android --profile production --non-interactive
+        run: eas build --platform android --profile production --non-interactive --no-wait
 
-      - name: Submit iOS
+      - name: Build iOS
         working-directory: packages/mobile
-        run: eas submit --platform ios --latest --non-interactive
-        env:
-          ASC_API_KEY_ID: ${{ secrets.ASC_API_KEY_ID }}
-          ASC_API_KEY_ISSUER_ID: ${{ secrets.ASC_API_KEY_ISSUER_ID }}
-          ASC_API_KEY: ${{ secrets.ASC_API_KEY }}
-
-      - name: Submit Android
-        working-directory: packages/mobile
-        run: eas submit --platform android --latest --non-interactive
-        env:
-          GOOGLE_SERVICE_ACCOUNT_KEY: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}
+        run: eas build --platform ios --profile production --non-interactive --no-wait

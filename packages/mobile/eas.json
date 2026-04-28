@@ -53,12 +53,7 @@
   },
   "submit": {
     "production": {
-      "ios": {
-        "appleId": "REPLACE_WITH_APPLE_ID",
-        "ascAppId": "REPLACE_WITH_ASC_APP_ID"
-      },
       "android": {
-        "serviceAccountKeyPath": "./google-services.json",
         "track": "internal"
       }
     }
