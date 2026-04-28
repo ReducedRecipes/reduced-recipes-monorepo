@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.3](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.2...v1.3.3) (2026-04-28)
+
+
+### Bug Fixes
+
+* fix mobile CI build workflow ([6b5e30d](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/6b5e30d6f9bacf292f7e622048d1c226ba4a9ceb))
+
 ## [1.3.2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.1...v1.3.2) (2026-04-28)
 
 
