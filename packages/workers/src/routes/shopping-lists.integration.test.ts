@@ -140,14 +140,14 @@ function createStatefulDB() {
             });
             return { success: true };
           }
-          // INSERT shopping_list_recipes
-          if (sql.includes('INSERT INTO shopping_list_recipes')) {
+          // INSERT shopping_list_recipes (INSERT OR IGNORE)
+          if (sql.includes('INTO shopping_list_recipes')) {
             const [listId, recipeId] = params as string[];
             recipeJunctions.set(`${listId!}:${recipeId!}`, {
               shopping_list_id: listId!,
               recipe_id: recipeId!,
             });
-            return { success: true };
+            return { success: true, meta: { changes: 1 } };
           }
           // INSERT shopping_list_items
           if (sql.includes('INSERT INTO shopping_list_items')) {

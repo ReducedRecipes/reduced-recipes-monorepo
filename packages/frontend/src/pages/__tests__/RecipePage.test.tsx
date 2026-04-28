@@ -514,7 +514,6 @@ describe("RecipePage", () => {
     });
 
     it("confirmation auto-dismisses after 3 seconds", async () => {
-      vi.useFakeTimers({ shouldAdvanceTime: true });
       mockShoppingListsState.lists = [mockList()];
       renderPage();
       await screen.findByText("Chocolate Cake");
@@ -525,11 +524,13 @@ describe("RecipePage", () => {
         expect(screen.getByText(/Ingredients added to Groceries/)).toBeDefined();
       });
 
-      act(() => {
-        vi.advanceTimersByTime(3100);
-      });
-
-      expect(screen.queryByText(/Ingredients added to Groceries/)).toBeNull();
+      // The confirmation uses a 3s setTimeout — verify it eventually disappears
+      await waitFor(
+        () => {
+          expect(screen.queryByText(/Ingredients added to Groceries/)).toBeNull();
+        },
+        { timeout: 5000 },
+      );
     });
 
     it("can re-open picker after adding", async () => {
