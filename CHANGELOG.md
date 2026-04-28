@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.5](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.4...v1.3.5) (2026-04-28)
+
+
+### Bug Fixes
+
+* restore original Android keystore for Play Store signing ([e9d0f91](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/e9d0f910bf4a241be4e373313f5903a21243f8d7))
+
 ## [1.3.4](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.3...v1.3.4) (2026-04-28)
 
 
