@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.0...v1.3.1) (2026-04-28)
+
+
+### Bug Fixes
+
+* trigger mobile build from release-please workflow ([0b07743](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/0b077435894ff326b79bb48279226e41dca83396))
+
 ## [1.3.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.2.0...v1.3.0) (2026-04-28)
 
 
