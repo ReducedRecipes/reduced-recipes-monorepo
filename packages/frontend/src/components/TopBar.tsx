@@ -41,7 +41,7 @@ export default function TopBar({ recipeCount = 0 }: TopBarProps) {
           <span className="hidden text-caps font-mono text-ink-3 sm:block">
             Recipes, reduced to what matters.
           </span>
-          <span className="hidden text-caps font-mono text-ink-3 sm:block">v1.0 / Issue 01</span>
+          <span className="hidden text-caps font-mono text-ink-3 sm:block">v{__APP_VERSION__}</span>
         </div>
       </div>
 

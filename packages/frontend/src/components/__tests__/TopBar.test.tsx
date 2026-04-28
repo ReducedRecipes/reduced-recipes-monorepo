@@ -41,7 +41,7 @@ describe("TopBar", () => {
 
     it("renders version info", () => {
       renderTopBar();
-      expect(screen.getByText("v1.0 / Issue 01")).toBeDefined();
+      expect(screen.getByText(/^v\d+\.\d+\.\d+$/)).toBeDefined();
     });
   });
 

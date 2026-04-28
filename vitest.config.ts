@@ -1,7 +1,15 @@
 import { defineConfig } from 'vitest/config';
 import path from 'path';
+import { readFileSync } from 'fs';
+
+const rootPkg = JSON.parse(
+  readFileSync(path.resolve(__dirname, 'package.json'), 'utf-8'),
+);
 
 export default defineConfig({
+  define: {
+    '__APP_VERSION__': JSON.stringify(rootPkg.version),
+  },
   resolve: {
     alias: [
       { find: 'cloudflare:workers', replacement: path.resolve(__dirname, 'packages/workers/src/__mocks__/cloudflare-workers') },
