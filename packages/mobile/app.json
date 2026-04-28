@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "ReducedRecipes",
-    "slug": "reduced-recipes",
+    "slug": "reducedrecipes",
     "version": "1.3.1",
     "scheme": "reducedrecipes",
     "orientation": "portrait",
@@ -89,7 +89,7 @@
       ],
       "expo-secure-store"
     ],
-    "owner": "nikrich",
+    "owner": "reduced-recipes",
     "extra": {
       "router": {
         "origin": "https://reducedrecipes.com"
