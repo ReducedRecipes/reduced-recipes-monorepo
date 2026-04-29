@@ -2,6 +2,30 @@
 
 Recipe index that strips SEO bloat from recipes, keeping only ingredients, steps, and timings.
 
+## Memory palace
+
+Project memory lives in `.claude/memory/`. Always check these before starting work:
+- `palace.md` -- general knowledge, preferences, external resources
+- `decisions.md` -- architectural decision log (why, not what)
+- `feature-map.md` -- where every feature is implemented
+- `tech-debt.md` -- known shortcuts and when to fix them
+- `journal.md` -- session history
+
+Use `/remember` to store, `/recall` to search, `/decision-log` to record decisions.
+
+## Custom commands
+
+| Command | Purpose |
+|---------|---------|
+| `/brainstorm [area]` | Generate structured product ideas |
+| `/challenge [approach]` | Stress-test an architectural decision |
+| `/decision-log [record\|query]` | Record or query WHY decisions were made |
+| `/feature-map [update\|query]` | Find where features are implemented |
+| `/debt [add\|list\|scan]` | Track tech debt |
+| `/journal` | Summarize what was done this session |
+| `/remember [thing]` | Save to memory palace |
+| `/recall [query]` | Search all memory |
+
 ## Quick reference
 
 ```
