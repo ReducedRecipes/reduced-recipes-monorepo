@@ -32,4 +32,10 @@ Save "$memory" to the memory palace at `.claude/memory/palace.md`.
 ## Rules
 - Deduplicate. If a similar memory exists, update it rather than adding a duplicate.
 - Keep entries concise - one line each. Add context only if the bare fact would be ambiguous later.
-- Never store secrets, passwords, or tokens.
+- **NEVER store any of the following in memory or anywhere in the repo:**
+  - Passwords, API keys, tokens, or secrets (even partially redacted)
+  - Service account emails or key file contents
+  - Account IDs, project IDs, or numeric identifiers for external services
+  - Keystore passwords, aliases, or fingerprints
+  - Any value that belongs in a GitHub secret or .env file
+- When in doubt, describe the resource generically ("the GCP service account") rather than including identifiers.

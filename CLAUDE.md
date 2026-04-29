@@ -2,6 +2,17 @@
 
 Recipe index that strips SEO bloat from recipes, keeping only ingredients, steps, and timings.
 
+## Sensitive data policy
+
+**NEVER write any of the following to any file in this repo (including memory, docs, tests, configs):**
+- Passwords, API keys, tokens, secrets, or credentials (even partially redacted)
+- Service account emails or key file contents
+- Account IDs, project IDs, or numeric identifiers for external services
+- Keystore passwords, aliases, or certificate fingerprints
+- Any value that belongs in a GitHub secret, .env file, or credential store
+
+Describe resources generically: "the GCP service account" not `foo@project.iam.gserviceaccount.com`. Reference where to find the value ("see GitHub secrets", "see app.json") instead of inlining it.
+
 ## Memory palace
 
 Project memory lives in `.claude/memory/`. Always check these before starting work:

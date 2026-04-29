@@ -8,7 +8,7 @@ Read `CLAUDE.md` first for project overview. This file contains strict rules age
 
 2. **Never use em dashes** (--) in any written content. Use hyphens or rewrite the sentence.
 
-3. **Never commit secrets, .env files, or credentials.** Check `git diff --cached` before committing.
+3. **Never commit secrets, .env files, or credentials.** Check `git diff --cached` before committing. This includes memory files, docs, tests, and configs. Never write API keys, tokens, service account emails, account IDs, keystore passwords, or certificate fingerprints anywhere in the repo. Describe resources generically ("the GCP service account") and reference where to find values ("see GitHub secrets") instead.
 
 4. **Never push --force to main.** Never skip hooks with --no-verify.
 

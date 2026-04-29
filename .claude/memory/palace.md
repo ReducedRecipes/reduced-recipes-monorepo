@@ -16,6 +16,6 @@
 - [2026-04-28] Editorial/newspaper design aesthetic - specimen labels, figure numbers, monospace labels, large serif headlines
 
 ## External resources
-- [2026-04-28] EAS project: @reduced-recipes/reducedrecipes (ID: b45c3076-b327-47bf-b371-4b85d75fd9b2)
-- [2026-04-28] Google Play Console account ID: 7537475584932717701 (Jannik Richter, personal)
-- [2026-04-28] Service account: eas-build-submit@recipeproject-305215.iam.gserviceaccount.com
+- [2026-04-28] EAS project: @reduced-recipes/reducedrecipes (see app.json for project ID)
+- [2026-04-28] Google Play Console: Jannik Richter personal account
+- [2026-04-28] Play Store submissions use a GCP service account with Admin app permissions
