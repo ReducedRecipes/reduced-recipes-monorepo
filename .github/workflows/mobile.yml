@@ -47,11 +47,25 @@ jobs:
           APPLE_ASC_API_KEY: ${{ secrets.APPLE_APP_STORE_CONNECT_API_KEY }}
         run: printf '%s' "$APPLE_ASC_API_KEY" > packages/mobile/apple-asc-api-key.p8
 
-      - name: Build and submit (iOS + Android)
+      - name: Inject iOS submit credentials into eas.json
         working-directory: packages/mobile
         env:
           ASC_APP_ID: ${{ secrets.APPLE_ASC_APP_ID }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           ASC_API_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
           ASC_API_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
+        run: |
+          jq \
+            --arg appId "$ASC_APP_ID" \
+            --arg teamId "$APPLE_TEAM_ID" \
+            --arg keyId "$ASC_API_KEY_ID" \
+            --arg issuerId "$ASC_API_ISSUER_ID" \
+            '.submit.production.ios.ascAppId = $appId
+             | .submit.production.ios.appleTeamId = $teamId
+             | .submit.production.ios.ascApiKeyId = $keyId
+             | .submit.production.ios.ascApiKeyIssuerId = $issuerId' \
+            eas.json > eas.json.tmp && mv eas.json.tmp eas.json
+
+      - name: Build and submit (iOS + Android)
+        working-directory: packages/mobile
         run: eas build --platform all --profile production --non-interactive --auto-submit
