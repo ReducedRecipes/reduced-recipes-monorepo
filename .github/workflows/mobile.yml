@@ -8,6 +8,7 @@ on:
       tag_name:
         required: true
         type: string
+  workflow_dispatch:
 
 env:
   EAS_BUILD_NO_EXPO_GO_WARNING: true
@@ -41,6 +42,16 @@ jobs:
       - name: Write Google Play service account key
         run: echo '${{ secrets.GOOGLE_SERVICE_ACCOUNT_KEY }}' > packages/mobile/google-play-service-account.json
 
-      - name: Build and submit Android
+      - name: Write Apple App Store Connect API key
+        env:
+          APPLE_ASC_API_KEY: ${{ secrets.APPLE_APP_STORE_CONNECT_API_KEY }}
+        run: printf '%s' "$APPLE_ASC_API_KEY" > packages/mobile/apple-asc-api-key.p8
+
+      - name: Build and submit (iOS + Android)
         working-directory: packages/mobile
-        run: eas build --platform android --profile production --non-interactive --auto-submit
+        env:
+          ASC_APP_ID: ${{ secrets.APPLE_ASC_APP_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          ASC_API_KEY_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_KEY_ID }}
+          ASC_API_ISSUER_ID: ${{ secrets.APPLE_APP_STORE_CONNECT_ISSUER_ID }}
+        run: eas build --platform all --profile production --non-interactive --auto-submit
