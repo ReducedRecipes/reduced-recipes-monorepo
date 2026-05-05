@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
+import { isInAppBrowser } from "../lib/in-app-browser";
 
 function SignInMenu({
   className,
@@ -13,6 +14,14 @@ function SignInMenu({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<null | 'google' | 'apple'>(null);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function onOpenMenu() {
+      setOpen(true);
+    }
+    window.addEventListener('open-signin-menu', onOpenMenu);
+    return () => window.removeEventListener('open-signin-menu', onOpenMenu);
+  }, []);
 
   useEffect(() => {
     if (!open) return;
@@ -44,7 +53,13 @@ function SignInMenu({
   return (
     <div ref={ref} className={`relative ${className ?? ''}`}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => {
+          if (isInAppBrowser()) {
+            window.dispatchEvent(new CustomEvent('inapp-browser-login'));
+            return;
+          }
+          setOpen((v) => !v);
+        }}
         className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
       >
         Sign in

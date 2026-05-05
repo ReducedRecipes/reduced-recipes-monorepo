@@ -58,33 +58,33 @@ function AppRoot() {
   return (
     <BrowserRouter>
       <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/recipe/:id" element={<RecipePage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/ingredients" element={<IngredientsPage />} />
-            <Route path="/tag/:tag" element={<TagPage />} />
-            <Route path="/cuisine/:cuisine" element={<CuisinePage />} />
-            <Route path="/site/:domain" element={<DomainPage />} />
-            <Route path="/remove" element={<RemovePage />} />
-            <Route path="/auth/callback" element={<LoginCallbackPage />} />
-            <Route path="/user/:id" element={<UserProfilePage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/saved" element={<SavedPage />} />
-            <Route path="/collection/:id" element={<CollectionPage />} />
-            <Route path="/shopping-lists" element={<ShoppingListsPage />} />
-            <Route path="/shopping-lists/:id" element={<ShoppingListPage />} />
-            <Route path="/shared/lists/:token" element={<SharedListPage />} />
-            <Route path="/blog" element={<BlogPage />} />
-            <Route path="/blog/:slug" element={<BlogPostPage />} />
-            <Route path="/about" element={<ManifestoPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/transparency" element={<TransparencyPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+        <Route element={<Layout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/recipe/:id" element={<RecipePage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/ingredients" element={<IngredientsPage />} />
+          <Route path="/tag/:tag" element={<TagPage />} />
+          <Route path="/cuisine/:cuisine" element={<CuisinePage />} />
+          <Route path="/site/:domain" element={<DomainPage />} />
+          <Route path="/remove" element={<RemovePage />} />
+          <Route path="/auth/callback" element={<LoginCallbackPage />} />
+          <Route path="/user/:id" element={<UserProfilePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/saved" element={<SavedPage />} />
+          <Route path="/collection/:id" element={<CollectionPage />} />
+          <Route path="/shopping-lists" element={<ShoppingListsPage />} />
+          <Route path="/shopping-lists/:id" element={<ShoppingListPage />} />
+          <Route path="/shared/lists/:token" element={<SharedListPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
+          <Route path="/about" element={<ManifestoPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/transparency" element={<TransparencyPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
   );
 }
 
