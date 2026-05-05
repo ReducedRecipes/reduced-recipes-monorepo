@@ -102,6 +102,7 @@ BOT_USER_AGENT = "ReducedRecipesBot/1.0"
 DEFAULT_CRAWL_DELAY_MS = "2000"
 MAX_QUEUE_BATCH = "10"
 ENVIRONMENT = "production"
+FIREBASE_PROJECT_ID = "reducedrecipes"
 
 # Hot ranking
 HOT_DECAY_SECONDS = "90000"
