@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -37,38 +37,61 @@ const queryClient = new QueryClient({
   },
 });
 
+function AppRoot() {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { handleFirebaseRedirect } = await import('./lib/firebase-redirect-handler');
+        const result = await handleFirebaseRedirect();
+        if (cancelled || !result) return;
+        localStorage.setItem('session_token', result.token);
+        // Force a refresh so useAuth's /auth/me query re-runs with the new session.
+        window.location.reload();
+      } catch (err) {
+        console.error('Firebase redirect handler failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route element={<Layout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/recipe/:id" element={<RecipePage />} />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/ingredients" element={<IngredientsPage />} />
+          <Route path="/tag/:tag" element={<TagPage />} />
+          <Route path="/cuisine/:cuisine" element={<CuisinePage />} />
+          <Route path="/site/:domain" element={<DomainPage />} />
+          <Route path="/remove" element={<RemovePage />} />
+          <Route path="/auth/callback" element={<LoginCallbackPage />} />
+          <Route path="/user/:id" element={<UserProfilePage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/saved" element={<SavedPage />} />
+          <Route path="/collection/:id" element={<CollectionPage />} />
+          <Route path="/shopping-lists" element={<ShoppingListsPage />} />
+          <Route path="/shopping-lists/:id" element={<ShoppingListPage />} />
+          <Route path="/shared/lists/:token" element={<SharedListPage />} />
+          <Route path="/blog" element={<BlogPage />} />
+          <Route path="/blog/:slug" element={<BlogPostPage />} />
+          <Route path="/about" element={<ManifestoPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/transparency" element={<TransparencyPage />} />
+          <Route path="*" element={<NotFoundPage />} />
+        </Route>
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
-          <Route element={<Layout />}>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/recipe/:id" element={<RecipePage />} />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/ingredients" element={<IngredientsPage />} />
-            <Route path="/tag/:tag" element={<TagPage />} />
-            <Route path="/cuisine/:cuisine" element={<CuisinePage />} />
-            <Route path="/site/:domain" element={<DomainPage />} />
-            <Route path="/remove" element={<RemovePage />} />
-            <Route path="/auth/callback" element={<LoginCallbackPage />} />
-            <Route path="/user/:id" element={<UserProfilePage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/saved" element={<SavedPage />} />
-            <Route path="/collection/:id" element={<CollectionPage />} />
-            <Route path="/shopping-lists" element={<ShoppingListsPage />} />
-            <Route path="/shopping-lists/:id" element={<ShoppingListPage />} />
-            <Route path="/shared/lists/:token" element={<SharedListPage />} />
-            <Route path="/blog" element={<BlogPage />} />
-            <Route path="/blog/:slug" element={<BlogPostPage />} />
-            <Route path="/about" element={<ManifestoPage />} />
-            <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/transparency" element={<TransparencyPage />} />
-            <Route path="*" element={<NotFoundPage />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
+      <AppRoot />
     </QueryClientProvider>
   </React.StrictMode>
 );

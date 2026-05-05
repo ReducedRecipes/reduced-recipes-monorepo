@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { renderHook } from "@testing-library/react";
 import { useAuthStore } from "../../stores/auth.store";
 
 vi.mock("../../lib/api", () => ({
@@ -6,10 +7,18 @@ vi.mock("../../lib/api", () => ({
   getGoogleAuthUrl: vi.fn(),
 }));
 
-import { apiFetch, getGoogleAuthUrl } from "../../lib/api";
+vi.mock("@tanstack/react-query", async () => {
+  const actual = await vi.importActual<typeof import("@tanstack/react-query")>("@tanstack/react-query");
+  return {
+    ...actual,
+    useQuery: vi.fn(() => ({ isLoading: false, data: null })),
+    useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn() })),
+  };
+});
+
+import { apiFetch } from "../../lib/api";
 
 const mockApiFetch = vi.mocked(apiFetch);
-const mockGetGoogleAuthUrl = vi.mocked(getGoogleAuthUrl);
 
 const mockUser = {
   id: "u-123",
@@ -59,24 +68,47 @@ describe("useAuth hook logic", () => {
 });
 
 describe("useAuth hook — login action", () => {
-  it("login calls getGoogleAuthUrl with platform web and redirects", async () => {
-    mockGetGoogleAuthUrl.mockResolvedValueOnce({ url: "https://accounts.google.com/o/oauth2/auth?state=abc" });
+  it("login dispatches open-signin-menu when not in an in-app browser", async () => {
+    // Ensure a standard browser UA (no in-app browser indicators)
+    Object.defineProperty(navigator, "userAgent", {
+      value: "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      configurable: true,
+    });
 
-    // Import the actual hook module to test the login function
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
     const { useAuth } = await import("../useAuth");
+    const { result } = renderHook(() => useAuth());
 
-    // The login function is self-contained — we can extract its logic
-    const { url } = await getGoogleAuthUrl("web", "/profile");
-    expect(mockGetGoogleAuthUrl).toHaveBeenCalledWith("web", "/profile");
-    expect(url).toBe("https://accounts.google.com/o/oauth2/auth?state=abc");
+    await result.current.login();
+
+    const dispatched = dispatchSpy.mock.calls.map((c) => (c[0] as unknown as CustomEvent).type);
+    expect(dispatched).toContain("open-signin-menu");
+    dispatchSpy.mockRestore();
   });
 
-  it("login with no returnTo still calls getGoogleAuthUrl", async () => {
-    mockGetGoogleAuthUrl.mockResolvedValueOnce({ url: "https://accounts.google.com/o/oauth2/auth" });
+  it("login dispatches inapp-browser-login when in an in-app browser", async () => {
+    // Mock an Instagram in-app browser UA
+    Object.defineProperty(navigator, "userAgent", {
+      value: "Mozilla/5.0 (iPhone; CPU iPhone OS 15_0 like Mac OS X) Instagram/220.0",
+      configurable: true,
+    });
 
-    const { url } = await getGoogleAuthUrl("web", undefined);
-    expect(mockGetGoogleAuthUrl).toHaveBeenCalledWith("web", undefined);
-    expect(url).toBe("https://accounts.google.com/o/oauth2/auth");
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+    const { useAuth } = await import("../useAuth");
+    const { result } = renderHook(() => useAuth());
+
+    await result.current.login();
+
+    const dispatched = dispatchSpy.mock.calls.map((c) => (c[0] as unknown as CustomEvent).type);
+    expect(dispatched).toContain("inapp-browser-login");
+    expect(dispatched).not.toContain("open-signin-menu");
+    dispatchSpy.mockRestore();
+
+    // Restore a neutral UA for subsequent tests
+    Object.defineProperty(navigator, "userAgent", {
+      value: "Mozilla/5.0",
+      configurable: true,
+    });
   });
 });
 
@@ -138,7 +170,8 @@ describe("useAuth hook — exports", () => {
     );
     expect(source).toContain("login");
     expect(source).toContain("checkAuth");
-    expect(source).toContain("getGoogleAuthUrl");
+    // login now dispatches open-signin-menu instead of calling getGoogleAuthUrl
+    expect(source).toContain("open-signin-menu");
     expect(source).toContain("invalidateQueries");
   });
 });

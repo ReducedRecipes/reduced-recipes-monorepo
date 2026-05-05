@@ -4,8 +4,9 @@
   "type": "module",
   "private": true,
   "dependencies": {
+    "@rr/shared": "workspace:*",
     "hono": "^4.3",
-    "@rr/shared": "workspace:*"
+    "jose": "^6.2.3"
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^4.20240512",

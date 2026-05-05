@@ -19,6 +19,8 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.reducedrecipes.app",
       "buildNumber": "1",
+      "googleServicesFile": "./GoogleService-Info.plist",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "NSMicrophoneUsageDescription": "Used for voice-guided cooking instructions.",
         "NSUserNotificationUsageDescription": "Get notified when new recipes are added from your saved sites."

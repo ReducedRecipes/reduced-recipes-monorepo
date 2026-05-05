@@ -17,6 +17,7 @@ import ingredientSearchRoutes from './routes/ingredient-search';
 import heartRoutes from './routes/hearts';
 import fundingRoutes from './routes/funding';
 import searchSimilarRoutes from './routes/search-similar';
+import firebaseAuthRoutes from './routes/firebase-auth';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -1010,6 +1011,7 @@ app.use('*', async (c, next) => {
 
 // ── Mount route modules ─────────────────────────────────────────────────
 app.route('/', authRoutes);
+app.route('/', firebaseAuthRoutes);
 app.route('/', bookmarkRoutes);
 app.route('/', notificationRoutes);
 app.route('/', userRoutes);
