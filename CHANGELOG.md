@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.5.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.4.0...v1.5.0) (2026-05-05)
+
+
+### Features
+
+* add Apple Sign In + migrate Google OAuth to Firebase Auth (web + workers) ([c340d52](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/c340d52b0ec6de5f4fd1a70dea2fac19a75ffca5))
+
 ## [1.4.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.8...v1.4.0) (2026-05-02)
 
 
