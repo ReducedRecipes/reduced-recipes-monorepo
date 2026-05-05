@@ -7,9 +7,12 @@ import {
   Switch,
   Alert,
   Image,
+  Platform,
+  Pressable,
   StyleSheet,
 } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import Constants from 'expo-constants';
 import * as SQLite from 'expo-sqlite';
 import { runMigrations } from '@/db/migrations';
@@ -19,11 +22,11 @@ import { colors, fonts } from '@/constants/theme';
 import type { Theme, TextSize } from '@/stores/preferences.store';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
+import { storeToken } from '@/lib/auth';
 import { DIETARY_LABELS, type DietaryRestriction } from '@rr/shared/dietary';
 import type { User } from '@rr/shared';
 
 const API_BASE = `${process.env.EXPO_PUBLIC_API_BASE || 'https://reducedrecipes.com'}/api/v1`;
-const APP_SCHEME = 'reducedrecipes';
 
 const ALL_DIETARY_OPTIONS = Object.entries(DIETARY_LABELS).map(([key, label]) => ({
   key: key as DietaryRestriction,
@@ -109,31 +112,31 @@ export default function SettingsScreen() {
     setTheme(THEME_ORDER[(idx + 1) % THEME_ORDER.length]!);
   };
 
-  const handleSignIn = async () => {
+  const handleApple = async () => {
     setIsLoading(true);
     try {
-      const returnTo = `${APP_SCHEME}://auth/callback`;
-      const urlRes = await fetch(`${API_BASE}/auth/google/url?platform=mobile&return_to=${encodeURIComponent(returnTo)}`);
-      if (!urlRes.ok) throw new Error('Failed to get auth URL');
-      const { url } = (await urlRes.json()) as { url: string };
+      const { signInWithApple } = await import('@/lib/auth-firebase');
+      const { token, user } = await signInWithApple();
+      await storeToken(token);
+      setSession(token, user);
+    } catch (err) {
+      const msg = (err as Error).message ?? 'Apple sign-in failed';
+      if (!msg.includes('cancel')) Alert.alert('Sign In Failed', msg);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      const result = await WebBrowser.openAuthSessionAsync(url, returnTo);
-
-      if (result.type === 'success' && result.url) {
-        const parsed = new URL(result.url);
-        const token = parsed.searchParams.get('token');
-        if (token) {
-          const meRes = await fetch(`${API_BASE}/auth/me`, {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (meRes.ok) {
-            const data = (await meRes.json()) as { user: User };
-            setSession(token, data.user);
-          }
-        }
-      }
-    } catch {
-      Alert.alert('Sign In Failed', 'Could not complete sign in. Please try again.');
+  const handleGoogle = async () => {
+    setIsLoading(true);
+    try {
+      const { signInWithGoogle } = await import('@/lib/auth-firebase');
+      const { token, user } = await signInWithGoogle();
+      await storeToken(token);
+      setSession(token, user);
+    } catch (err) {
+      const msg = (err as Error).message ?? 'Google sign-in failed';
+      if (!msg.includes('cancel')) Alert.alert('Sign In Failed', msg);
     } finally {
       setIsLoading(false);
     }
@@ -246,15 +249,26 @@ export default function SettingsScreen() {
             </TouchableOpacity>
           </>
         ) : (
-          <TouchableOpacity
-            style={st.signInButton}
-            onPress={handleSignIn}
-            disabled={isLoading}
-          >
-            <Text style={st.signInText}>
-              {isLoading ? 'Signing in…' : 'SIGN IN WITH GOOGLE →'}
-            </Text>
-          </TouchableOpacity>
+          <View style={st.signInContainer}>
+            {Platform.OS === 'ios' && (
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.SIGN_IN}
+                buttonStyle={AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={8}
+                style={st.appleButton}
+                onPress={handleApple}
+              />
+            )}
+            <Pressable
+              disabled={isLoading}
+              onPress={handleGoogle}
+              style={st.googleButton}
+            >
+              <Text style={st.googleButtonText}>
+                {isLoading ? 'Signing in…' : 'Sign in with Google'}
+              </Text>
+            </Pressable>
+          </View>
         )}
       </View>
 
@@ -476,16 +490,29 @@ const st = StyleSheet.create({
     color: colors.inkFaint,
     marginTop: 2,
   },
-  signInButton: {
+  signInContainer: {
     paddingHorizontal: 16,
     paddingVertical: 14,
-    alignItems: 'center',
+    gap: 12,
   },
-  signInText: {
-    fontFamily: fonts.mono,
-    fontSize: 12,
-    color: colors.accent,
-    letterSpacing: 1,
+  appleButton: {
+    width: '100%',
+    height: 48,
+  },
+  googleButton: {
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#dadce0',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  googleButtonText: {
+    fontFamily: fonts.sansMedium,
+    fontSize: 16,
+    color: '#3c4043',
   },
   dietaryOptions: {
     flexDirection: 'row',
