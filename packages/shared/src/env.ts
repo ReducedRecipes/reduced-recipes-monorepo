@@ -28,7 +28,7 @@ export interface Env {
   GOOGLE_CLIENT_ID?: string;
   GOOGLE_CLIENT_SECRET?: string;
   GOOGLE_REDIRECT_URI?: string;
-  /** Firebase Auth — used to verify Firebase ID tokens. */
+  /** Firebase Auth: used to verify Firebase ID tokens. */
   FIREBASE_PROJECT_ID?: string;
   SESSION_SECRET?: string;
   AI?: Ai;
