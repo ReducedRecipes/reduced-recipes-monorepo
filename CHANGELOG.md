@@ -1,5 +1,19 @@
 # Changelog
 
+## [1.4.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.8...v1.4.0) (2026-05-02)
+
+
+### Features
+
+* add custom slash commands and memory palace ([86bf318](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/86bf3183769eb8e3dadb2d9fd192121b6af048a1))
+* **mobile:** add iOS auto-submit to App Store Connect ([0a9e159](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/0a9e1591c8c0b0cbde294f9f862fbe402b15c2c8))
+
+
+### Bug Fixes
+
+* **mobile:** inject iOS submit credentials via jq at runtime ([c8ed383](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/c8ed383642e6659ef0d892322376c6656ca0025e))
+* remove sensitive identifiers from memory and add data policy ([a444643](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/a44464375273e43825adb252482fdeedd1a7805e))
+
 ## [1.3.8](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.3.7...v1.3.8) (2026-04-28)
 
 
