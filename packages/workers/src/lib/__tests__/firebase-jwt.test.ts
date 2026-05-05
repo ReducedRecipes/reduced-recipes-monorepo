@@ -121,10 +121,52 @@ describe('verifyFirebaseToken', () => {
     const kv = createMockKV();
     const env = envWith(kv);
 
-    await verifyFirebaseToken(token1, env, TEST_PROJECT_ID);
-    await verifyFirebaseToken(token2, env, TEST_PROJECT_ID);
+    const payload1 = await verifyFirebaseToken(token1, env, TEST_PROJECT_ID);
+    const payload2 = await verifyFirebaseToken(token2, env, TEST_PROJECT_ID);
 
     expect(fetchSpy).toHaveBeenCalledTimes(1);
     expect(await kv.get('firebase-jwks')).toBeTruthy();
+    expect(payload1.sub).toBe('firebase-uid-1');
+    expect(payload2.sub).toBe('firebase-uid-2');
+  });
+
+  it('accepts tokens within clock-skew tolerance even if just past exp', async () => {
+    const spki = await getTestPublicKeySpki();
+    // exp 2 seconds in the past; default clockTolerance of 5s lets it through.
+    const { token } = await mintToken({ exp: Math.floor(Date.now() / 1000) - 2 });
+
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(await stubJwksFetch(spki));
+
+    const env = envWith(createMockKV());
+    const payload = await verifyFirebaseToken(token, env, TEST_PROJECT_ID);
+    expect(payload.sub).toBe('firebase-uid-1');
+  });
+
+  it('rejects tokens missing the firebase claim', async () => {
+    const spki = await getTestPublicKeySpki();
+    // Hand-mint a token via jose with no firebase claim so the runtime guard
+    // is the only thing that catches it (jose itself accepts arbitrary payloads).
+    const { SignJWT, generateKeyPair, exportSPKI } = await import('jose');
+    const { privateKey, publicKey } = await generateKeyPair('RS256', { extractable: true });
+    const altSpki = await exportSPKI(publicKey);
+
+    const now = Math.floor(Date.now() / 1000);
+    const token = await new SignJWT({ sub: 'no-firebase-claim' })
+      .setProtectedHeader({ alg: 'RS256', kid: TEST_KID })
+      .setIssuedAt(now)
+      .setExpirationTime(now + 3600)
+      .setIssuer(`https://securetoken.google.com/${TEST_PROJECT_ID}`)
+      .setAudience(TEST_PROJECT_ID)
+      .sign(privateKey);
+
+    // Stub JWKS so it returns the alt key (the one that signed this token).
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(await stubJwksFetch(altSpki));
+    // Suppress unused warning: spki defined for parity with other tests.
+    void spki;
+
+    const env = envWith(createMockKV());
+    await expect(verifyFirebaseToken(token, env, TEST_PROJECT_ID)).rejects.toMatchObject({
+      code: 'INVALID_TOKEN',
+    });
   });
 });

@@ -103,9 +103,26 @@ export async function verifyFirebaseToken(
     const { payload } = await jwtVerify(idToken, publicKey, {
       issuer: `https://securetoken.google.com/${projectId}`,
       audience: projectId,
+      // Firebase tokens occasionally arrive with iat/nbf a second or two ahead
+      // of worker clock during normal operation. firebase-admin defaults to 5 min.
+      clockTolerance: '5s',
     });
+
+    // Defensive check: jwtVerify validates the standard JWT claims but does not
+    // know about the Firebase-shaped payload. Reject anything that does not
+    // carry the required Firebase claims so downstream code can rely on the type.
+    const fb = (payload as { firebase?: { sign_in_provider?: unknown } }).firebase;
+    if (
+      typeof payload.sub !== 'string' ||
+      !fb ||
+      typeof fb.sign_in_provider !== 'string'
+    ) {
+      throw new TokenError('INVALID_TOKEN', 'Missing required Firebase claims');
+    }
+
     return payload as unknown as FirebaseTokenPayload;
   } catch (err) {
+    if (err instanceof TokenError) throw err;
     if (err instanceof joseErrors.JWTExpired) {
       throw new TokenError('TOKEN_EXPIRED', err.message);
     }
