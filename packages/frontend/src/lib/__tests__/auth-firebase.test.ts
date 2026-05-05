@@ -45,12 +45,13 @@ describe('signInWithFirebaseProvider', () => {
     expect(result.is_new_user).toBe(true);
   });
 
-  it('falls back to signInWithRedirect when the popup is blocked', async () => {
+  it('falls back to signInWithRedirect and rejects with a marker when the popup is blocked', async () => {
     mockSignInWithPopup.mockRejectedValueOnce({ code: 'auth/popup-blocked' });
 
-    await signInWithFirebaseProvider('apple').catch(() => {
-      // signInWithRedirect navigates away; in tests we throw a marker error.
-    });
+    // signInWithRedirect navigates the page away; the function rejects with a
+    // marker so the caller can stop spinning. Both halves of the contract
+    // are asserted: redirect is invoked AND the function rejects.
+    await expect(signInWithFirebaseProvider('apple')).rejects.toThrow(/redirect sign-in initiated/i);
     expect(mockSignInWithRedirect).toHaveBeenCalledTimes(1);
   });
 
