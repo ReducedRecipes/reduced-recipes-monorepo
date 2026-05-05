@@ -161,42 +161,28 @@ firebase.post('/api/v1/auth/firebase-callback', async (c) => {
     .bind(userId, firebaseUid, email, displayName, payload.picture ?? null)
     .run();
 
-  let user: User;
-
-  if (isNewUser) {
-    // 6a. For new users, construct the user object from what we just inserted.
-    const now = new Date().toISOString();
-    user = {
-      id: userId,
-      email: email!,
-      name: displayName,
-      picture_url: payload.picture ?? null,
-      profile_public: 0,
-      tier: 'free',
-      created_at: now,
-      updated_at: now,
-    } as unknown as User;
-  } else {
-    // 6b. Refresh users.updated_at for returning users.
+  // 6. Refresh users.updated_at for returning users (skipped on isNewUser since INSERT already set it).
+  if (!isNewUser) {
     await usersDB
       .prepare(`UPDATE users SET updated_at = ? WHERE id = ?`)
       .bind(new Date().toISOString(), userId)
       .run();
+  }
 
-    // 7. Fetch the canonical user row.
-    const fetched = await usersDB
-      .prepare(
-        `SELECT id, email, name, picture_url, profile_public, tier, created_at, updated_at FROM users WHERE id = ?`,
-      )
-      .bind(userId)
-      .first<User>();
-    if (!fetched) {
-      return c.json(
-        { error: { code: 'USER_INTEGRITY_ERROR', message: 'User missing after upsert' } },
-        500,
-      );
-    }
-    user = fetched;
+  // 7. Fetch the canonical user row so the response reflects DB-side defaults
+  // (profile_public=1, tier='free') rather than relying on hand-rolled values
+  // that can drift from the schema.
+  const user = await usersDB
+    .prepare(
+      `SELECT id, email, name, picture_url, profile_public, tier, created_at, updated_at FROM users WHERE id = ?`,
+    )
+    .bind(userId)
+    .first<User>();
+  if (!user) {
+    return c.json(
+      { error: { code: 'USER_INTEGRITY_ERROR', message: 'User missing after upsert' } },
+      500,
+    );
   }
 
   // 8. Create session.

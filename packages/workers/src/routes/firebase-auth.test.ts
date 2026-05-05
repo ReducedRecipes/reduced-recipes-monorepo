@@ -22,17 +22,48 @@ function createMockKV(store = new Map<string, string>()) {
 }
 
 function createMockD1(rows: Record<string, FakeRow | null> = {}) {
-  // Simple key-by-(sql, binds) mock for deterministic tests.
-  // Tests pre-seed rows for the queries they exercise.
+  // Tests pre-seed rows for the SELECTs they exercise (keyed by sql + binds).
+  // The mock also auto-tracks `INSERT INTO users` and serves the inserted row
+  // on subsequent `SELECT ... FROM users WHERE id = ?` so the route's read-back
+  // after creating a new user works without each test pre-seeding the random UUID.
   const calls: { sql: string; binds: unknown[] }[] = [];
+  const insertedUsers = new Map<string, FakeRow>();
+
   return {
     prepare: vi.fn((sql: string) => ({
       bind: vi.fn((...binds: unknown[]) => {
         calls.push({ sql, binds });
         return {
-          first: vi.fn().mockResolvedValue(rows[`${sql}::${JSON.stringify(binds)}`] ?? null),
+          first: vi.fn(async () => {
+            const seeded = rows[`${sql}::${JSON.stringify(binds)}`];
+            if (seeded !== undefined) return seeded;
+            // Auto-serve the most recent INSERT INTO users on a matching SELECT.
+            if (
+              sql.includes('FROM users WHERE id = ?') &&
+              sql.startsWith('SELECT id, email, name, picture_url')
+            ) {
+              return insertedUsers.get(binds[0] as string) ?? null;
+            }
+            return null;
+          }),
           all: vi.fn().mockResolvedValue({ results: [], success: true, meta: {} }),
-          run: vi.fn().mockResolvedValue({ results: [], success: true, meta: {} }),
+          run: vi.fn(async () => {
+            if (sql.startsWith('INSERT INTO users (id, email, name, picture_url')) {
+              const [id, email, name, picture_url, created_at, updated_at] =
+                binds as (string | null)[];
+              insertedUsers.set(id as string, {
+                id,
+                email,
+                name,
+                picture_url,
+                profile_public: 1,
+                tier: 'free',
+                created_at,
+                updated_at,
+              });
+            }
+            return { results: [], success: true, meta: {} };
+          }),
         };
       }),
     })),
@@ -101,9 +132,17 @@ describe('POST /api/v1/auth/firebase-callback', () => {
 
     const res = await postCallback(env, token);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { token: string; is_new_user: boolean };
+    const body = (await res.json()) as {
+      token: string;
+      is_new_user: boolean;
+      user: { profile_public: number; tier: string; email: string };
+    };
     expect(body.is_new_user).toBe(true);
     expect(body.token).toBeTruthy();
+    // Schema defaults must come through: new and returning users return the same shape.
+    expect(body.user.profile_public).toBe(1);
+    expect(body.user.tier).toBe('free');
+    expect(body.user.email).toBe('new@example.com');
   });
 
   it('matches an existing user by Firebase UID (returning user)', async () => {
