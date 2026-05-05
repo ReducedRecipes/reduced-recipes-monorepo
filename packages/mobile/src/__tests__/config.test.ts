@@ -17,8 +17,10 @@ describe('app.json', () => {
 
   it('has correct app identity', () => {
     expect(expo.name).toBe('ReducedRecipes');
-    expect(expo.slug).toBe('reduced-recipes');
-    expect(expo.version).toBe('1.0.0');
+    expect(expo.slug).toBe('reducedrecipes');
+    // Version is managed by release-please; just assert semver shape so the
+    // test does not need to be updated on every release.
+    expect(expo.version).toMatch(/^\d+\.\d+\.\d+$/);
     expect(expo.scheme).toBe('reducedrecipes');
     expect(expo.orientation).toBe('portrait');
   });
@@ -96,7 +98,10 @@ describe('eas.json', () => {
   });
 
   it('has submit config for iOS and Android', () => {
-    expect(config.submit.production.ios.appleId).toBe('REPLACE_WITH_APPLE_ID');
+    // iOS submit uses ASC API key auth (replaced REPLACE_WITH_APPLE_ID flow in
+    // commit c8ed383). The values are env var references resolved at submit time.
+    expect(config.submit.production.ios.ascAppId).toBe('$ASC_APP_ID');
+    expect(config.submit.production.ios.appleTeamId).toBe('$APPLE_TEAM_ID');
     expect(config.submit.production.android.track).toBe('internal');
   });
 });
