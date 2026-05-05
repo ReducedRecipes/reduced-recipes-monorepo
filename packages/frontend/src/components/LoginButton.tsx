@@ -2,8 +2,78 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../hooks/useAuth";
 
+function SignInMenu({
+  className,
+  onSignedIn,
+}: {
+  className?: string;
+  onSignedIn: (token: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<null | 'google' | 'apple'>(null);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const handleProvider = async (p: 'google' | 'apple') => {
+    setError(null);
+    setBusy(p);
+    try {
+      const { signInWithFirebaseProvider } = await import('../lib/auth-firebase');
+      const { token } = await signInWithFirebaseProvider(p);
+      onSignedIn(token);
+    } catch (err) {
+      const msg = (err as Error).message ?? 'Sign-in failed';
+      // Suppress cancellation noise; the user knows they cancelled.
+      if (!/cancel/i.test(msg) && !/redirect sign-in initiated/i.test(msg)) {
+        setError(msg);
+      }
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div ref={ref} className={`relative ${className ?? ''}`}>
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+      >
+        Sign in
+      </button>
+      {open && (
+        <div className="absolute right-0 mt-2 w-64 rounded-lg border border-gray-200 bg-white p-2 shadow-lg z-10">
+          <button
+            disabled={busy !== null}
+            onClick={() => handleProvider('apple')}
+            className="flex w-full items-center justify-center gap-2 rounded-md bg-black px-4 py-2 text-sm font-medium text-white hover:bg-gray-900 disabled:opacity-50"
+          >
+            <span>Sign in with Apple</span>
+          </button>
+          <button
+            disabled={busy !== null}
+            onClick={() => handleProvider('google')}
+            className="mt-2 flex w-full items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+          >
+            <span>Sign in with Google</span>
+          </button>
+          {error && <p className="mt-2 px-1 text-xs text-red-600">{error}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function LoginButton({ className = "" }: { className?: string }) {
-  const { user, isLoading, isAuthenticated, login, logout } = useAuth();
+  const { user, isLoading, isAuthenticated, logout } = useAuth();
   const [open, setOpen] = useState(false);
   const [showInAppWarning, setShowInAppWarning] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -75,12 +145,14 @@ export function LoginButton({ className = "" }: { className?: string }) {
     }
 
     return (
-      <button
-        onClick={() => login()}
-        className={`rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700 ${className}`}
-      >
-        Sign in
-      </button>
+      <SignInMenu
+        className={className}
+        onSignedIn={(token) => {
+          localStorage.setItem('session_token', token);
+          // Force the useAuth /auth/me query to re-run and pick up the new session.
+          window.location.reload();
+        }}
+      />
     );
   }
 

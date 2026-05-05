@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import ReactDOM from "react-dom/client";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -37,11 +37,27 @@ const queryClient = new QueryClient({
   },
 });
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <Routes>
+function AppRoot() {
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { handleFirebaseRedirect } = await import('./lib/firebase-redirect-handler');
+        const result = await handleFirebaseRedirect();
+        if (cancelled || !result) return;
+        localStorage.setItem('session_token', result.token);
+        // Force a refresh so useAuth's /auth/me query re-runs with the new session.
+        window.location.reload();
+      } catch (err) {
+        console.error('Firebase redirect handler failed', err);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  return (
+    <BrowserRouter>
+      <Routes>
           <Route element={<Layout />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/recipe/:id" element={<RecipePage />} />
@@ -69,6 +85,13 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           </Route>
         </Routes>
       </BrowserRouter>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <AppRoot />
     </QueryClientProvider>
   </React.StrictMode>
 );

@@ -54,11 +54,13 @@ describe("LoginButton", () => {
     expect(screen.getByRole("button", { name: "Sign in" })).toBeTruthy();
   });
 
-  it("calls login when Sign in is clicked", () => {
+  it("opens provider dropdown when Sign in is clicked", () => {
     mockUseAuth.mockReturnValue(baseAuth);
     renderButton();
     fireEvent.click(screen.getByRole("button", { name: "Sign in" }));
-    expect(mockLogin).toHaveBeenCalled();
+    // Clicking Sign in now opens the provider menu rather than calling login() directly
+    expect(screen.getByText("Sign in with Apple")).toBeTruthy();
+    expect(screen.getByText("Sign in with Google")).toBeTruthy();
   });
 
   it("renders user name and avatar when authenticated", () => {

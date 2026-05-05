@@ -138,7 +138,8 @@ describe("useAuth hook — exports", () => {
     );
     expect(source).toContain("login");
     expect(source).toContain("checkAuth");
-    expect(source).toContain("getGoogleAuthUrl");
+    // login now dispatches open-signin-menu instead of calling getGoogleAuthUrl
+    expect(source).toContain("open-signin-menu");
     expect(source).toContain("invalidateQueries");
   });
 });

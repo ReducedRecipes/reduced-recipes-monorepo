@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "../stores/auth.store";
-import { apiFetch, getGoogleAuthUrl } from "../lib/api";
+import { apiFetch } from "../lib/api";
 import type { User } from "@rr/shared";
 
 export function useAuth() {
@@ -38,15 +38,16 @@ export function useAuth() {
       || (!/Safari/i.test(ua) && /AppleWebKit/i.test(ua) && /Mobile/i.test(ua));
   };
 
-  const login = async (returnTo?: string) => {
+  const login = async (_returnTo?: string) => {
     if (isInAppBrowser()) {
-      // Signal to UI that in-app browser was detected
       window.dispatchEvent(new CustomEvent("inapp-browser-login"));
       return;
     }
-    const destination = returnTo ?? `${window.location.origin}/auth/callback`;
-    const { url } = await getGoogleAuthUrl("web", destination);
-    window.location.href = url;
+    // Firebase popup flow is triggered directly by the LoginButton component
+    // (see src/components/LoginButton.tsx). This hook function is kept as a
+    // tiny shim so callers that still invoke login() get the in-app-browser
+    // warning. The actual provider buttons sit inside LoginButton.
+    window.dispatchEvent(new CustomEvent('open-signin-menu'));
   };
 
   const checkAuth = async () => {
