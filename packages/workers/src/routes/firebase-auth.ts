@@ -68,7 +68,12 @@ firebase.post('/api/v1/auth/firebase-callback', async (c) => {
 
   const email = payload.email ?? null;
   const emailVerified = payload.email_verified === true;
-  const displayName = payload.name ?? email ?? 'User';
+  // Provider name from this token. Pass through as-is (incl. null) so the
+  // COALESCE upsert preserves the stored value when Apple omits name on
+  // subsequent sign-ins. A separate fallback applies only when creating a new
+  // user, where we need *some* name in the users table.
+  const providerDisplayName = payload.name ?? null;
+  const newUserDisplayName = payload.name ?? email ?? 'User';
 
   // 1. Returning user: match by Firebase UID
   let userId: string | null = null;
@@ -112,7 +117,7 @@ firebase.post('/api/v1/auth/firebase-callback', async (c) => {
       .prepare(
         `INSERT INTO users (id, email, name, picture_url, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)`,
       )
-      .bind(userId, email, displayName, payload.picture ?? null, now, now)
+      .bind(userId, email, newUserDisplayName, payload.picture ?? null, now, now)
       .run();
 
     await usersDB
@@ -146,7 +151,7 @@ firebase.post('/api/v1/auth/firebase-callback', async (c) => {
          provider_name = COALESCE(excluded.provider_name, provider_name),
          provider_avatar = COALESCE(excluded.provider_avatar, provider_avatar)`,
     )
-    .bind(userId, providerName, providerSub, email, displayName, payload.picture ?? null)
+    .bind(userId, providerName, providerSub, email, providerDisplayName, payload.picture ?? null)
     .run();
 
   await usersDB
@@ -158,7 +163,7 @@ firebase.post('/api/v1/auth/firebase-callback', async (c) => {
          provider_name = COALESCE(excluded.provider_name, provider_name),
          provider_avatar = COALESCE(excluded.provider_avatar, provider_avatar)`,
     )
-    .bind(userId, firebaseUid, email, displayName, payload.picture ?? null)
+    .bind(userId, firebaseUid, email, providerDisplayName, payload.picture ?? null)
     .run();
 
   // 6. Refresh users.updated_at for returning users (skipped on isNewUser since INSERT already set it).
