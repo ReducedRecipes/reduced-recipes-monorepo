@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.6.1...v1.6.2) (2026-05-06)
+
+
+### Bug Fixes
+
+* **mobile:** pin Apple/Crypto Expo deps to SDK 54 ([1aef9b8](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/1aef9b81530313fe747248dd9cd3f6b51e215e2f))
+* **mobile:** pin expo-apple-authentication and expo-crypto to SDK 54 ([88e7b32](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/88e7b32fe8a315b5ef66c68dde6ddd94d8703c52))
+
 ## [1.6.1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.6.0...v1.6.1) (2026-05-06)
 
 
