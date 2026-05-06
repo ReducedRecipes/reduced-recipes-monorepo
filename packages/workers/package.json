@@ -5,6 +5,7 @@
   "private": true,
   "dependencies": {
     "@rr/shared": "workspace:*",
+    "@rr/social-shared": "workspace:*",
     "hono": "^4.3",
     "jose": "^6.2.3"
   },

@@ -1,0 +1,29 @@
+{
+  "name": "@rr/social-shared",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./types": "./src/types.ts",
+    "./ulid": "./src/ulid.ts",
+    "./r2": "./src/r2.ts",
+    "./ingredient-cache": "./src/ingredient-cache.ts",
+    "./platforms/pinterest": "./src/platforms/pinterest.ts",
+    "./platforms/pinterest-auth": "./src/platforms/pinterest-auth.ts",
+    "./platforms/meta": "./src/platforms/meta.ts",
+    "./platforms/youtube": "./src/platforms/youtube.ts"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": { "ulid": "^2.3.0" },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.2.0"
+  }
+}

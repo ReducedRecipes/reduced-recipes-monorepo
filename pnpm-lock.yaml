@@ -253,11 +253,30 @@ importers:
         specifier: ^5.4
         version: 5.9.3
 
+  packages/social-shared:
+    dependencies:
+      ulid:
+        specifier: ^2.3.0
+        version: 2.4.0
+    devDependencies:
+      '@cloudflare/workers-types':
+        specifier: ^4.20240909.0
+        version: 4.20260414.1
+      typescript:
+        specifier: ^5.6.0
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.0
+        version: 3.2.4(@types/node@25.6.0)(jsdom@29.0.2)(lightningcss@1.32.0)(terser@5.46.1)
+
   packages/workers:
     dependencies:
       '@rr/shared':
         specifier: workspace:*
         version: link:../shared
+      '@rr/social-shared':
+        specifier: workspace:*
+        version: link:../social-shared
       hono:
         specifier: ^4.3
         version: 4.12.12
@@ -5673,6 +5692,10 @@ packages:
 
   ufo@1.6.3:
     resolution: {integrity: sha512-yDJTmhydvl5lJzBmy/hyOAA0d+aqCBuwl818haVdYCRrWV84o7YyeVm4QlVHStqNrrJSTb6jKuFAVqAFsr+K3Q==}
+
+  ulid@2.4.0:
+    resolution: {integrity: sha512-fIRiVTJNcSRmXKPZtGzFQv9WRrZ3M9eoptl/teFJvjOzmpU+/K/JH6HZ8deBfb5vMEpicJcLn7JmvdknlMq7Zg==}
+    hasBin: true
 
   undici-types@7.19.2:
     resolution: {integrity: sha512-qYVnV5OEm2AW8cJMCpdV20CDyaN3g0AjDlOGf1OW4iaDEx8MwdtChUp4zu4H0VP3nDRF/8RKWH+IPp9uW0YGZg==}
@@ -12377,6 +12400,8 @@ snapshots:
   typescript@5.9.3: {}
 
   ufo@1.6.3: {}
+
+  ulid@2.4.0: {}
 
   undici-types@7.19.2: {}
 
