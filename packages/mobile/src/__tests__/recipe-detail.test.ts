@@ -191,7 +191,8 @@ describe('Recipe Detail Screen (S-28)', () => {
       expect(source).toContain('tag');
     });
 
-    it('has Start Cooking button linking to cook route', () => {
+    // Skipped: Start Cooking button is temporarily hidden while the cook flow's iOS crash is being diagnosed. Restore both expectations when the button is re-enabled.
+    it.skip('has Start Cooking button linking to cook route', () => {
       expect(source).toContain('START COOKING');
       expect(source).toContain('/cook/');
     });
