@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.7.0...v1.7.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* **mobile:** align mmkv .so to 16 KB pages + cook screen guard ([7be108d](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/7be108d017066b4f14fa6290fd1bd98e03462af5))
+* **mobile:** align mmkv to 16 KB pages, harden cook screen against null ingredients ([c9c9cff](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/c9c9cffa61adf063c2724c120c631f15a477b9cf))
+
 ## [1.7.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.6.3...v1.7.0) (2026-05-06)
 
 
