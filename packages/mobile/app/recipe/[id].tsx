@@ -199,12 +199,9 @@ export default function RecipeDetailScreen() {
 
         {/* Actions */}
         <View style={s.actions}>
-          <Pressable onPress={handleStartCooking} style={s.primaryBtn} accessibilityLabel="Start cooking">
-            <Text style={s.primaryBtnText}>→ START COOKING</Text>
-          </Pressable>
-
-          <Pressable onPress={handleViewOriginal} style={s.secondaryBtn} accessibilityLabel="View full recipe on original site">
-            <Text style={s.secondaryBtnText}>OPEN RECIPE → {recipe.domain}</Text>
+          {/* Start Cooking temporarily hidden while the cook flow's iOS crash is being diagnosed. Re-enable by restoring this Pressable with onPress={handleStartCooking}. */}
+          <Pressable onPress={handleViewOriginal} style={s.primaryBtn} accessibilityLabel="View full recipe on original site">
+            <Text style={s.primaryBtnText}>OPEN RECIPE → {recipe.domain}</Text>
           </Pressable>
         </View>
 
