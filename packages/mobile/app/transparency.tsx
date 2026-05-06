@@ -18,7 +18,9 @@ export default function TransparencyScreen() {
   const insets = useSafeAreaInsets();
   const { data, isLoading, error, refetch } = useFunding();
 
-  const fundedWidth = data ? Math.min(data.funded_pct, 100) : 0;
+  const fundedWidth = data ? Math.min(data.funded_pct ?? 0, 100) : 0;
+  const supporters = data?.supporters ?? [];
+  const breakdown = data?.breakdown ?? [];
 
   return (
     <>
@@ -72,12 +74,12 @@ export default function TransparencyScreen() {
               </Text>
               <View style={styles.rule} />
               <Text style={styles.costAmount}>
-                ${data.monthly_cost.toFixed(2)}
+                ${(data.monthly_cost ?? 0).toFixed(2)}
                 <Text style={styles.costLabel}> / month</Text>
               </Text>
 
               <Text style={styles.progressLabel}>
-                {data.funded_pct}% funded this month
+                {data.funded_pct ?? 0}% funded this month
               </Text>
               <View style={styles.progressTrack}>
                 <View
@@ -92,11 +94,11 @@ export default function TransparencyScreen() {
                 {"\u25C6"} COST BREAKDOWN
               </Text>
               <View style={styles.rule} />
-              {data.breakdown.map((item, i) => (
+              {breakdown.map((item, i) => (
                 <View key={i} style={styles.breakdownRow}>
                   <Text style={styles.breakdownLabel}>{item.label}</Text>
                   <Text style={styles.breakdownCost}>
-                    ${item.cost.toFixed(2)}
+                    ${(item.cost ?? 0).toFixed(2)}
                   </Text>
                 </View>
               ))}
@@ -108,16 +110,16 @@ export default function TransparencyScreen() {
                 {"\u25C6"} RECENT SUPPORTERS
               </Text>
               <View style={styles.rule} />
-              {data.supporters.length === 0 ? (
+              {supporters.length === 0 ? (
                 <Text style={styles.emptyText}>
                   No supporters yet. Be the first!
                 </Text>
               ) : (
-                data.supporters.map((supporter, i) => (
+                supporters.map((supporter, i) => (
                   <View key={i} style={styles.supporterRow}>
                     <Text style={styles.supporterName}>{supporter.name}</Text>
                     <Text style={styles.supporterAmount}>
-                      ${supporter.amount.toFixed(2)}
+                      ${(supporter.amount ?? 0).toFixed(2)}
                     </Text>
                   </View>
                 ))

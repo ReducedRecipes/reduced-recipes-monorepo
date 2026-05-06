@@ -6,6 +6,7 @@ import {
   Alert,
   ActivityIndicator,
   BackHandler,
+  StyleSheet,
 } from "react-native";
 import { Stack, useLocalSearchParams, router } from "expo-router";
 import { useRecipe } from "@/hooks/useRecipe";
@@ -13,6 +14,7 @@ import { useCookingSession } from "@/hooks/useCookingSession";
 import { useVoiceGuidance } from "@/hooks/useVoiceGuidance";
 import { CookingStep } from "@/components/CookingStep";
 import { ErrorState } from "@/components/ErrorState";
+import { colors, fonts } from "@/constants/theme";
 import { useEffect } from "react";
 
 /** Extract a duration in seconds from step text (e.g. "cook for 5 minutes"). */
@@ -122,11 +124,9 @@ export default function CookingModeScreen() {
         <Stack.Screen
           options={{ headerShown: false, presentation: "fullScreenModal" }}
         />
-        <View className="flex-1 items-center justify-center bg-bg dark:bg-dark-bg">
-          <ActivityIndicator size="large" color="#C45A30" />
-          <Text className="mt-4 text-base text-inkMuted dark:text-dark-inkMuted">
-            Loading recipe…
-          </Text>
+        <View style={st.loadingRoot}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={st.loadingText}>Loading recipe…</Text>
         </View>
       </>
     );
@@ -159,27 +159,23 @@ export default function CookingModeScreen() {
         options={{ headerShown: false, presentation: "fullScreenModal" }}
       />
 
-      <View className="flex-1 bg-bg dark:bg-dark-bg">
-        {/* Top bar: Exit button */}
-        <View className="flex-row items-center justify-between px-4 pt-14 pb-2">
+      <View style={st.root}>
+        <View style={st.topBar}>
           <Pressable
             onPress={confirmExit}
             accessibilityRole="button"
             accessibilityLabel="Exit cooking mode"
-            className="h-11 w-11 items-center justify-center border border-rule dark:border-dark-rule bg-bg-muted dark:bg-dark-bg-muted"
+            style={st.exitButton}
           >
-            <Text className="text-lg text-ink dark:text-dark-ink">✕</Text>
+            <Text style={st.exitButtonText}>✕</Text>
           </Pressable>
-          {longPressActive && (
-            <Text className="text-sm text-orange">Speaking…</Text>
-          )}
+          {longPressActive && <Text style={st.speakingLabel}>Speaking…</Text>}
         </View>
 
-        {/* Cooking step with voice guidance on long press */}
         <Pressable
           onLongPress={handleLongPress}
           delayLongPress={400}
-          className="flex-1"
+          style={st.stepWrap}
           accessibilityHint="Long press to hear this step read aloud"
         >
           <CookingStep
@@ -201,3 +197,52 @@ export default function CookingModeScreen() {
     </>
   );
 }
+
+const st = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg,
+  },
+  loadingRoot: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: colors.bg,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    color: colors.inkMuted,
+  },
+  topBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 56,
+    paddingBottom: 8,
+  },
+  exitButton: {
+    height: 44,
+    width: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: colors.rule,
+    backgroundColor: colors.bgMuted,
+  },
+  exitButtonText: {
+    fontFamily: fonts.sans,
+    fontSize: 18,
+    color: colors.ink,
+  },
+  speakingLabel: {
+    fontFamily: fonts.sans,
+    fontSize: 13,
+    color: colors.accent,
+  },
+  stepWrap: {
+    flex: 1,
+  },
+});

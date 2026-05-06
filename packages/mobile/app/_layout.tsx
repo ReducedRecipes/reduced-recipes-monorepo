@@ -1,6 +1,6 @@
 import '../src/constants/global.css';
 import React, { useEffect, useState } from 'react';
-import { Slot } from 'expo-router';
+import { Stack } from 'expo-router';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -75,7 +75,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <StatusBar style="auto" />
-          <Slot />
+          <Stack screenOptions={{ headerShown: false }} />
         </QueryClientProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
