@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.6.3...v1.7.0) (2026-05-06)
+
+
+### Features
+
+* **mobile:** animated splash logo with staggered draw-in ([6e07b93](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/6e07b9312be525a1bee3acbb31a782d1243a052a))
+* **mobile:** animated splash logo with staggered draw-in ([532ab8b](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/532ab8b85b03c639a479e3b16807f4ebf5e5482f))
+
 ## [1.6.3](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.6.2...v1.6.3) (2026-05-06)
 
 
