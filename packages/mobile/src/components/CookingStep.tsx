@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, StyleSheet } from "react-native";
+import { colors, fonts } from "@/constants/theme";
 
 export interface CookingStepProps {
   stepText: string;
@@ -37,39 +38,24 @@ export function CookingStep({
   };
 
   return (
-    <View
-      className="flex-1 bg-bg dark:bg-dark-bg px-6 py-8 justify-between"
-      accessibilityLiveRegion="polite"
-    >
-      {/* Progress indicator */}
+    <View style={st.root} accessibilityLiveRegion="polite">
       <View>
-        <Text className="font-mono text-xs tracking-widest text-ink-muted dark:text-dark-ink-muted text-center mb-2 uppercase">
-          Step {String(currentStep).padStart(2, '0')} of {String(totalSteps).padStart(2, '0')}
+        <Text style={st.progressLabel}>
+          Step {String(currentStep).padStart(2, "0")} of {String(totalSteps).padStart(2, "0")}
         </Text>
-        <View className="h-0.5 bg-rule dark:bg-dark-rule overflow-hidden">
-          <View
-            className="h-full bg-accent"
-            style={{ width: `${progress * 100}%` }}
-          />
+        <View style={st.progressTrack}>
+          <View style={[st.progressFill, { width: `${progress * 100}%` }]} />
         </View>
       </View>
 
-      {/* Step text */}
-      <View className="flex-1 justify-center py-8">
-        <Text className="font-serif text-2xl leading-9 text-ink dark:text-dark-ink text-center">
-          {stepText}
-        </Text>
+      <View style={st.stepBlock}>
+        <Text style={st.stepText}>{stepText}</Text>
 
         {stepIngredients && stepIngredients.length > 0 && (
-          <View className="mt-6 border border-rule dark:border-dark-rule px-4 py-3">
-            <Text className="font-mono text-xs tracking-widest text-ink-muted dark:text-dark-ink-muted mb-1 uppercase">
-              Ingredients for this step
-            </Text>
+          <View style={st.ingredientsBox}>
+            <Text style={st.ingredientsLabel}>Ingredients for this step</Text>
             {stepIngredients.map((ing, i) => (
-              <Text
-                key={i}
-                className="font-sans text-base text-ink dark:text-dark-ink py-0.5"
-              >
+              <Text key={i} style={st.ingredientItem}>
                 • {ing}
               </Text>
             ))}
@@ -85,47 +71,153 @@ export function CookingStep({
                 ? `Timer running: ${formatTime(timerRemaining ?? timerSeconds)}. Tap to pause.`
                 : `Timer: ${formatTime(timerRemaining ?? timerSeconds)}. Tap to start.`
             }
-            className="mt-6 self-center border border-accent px-6 py-3"
+            style={st.timerButton}
           >
-            <Text className="font-mono text-3xl text-accent dark:text-dark-accent text-center">
-              {formatTime(timerRemaining ?? timerSeconds)}
-            </Text>
-            <Text className="font-mono text-xs text-accent dark:text-dark-accent text-center mt-1 uppercase tracking-widest">
-              {timerRunning ? "Tap to pause" : "Tap to start"}
-            </Text>
+            <Text style={st.timerValue}>{formatTime(timerRemaining ?? timerSeconds)}</Text>
+            <Text style={st.timerHint}>{timerRunning ? "Tap to pause" : "Tap to start"}</Text>
           </Pressable>
         )}
       </View>
 
-      {/* Prev / Next navigation */}
-      <View className="flex-row justify-between">
+      <View style={st.navRow}>
         <Pressable
           onPress={onPrev}
           disabled={isFirst}
           accessibilityRole="button"
           accessibilityLabel="Previous step"
-          className={`px-6 py-3 border border-rule ${
-            isFirst ? "opacity-30" : ""
-          }`}
+          style={[st.navButton, st.navButtonPrev, isFirst && st.navButtonDisabled]}
         >
-          <Text className="font-mono text-sm text-ink dark:text-dark-ink uppercase tracking-wider">
-            ← PREV
-          </Text>
+          <Text style={st.navButtonPrevText}>← PREV</Text>
         </Pressable>
         <Pressable
           onPress={onNext}
           disabled={isLast}
           accessibilityRole="button"
           accessibilityLabel={isLast ? "Last step" : "Next step"}
-          className={`px-6 py-3 ${
-            isLast ? "bg-success" : "bg-accent"
-          }`}
+          style={[st.navButton, isLast ? st.navButtonDone : st.navButtonNext]}
         >
-          <Text className="font-mono text-sm text-white uppercase tracking-wider">
-            {isLast ? "DONE ✓" : "NEXT →"}
-          </Text>
+          <Text style={st.navButtonNextText}>{isLast ? "DONE ✓" : "NEXT →"}</Text>
         </Pressable>
       </View>
     </View>
   );
 }
+
+const st = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: colors.bg,
+    paddingHorizontal: 24,
+    paddingVertical: 32,
+    justifyContent: "space-between",
+  },
+  progressLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: colors.inkMuted,
+    textAlign: "center",
+    marginBottom: 8,
+    textTransform: "uppercase",
+  },
+  progressTrack: {
+    height: 2,
+    backgroundColor: colors.rule,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    backgroundColor: colors.accent,
+  },
+  stepBlock: {
+    flex: 1,
+    justifyContent: "center",
+    paddingVertical: 32,
+  },
+  stepText: {
+    fontFamily: fonts.serif,
+    fontSize: 24,
+    lineHeight: 36,
+    color: colors.ink,
+    textAlign: "center",
+  },
+  ingredientsBox: {
+    marginTop: 24,
+    borderWidth: 1,
+    borderColor: colors.rule,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  ingredientsLabel: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    letterSpacing: 1.5,
+    color: colors.inkMuted,
+    marginBottom: 4,
+    textTransform: "uppercase",
+  },
+  ingredientItem: {
+    fontFamily: fonts.sans,
+    fontSize: 15,
+    color: colors.ink,
+    paddingVertical: 2,
+  },
+  timerButton: {
+    marginTop: 24,
+    alignSelf: "center",
+    borderWidth: 1,
+    borderColor: colors.accent,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  timerValue: {
+    fontFamily: fonts.mono,
+    fontSize: 30,
+    color: colors.accent,
+    textAlign: "center",
+  },
+  timerHint: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.accent,
+    textAlign: "center",
+    marginTop: 4,
+    letterSpacing: 1.5,
+    textTransform: "uppercase",
+  },
+  navRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  navButton: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+  },
+  navButtonPrev: {
+    borderWidth: 1,
+    borderColor: colors.rule,
+  },
+  navButtonDisabled: {
+    opacity: 0.3,
+  },
+  navButtonPrevText: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    color: colors.ink,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  navButtonNext: {
+    backgroundColor: colors.accent,
+  },
+  navButtonDone: {
+    backgroundColor: colors.success,
+  },
+  navButtonNextText: {
+    fontFamily: fonts.mono,
+    fontSize: 13,
+    color: "#FFFFFF",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+});

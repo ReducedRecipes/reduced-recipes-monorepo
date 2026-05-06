@@ -19,7 +19,11 @@ export default function DomainScreen() {
       emptyMessage={`No recipes found for ${name}`}
       onEndReached={() => { if (query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage(); }}
       isFetchingNextPage={query.isFetchingNextPage}
-      headerComponent={<Stack.Screen options={{ title: name }} />}
+      headerComponent={
+        <Stack.Screen
+          options={{ headerShown: true, title: name, headerBackTitle: 'Back' }}
+        />
+      }
     />
   );
 }

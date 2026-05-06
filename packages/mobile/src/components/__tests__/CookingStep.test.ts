@@ -16,6 +16,7 @@ vi.mock('react-native', () => ({
     props,
     children: Array.isArray(children) ? children : [children],
   })),
+  StyleSheet: { create: (styles: any) => styles, hairlineWidth: 0.5 },
 }));
 
 import { CookingStep } from '../CookingStep';

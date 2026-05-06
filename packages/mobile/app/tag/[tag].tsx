@@ -19,7 +19,11 @@ export default function TagScreen() {
       emptyMessage={`No recipes found for ${tagName}`}
       onEndReached={() => { if (query.hasNextPage && !query.isFetchingNextPage) query.fetchNextPage(); }}
       isFetchingNextPage={query.isFetchingNextPage}
-      headerComponent={<Stack.Screen options={{ title: tagName }} />}
+      headerComponent={
+        <Stack.Screen
+          options={{ headerShown: true, title: tagName, headerBackTitle: 'Back' }}
+        />
+      }
     />
   );
 }

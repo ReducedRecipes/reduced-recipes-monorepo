@@ -86,7 +86,8 @@
             "deploymentTarget": "16.0"
           },
           "android": {
-            "minSdkVersion": 29
+            "minSdkVersion": 29,
+            "useLegacyPackaging": false
           }
         }
       ],
