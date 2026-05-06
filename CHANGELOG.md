@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.7.1...v1.7.2) (2026-05-06)
+
+
+### Bug Fixes
+
+* **mobile:** temporarily hide Start Cooking button until iOS crash is diagnosed ([4ef6760](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/4ef67603f8428331599ec76a5abf7ddcc7aceadf))
+* **mobile:** temporarily hide Start Cooking until iOS crash is diagnosed ([5ce0c1c](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/5ce0c1c94dfe8ac2619aaed967001903a7b85712))
+
 ## [1.7.1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.7.0...v1.7.1) (2026-05-06)
 
 
