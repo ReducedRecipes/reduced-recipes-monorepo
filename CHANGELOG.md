@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.6.0...v1.6.1) (2026-05-06)
+
+
+### Bug Fixes
+
+* **mobile:** replace placeholder icon assets with brand mark ([1bce98e](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/1bce98e4b2f6f6d8b7853f512d0fd8ba51a426c6))
+* **mobile:** replace placeholder icon assets with brand mark ([5683663](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/5683663cd60b1944c2ed2b074aff3cf746bcbdb1))
+
 ## [1.6.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.5.0...v1.6.0) (2026-05-06)
 
 
