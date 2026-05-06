@@ -1,0 +1,30 @@
+name = "rr-social-orchestrator"
+main = "src/social/orchestrator.ts"
+compatibility_date = "2025-04-01"
+
+[triggers]
+crons = ["0 4 * * *"]
+
+[[d1_databases]]
+binding = "DB"
+# from packages/workers/wrangler.api.toml -- recipes DB
+
+[[kv_namespaces]]
+binding = "RR_SOCIAL_KILLSWITCH"
+# create with `pnpm exec wrangler kv namespace create RR_SOCIAL_KILLSWITCH`
+# then paste the returned id below
+
+# Service bindings -- populate as downstream Workers come online (005, 006).
+# [[services]]
+# binding = "SOCIAL_SIGNALS_ROLLUP"
+# service = "rr-social-signals-rollup"
+#
+# [[services]]
+# binding = "SOCIAL_SELECTOR"
+# service = "rr-social-selector"
+
+[vars]
+NOTIFIER_FROM = "social-bot@reduced.recipes"
+NOTIFIER_FROM_NAME = "RR Social"
+NOTIFIER_CHANNEL = "email"
+# NOTIFIER_TO via `wrangler secret put`

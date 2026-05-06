@@ -287,6 +287,9 @@ importers:
 
   packages/workers:
     dependencies:
+      '@rr/notifier':
+        specifier: workspace:*
+        version: link:../notifier
       '@rr/shared':
         specifier: workspace:*
         version: link:../shared
