@@ -1,0 +1,27 @@
+# Cloudflare Containers config for the Remotion render service.
+# This is the deployment target validated by the local Docker proof in this spike.
+# Deploy: pnpm exec wrangler deploy
+# Containers GA on the Workers Paid plan.
+
+name = "rr-social-renderer"
+main = "src/worker.ts"
+compatibility_date = "2025-04-01"
+workers_dev = true
+
+[[containers]]
+class_name = "RemotionRenderer"
+image = "./Dockerfile"
+max_instances = 4
+instance_type = "standard"  # 1/2 vCPU, 4 GB memory, 4 GB disk
+
+[[durable_objects.bindings]]
+name = "RENDERER"
+class_name = "RemotionRenderer"
+
+[[r2_buckets]]
+binding = "RR_SOCIAL_ASSETS"
+bucket_name = "rr-social-assets"
+
+# Container is invoked by adapter Workers via Durable Object stub, which routes to
+# the container instance. Render request shape: { props: RecipeCardProps, outKey: string }.
+# Container writes MP4 to R2 at `outKey`, returns success/failure.
