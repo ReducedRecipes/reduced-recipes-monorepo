@@ -1,6 +1,6 @@
 {
   "name": "@rr/workers",
-  "version": "1.6.2",
+  "version": "1.6.3",
   "type": "module",
   "private": true,
   "dependencies": {

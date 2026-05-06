@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.6.3](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.6.2...v1.6.3) (2026-05-06)
+
+
+### Bug Fixes
+
+* **mobile:** launcher hardening (Stack root, cooking bg, transparency, 16KB pages) ([f50fb9b](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/f50fb9b8c345aadf9be8f6ed2842e94723dac39b))
+* **mobile:** launcher hardening (Stack, cooking, transparency, 16KB) ([f4e3b82](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/f4e3b8284843504c0e966ab9734b6f2e9315c3c3))
+
 ## [1.6.2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.6.1...v1.6.2) (2026-05-06)
 
 
