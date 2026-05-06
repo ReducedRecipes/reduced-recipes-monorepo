@@ -148,10 +148,10 @@ export default function CookingModeScreen() {
 
   const currentStepText = instructions[session.currentStep - 1] ?? "";
   const timerSeconds = parseTimerSeconds(currentStepText);
-  const stepIngredients = matchIngredients(
-    currentStepText,
-    recipe.ingredients,
-  );
+  const recipeIngredients = Array.isArray(recipe.ingredients)
+    ? recipe.ingredients.filter((ing): ing is string => typeof ing === "string")
+    : [];
+  const stepIngredients = matchIngredients(currentStepText, recipeIngredients);
 
   return (
     <>
