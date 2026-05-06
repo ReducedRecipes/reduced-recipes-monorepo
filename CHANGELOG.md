@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.5.0...v1.6.0) (2026-05-06)
+
+
+### Features
+
+* **mobile:** add Firebase + Apple/Google sign-in dependencies ([553862c](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/553862c66b3ae37ed6e06472f07c37f1ed06d08d))
+* **mobile:** add Firebase sign-in handlers for Apple and Google ([36b9775](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/36b97759cbf09d83c3451d25add1cf9272ba90a6))
+* **mobile:** Apple + Google sign-in via Firebase ([8bd5d15](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/8bd5d159d43419f3474209cddc4bb2751947eeec))
+* **mobile:** show Apple + Google sign-in buttons in settings ([ea6c72a](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/ea6c72a265f4f443eb778cc63ba6f95167cd8f93))
+
 ## [1.5.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.4.0...v1.5.0) (2026-05-05)
 
 
