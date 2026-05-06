@@ -1420,7 +1420,7 @@ const STOPWORDS = new Set([
   'g', 'kg', 'ml', 'l', 'oz', 'lb', 'lbs', 'pound', 'pounds',
   'large', 'medium', 'small', 'fresh', 'dried', 'chopped', 'diced', 'minced',
   'sliced', 'crushed', 'whole', 'ground', 'finely', 'roughly',
-  'a', 'an', 'the', 'of', 'to', 'taste', 'optional',
+  'a', 'an', 'the', 'of', 'to', 'taste', 'optional', 'pinch',
 ]);
 
 const PLURAL_TO_SINGULAR: Record<string, string> = {
