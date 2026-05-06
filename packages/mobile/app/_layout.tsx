@@ -21,6 +21,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text } from 'react-native';
+import { SplashLogo } from '@/components/SplashLogo';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -45,6 +46,7 @@ function ErrorFallback({ error }: { error: Error }) {
 
 export default function RootLayout() {
   const [error, setError] = useState<Error | null>(null);
+  const [splashAnimationDone, setSplashAnimationDone] = useState(false);
 
   const [fontsLoaded, fontError] = useFonts({
     InstrumentSerif_400Regular,
@@ -68,6 +70,14 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) {
     return null;
+  }
+
+  if (!splashAnimationDone) {
+    return (
+      <GestureHandlerRootView style={styles.root}>
+        <SplashLogo onComplete={() => setSplashAnimationDone(true)} />
+      </GestureHandlerRootView>
+    );
   }
 
   return (
