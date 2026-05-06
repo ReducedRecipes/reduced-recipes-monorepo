@@ -1,6 +1,6 @@
 {
   "name": "@rr/shared",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "type": "module",
   "exports": {
     ".": "./src/types.ts",
