@@ -1750,6 +1750,7 @@ import { EmailNotifier, type EmailEnv } from './email-notifier';
 
 export type { Notifier, DailyDigestInput, AlertInput, DraftSummary } from './types';
 export { EmailNotifier } from './email-notifier';
+export { renderDigestText, renderDigestHtml } from './render-digest';
 
 export interface NotifierFactoryEnv extends EmailEnv {
   NOTIFIER_CHANNEL?: 'email';
