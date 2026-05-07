@@ -1,0 +1,39 @@
+name = "rr-social-publisher-pinterest"
+main = "src/social/publisher-pinterest.ts"
+compatibility_date = "2025-04-01"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+# Recipes DB -- same database as wrangler.api.toml. Houses
+# `social_drafts`, `social_posts`, and `social_metrics_snapshots`.
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+migrations_dir = "../../migrations"
+
+# Killswitch namespace shared with social-orchestrator. Key 'pinterest'
+# halts publishing; tripped automatically by the bootstrap engagement
+# floor or manually via `wrangler kv key put`.
+[[kv_namespaces]]
+binding = "RR_SOCIAL_KILLSWITCH"
+# id = "<paste from wrangler.social-orchestrator.toml at deploy time>"
+
+# Pinterest OAuth tokens (managed by @rr/social-shared/platforms/pinterest-auth).
+# `getValidPinterestAccessToken` reads + refreshes tokens stored under
+# the key 'pinterest:default'.
+[[kv_namespaces]]
+binding = "RR_SOCIAL_TOKENS"
+# id = "<paste at deploy time>"
+
+[vars]
+NOTIFIER_FROM = "social-bot@reduced.recipes"
+NOTIFIER_FROM_NAME = "RR Social"
+NOTIFIER_CHANNEL = "email"
+PINTEREST_DEFAULT_BOARD_ID = ""    # set after creating the first board
+
+# secrets (via `wrangler secret put`):
+# - PINTEREST_CLIENT_ID
+# - PINTEREST_CLIENT_SECRET
+# - NOTIFIER_TO

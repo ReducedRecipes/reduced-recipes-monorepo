@@ -32,6 +32,7 @@
     "deploy:social-selector": "wrangler deploy -c wrangler.social-selector.toml",
     "deploy:social-adapter-pinterest": "wrangler deploy -c wrangler.social-adapter-pinterest.toml",
     "deploy:social-shortlink": "wrangler deploy -c wrangler.social-shortlink.toml",
+    "deploy:social-publisher-pinterest": "wrangler deploy -c wrangler.social-publisher-pinterest.toml",
     "dev:api": "wrangler dev -c wrangler.api.toml",
     "dev:orchestrator": "wrangler dev -c wrangler.orchestrator.toml",
     "dev:crawler": "wrangler dev -c wrangler.crawler.toml",
@@ -44,6 +45,7 @@
     "dev:social-selector": "wrangler dev -c wrangler.social-selector.toml",
     "dev:social-adapter-pinterest": "wrangler dev -c wrangler.social-adapter-pinterest.toml",
     "dev:social-shortlink": "wrangler dev -c wrangler.social-shortlink.toml",
+    "dev:social-publisher-pinterest": "wrangler dev -c wrangler.social-publisher-pinterest.toml",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
