@@ -25,26 +25,53 @@ function formatTime(minutes: number): string {
   return mins > 0 ? `${hrs} hr ${mins} min` : `${hrs} hr`;
 }
 
-function buildSchemaLd(recipe: RecipeDocument): string {
+function buildDescription(recipe: RecipeDocument): string {
+  if (recipe.ingredients.length > 0) {
+    return `Recipe for ${recipe.title} with ${recipe.ingredients.length} ingredients.`;
+  }
+  return recipe.instructions[0]?.slice(0, 160) ?? recipe.title;
+}
+
+function buildNutritionLd(
+  n: RecipeDocument["nutrition"],
+): Record<string, string> | undefined {
+  if (!n) return undefined;
+  const out: Record<string, string> = { "@type": "NutritionInformation" };
+  if (n.calories != null) out.calories = `${n.calories} calories`;
+  if (n.protein_g != null) out.proteinContent = `${n.protein_g} g`;
+  if (n.fat_g != null) out.fatContent = `${n.fat_g} g`;
+  if (n.carbs_g != null) out.carbohydrateContent = `${n.carbs_g} g`;
+  if (n.fiber_g != null) out.fiberContent = `${n.fiber_g} g`;
+  if (n.sodium_mg != null) out.sodiumContent = `${n.sodium_mg} mg`;
+  return Object.keys(out).length > 1 ? out : undefined;
+}
+
+function buildSchemaLd(recipe: RecipeDocument, canonicalUrl: string): string {
   return JSON.stringify({
     "@context": "https://schema.org",
     "@type": "Recipe",
     name: recipe.title,
+    description: buildDescription(recipe),
     image: recipe.image_url ?? undefined,
     author: recipe.author
       ? { "@type": "Person", name: recipe.author }
       : undefined,
+    prepTime: recipe.prep_time ? `PT${recipe.prep_time}M` : undefined,
+    cookTime: recipe.cook_time ? `PT${recipe.cook_time}M` : undefined,
     totalTime: recipe.total_time ? `PT${recipe.total_time}M` : undefined,
     recipeYield: recipe.yields ?? undefined,
     recipeIngredient: recipe.ingredients,
     recipeInstructions: recipe.instructions.map((step, i) => ({
       "@type": "HowToStep",
       position: i + 1,
+      name: `Step ${i + 1}`,
       text: step,
+      url: `${canonicalUrl}#step-${i + 1}`,
     })),
     recipeCategory: recipe.category ?? undefined,
     recipeCuisine: recipe.cuisine ?? undefined,
     keywords: recipe.keywords.join(", ") || undefined,
+    nutrition: buildNutritionLd(recipe.nutrition),
   });
 }
 
@@ -237,10 +264,7 @@ export default function RecipePage() {
 
     document.title = `${recipe.title} - ReducedRecipes`;
 
-    const description =
-      recipe.ingredients.length > 0
-        ? `Recipe for ${recipe.title} with ${recipe.ingredients.length} ingredients.`
-        : recipe.instructions[0]?.slice(0, 160) ?? recipe.title;
+    const description = buildDescription(recipe);
 
     const metaTags: HTMLMetaElement[] = [];
     const linkTags: HTMLLinkElement[] = [];
@@ -283,7 +307,7 @@ export default function RecipePage() {
     if (!recipe) return;
     const script = document.createElement("script");
     script.type = "application/ld+json";
-    script.textContent = buildSchemaLd(recipe);
+    script.textContent = buildSchemaLd(recipe, window.location.href);
     document.head.appendChild(script);
     return () => {
       document.head.removeChild(script);
@@ -631,7 +655,7 @@ export default function RecipePage() {
                   {recipe.instructions.map((step, i) => {
                     const done = completedSteps.has(i);
                     return (
-                      <li key={i} className="flex gap-4">
+                      <li key={i} id={`step-${i + 1}`} className="flex gap-4">
                         {/* Step number */}
                         <button
                           onClick={() => toggleStep(i)}
