@@ -78,6 +78,16 @@ export interface IngredientCacheRow {
   bytes: number;
 }
 
+// --- Pinterest OAuth (defined in ticket 014, consumed by 009 / 012) ---
+
+export interface PinterestTokenBundle {
+  accessToken: string;
+  refreshToken: string;
+  expiresAt: number;
+  scope: string;
+  obtainedAt: number;
+}
+
 // --- Existing recipes-DB shapes (selector reads these) ---
 
 // Reflects actual columns in `recipes` after migrations 0001-0006 + 0017.

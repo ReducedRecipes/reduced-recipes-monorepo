@@ -1,0 +1,22 @@
+name = "rr-social-selector"
+main = "src/social/selector.ts"
+compatibility_date = "2025-04-01"
+
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+migrations_dir = "../../migrations"
+
+[[queues.producers]]
+binding = "PINTEREST_QUEUE"
+queue = "rr-social-pinterest-jobs"
+
+# Phase 2 — uncomment when adapter-reels and adapter-shorts ship.
+# [[queues.producers]]
+# binding = "REELS_QUEUE"
+# queue = "rr-social-reels-jobs"
+#
+# [[queues.producers]]
+# binding = "SHORTS_QUEUE"
+# queue = "rr-social-shorts-jobs"

@@ -1,0 +1,18 @@
+name = "rr-social-signals-rollup"
+main = "src/social/signals-rollup.ts"
+compatibility_date = "2025-04-01"
+
+[triggers]
+crons = ["30 3 * * *"]    # 30 minutes before social-orchestrator's 04:00 UTC
+
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+migrations_dir = "../../migrations"
+
+[[d1_databases]]
+binding = "USERS_DB"
+database_id = "3bb2302a-7f7a-43c9-b3e7-de5870824869"
+database_name = "reduced-recipes-users"
+migrations_dir = "../../migrations-users"
