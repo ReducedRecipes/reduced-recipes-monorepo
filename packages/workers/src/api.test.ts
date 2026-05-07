@@ -807,3 +807,31 @@ describe('GET /.well-known/apple-app-site-association', () => {
     expect(res.status).toBe(503);
   });
 });
+
+describe('GET /.well-known/assetlinks.json', () => {
+  it('returns assetlinks JSON for the Android app', async () => {
+    const env = createEnv({
+      ANDROID_CERT_SHA256: 'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
+    });
+    const res = await req('/.well-known/assetlinks.json', env);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=3600');
+
+    const body = await res.json();
+    expect(body).toHaveLength(1);
+    expect(body[0].relation).toEqual(['delegate_permission/common.handle_urls']);
+    expect(body[0].target.namespace).toBe('android_app');
+    expect(body[0].target.package_name).toBe('com.reducedrecipes.app');
+    expect(body[0].target.sha256_cert_fingerprints).toEqual([
+      'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
+    ]);
+  });
+
+  it('returns 503 when ANDROID_CERT_SHA256 is not configured', async () => {
+    const env = createEnv();
+    const res = await req('/.well-known/assetlinks.json', env);
+    expect(res.status).toBe(503);
+  });
+});
