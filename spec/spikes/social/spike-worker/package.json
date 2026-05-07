@@ -1,0 +1,14 @@
+{
+  "name": "rr-social-spike",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "delete": "wrangler delete --name rr-social-spike"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240909.0",
+    "typescript": "^5.6.0",
+    "wrangler": "^3.78.0"
+  }
+}

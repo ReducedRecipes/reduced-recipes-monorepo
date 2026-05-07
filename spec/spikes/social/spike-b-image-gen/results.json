@@ -1,0 +1,140 @@
+{
+  "spike": "B",
+  "models": [
+    "@cf/black-forest-labs/flux-1-schnell",
+    "@cf/black-forest-labs/flux-2-klein-4b"
+  ],
+  "avg_latency_ms": 1046,
+  "results": [
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "hero_pasta",
+      "elapsed_ms": 2147,
+      "bytes": 631758,
+      "file": "images/flux-1-schnell__hero_pasta.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "hero_curry",
+      "elapsed_ms": 2010,
+      "bytes": 727241,
+      "file": "images/flux-1-schnell__hero_curry.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "hero_cookies",
+      "elapsed_ms": 2094,
+      "bytes": 688690,
+      "file": "images/flux-1-schnell__hero_cookies.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "finished_taco",
+      "elapsed_ms": 2129,
+      "bytes": 824718,
+      "file": "images/flux-1-schnell__finished_taco.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "finished_risotto",
+      "elapsed_ms": 2042,
+      "bytes": 647611,
+      "file": "images/flux-1-schnell__finished_risotto.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "ingredient_garlic",
+      "elapsed_ms": 1787,
+      "bytes": 270886,
+      "file": "images/flux-1-schnell__ingredient_garlic.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "ingredient_eggs",
+      "elapsed_ms": 2147,
+      "bytes": 198953,
+      "file": "images/flux-1-schnell__ingredient_eggs.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "ingredient_lemon",
+      "elapsed_ms": 1736,
+      "bytes": 213029,
+      "file": "images/flux-1-schnell__ingredient_lemon.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "step_chopping",
+      "elapsed_ms": 2647,
+      "bytes": 708658,
+      "file": "images/flux-1-schnell__step_chopping.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-1-schnell",
+      "slot": "step_pan",
+      "elapsed_ms": 2065,
+      "bytes": 656255,
+      "file": "images/flux-1-schnell__step_pan.png"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "hero_pasta",
+      "elapsed_ms": 14,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "hero_curry",
+      "elapsed_ms": 11,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "hero_cookies",
+      "elapsed_ms": 12,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "finished_taco",
+      "elapsed_ms": 13,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "finished_risotto",
+      "elapsed_ms": 12,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "ingredient_garlic",
+      "elapsed_ms": 11,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "ingredient_eggs",
+      "elapsed_ms": 10,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "ingredient_lemon",
+      "elapsed_ms": 12,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "step_chopping",
+      "elapsed_ms": 15,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    },
+    {
+      "model": "@cf/black-forest-labs/flux-2-klein-4b",
+      "slot": "step_pan",
+      "elapsed_ms": 10,
+      "error": "5006: Error: required properties at '/' are 'multipart'"
+    }
+  ]
+}

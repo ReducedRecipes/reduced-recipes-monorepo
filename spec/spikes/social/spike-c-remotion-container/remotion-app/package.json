@@ -1,0 +1,22 @@
+{
+  "name": "rr-social-remotion-spike",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "render": "remotion render src/index.ts RecipeCard out/recipe.mp4 --props='{\"hookText\":\"The 4-ingredient pasta nobody talks about\",\"ingredients\":[\"spaghetti\",\"guanciale\",\"pecorino\",\"black pepper\"],\"steps\":[\"Boil pasta 8 min\",\"Crisp guanciale\",\"Whisk eggs + cheese\",\"Toss off heat\"],\"statsText\":\"20 min · Serves 2\",\"ctaText\":\"Full recipe, no scroll\"}'"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/renderer": "^4.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "typescript": "^5.6.0"
+  }
+}

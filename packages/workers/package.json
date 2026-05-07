@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "dependencies": {
+    "@rr/notifier": "workspace:*",
     "@rr/shared": "workspace:*",
+    "@rr/social-shared": "workspace:*",
     "hono": "^4.3",
     "jose": "^6.2.3"
   },
@@ -23,6 +25,7 @@
     "deploy:projection": "wrangler deploy -c wrangler.projection.toml",
     "deploy:dlq": "wrangler deploy -c wrangler.dlq.toml",
     "deploy:hot-refresh": "wrangler deploy -c wrangler.hot-refresh.toml",
+    "deploy:social-orchestrator": "wrangler deploy -c wrangler.social-orchestrator.toml",
     "dev:api": "wrangler dev -c wrangler.api.toml",
     "dev:orchestrator": "wrangler dev -c wrangler.orchestrator.toml",
     "dev:crawler": "wrangler dev -c wrangler.crawler.toml",
@@ -30,6 +33,7 @@
     "dev:projection": "wrangler dev -c wrangler.projection.toml",
     "dev:dlq": "wrangler dev -c wrangler.dlq.toml",
     "dev:hot-refresh": "wrangler dev -c wrangler.hot-refresh.toml",
+    "dev:social-orchestrator": "wrangler dev -c wrangler.social-orchestrator.toml",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
