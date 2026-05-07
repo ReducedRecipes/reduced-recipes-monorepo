@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.7.3](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.7.2...v1.7.3) (2026-05-07)
+
+
+### Bug Fixes
+
+* **mobile:** profile renders from auth store; add Delete Account flow ([8a4e27e](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/8a4e27e06705c43200af4508ae092fba86a23afb))
+* **mobile:** profile resilience + Delete Account flow (App Review) ([31818e1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/31818e11cece954e6d70e6f51f2c7e3c5a344c5b))
+
 ## [1.7.2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.7.1...v1.7.2) (2026-05-06)
 
 
