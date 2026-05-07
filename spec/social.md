@@ -4240,14 +4240,22 @@ OAuth Authorization Code with PKCE. Run once interactively by the owner; everyth
 ### Files to create / modify
 
 ```
-packages/workers/src/social/admin/pinterest-oauth.ts
-packages/social-shared/src/platforms/pinterest-auth.ts
+packages/social-shared/src/types.ts                          # add PinterestTokenBundle
+packages/social-shared/src/platforms/pinterest-auth.ts       # all three functions live here
 packages/social-shared/src/platforms/pinterest-auth.test.ts
 ```
 
+Ticket 011's `social-admin` Pages Functions for `/oauth/pinterest/start` and `/oauth/pinterest/callback` import the helpers from `@rr/social-shared/platforms/pinterest-auth`:
+
+```ts
+import { startOauth, callback, getValidPinterestAccessToken } from '@rr/social-shared/platforms/pinterest-auth';
+```
+
+There is no `packages/workers/src/social/admin/` directory — keeping all OAuth helpers in `@rr/social-shared` avoids creating an admin folder in the workers package that no Worker entrypoint actually uses.
+
 ### Implementation
 
-**Token shape (in KV at `pinterest:default`):**
+**Token shape (in KV at `pinterest:default`, defined in `@rr/social-shared/types`):**
 
 ```ts
 export interface PinterestTokenBundle {
@@ -4259,18 +4267,27 @@ export interface PinterestTokenBundle {
 }
 ```
 
-**`pinterest-auth.ts`:**
+**`pinterest-auth.ts` (full file, all three exports):**
 
 ```ts
+import { ulid } from '../ulid';
 import type { PinterestTokenBundle } from '../types';
+
+export type { PinterestTokenBundle };
 
 const KV_KEY = 'pinterest:default';
 const REFRESH_BUFFER_MS = 5 * 60 * 1000;
+const SCOPES = 'boards:read,boards:write,pins:read,pins:write,user_accounts:read';
 
 export interface PinterestAuthEnv {
   RR_SOCIAL_TOKENS: KVNamespace;
   PINTEREST_CLIENT_ID: string;
   PINTEREST_CLIENT_SECRET: string;
+}
+
+export interface OauthEnv extends PinterestAuthEnv {
+  RR_SOCIAL_OAUTH_STATE: KVNamespace;
+  PINTEREST_REDIRECT_URI: string;
 }
 
 export async function getValidPinterestAccessToken(env: PinterestAuthEnv): Promise<string> {
@@ -4312,23 +4329,6 @@ async function refresh(env: PinterestAuthEnv, refreshToken: string): Promise<Pin
     obtainedAt: now,
   };
 }
-```
-
-**`admin/pinterest-oauth.ts` (lives in `social-admin` Worker / Pages Functions):**
-
-```ts
-import { ulid } from '@rr/social-shared';
-import type { PinterestTokenBundle } from '@rr/social-shared/types';
-
-interface OauthEnv {
-  RR_SOCIAL_TOKENS: KVNamespace;
-  RR_SOCIAL_OAUTH_STATE: KVNamespace;
-  PINTEREST_CLIENT_ID: string;
-  PINTEREST_CLIENT_SECRET: string;
-  PINTEREST_REDIRECT_URI: string;
-}
-
-const SCOPES = 'boards:read,boards:write,pins:read,pins:write,user_accounts:read';
 
 export async function startOauth(env: OauthEnv): Promise<Response> {
   const state = ulid();
@@ -4413,6 +4413,7 @@ function base64url(bytes: Uint8Array): string {
 - Pinterest tokens have a 30-day refresh-token lifetime *from last refresh*. As long as the system runs at least once a month, no re-bootstrap. If killswitch is active >25 days, schedule a no-op refresh call.
 - One Pinterest account = one token bundle. The `:default` suffix leaves room for future per-board or backup-account model.
 - OAuth client secret stored as Worker secret per CLAUDE.md sensitive-data policy.
+- `PinterestTokenBundle` lives in `@rr/social-shared/types` (not in `pinterest-auth.ts`) so downstream Workers — the publisher (ticket 009) and the metrics collector (ticket 012) — can import the shape without dragging in OAuth helper code. `pinterest-auth.ts` re-exports the type for callers that already import from the auth module.
 
 ---
 
