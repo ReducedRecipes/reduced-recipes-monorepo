@@ -794,10 +794,10 @@ describe('GET /.well-known/apple-app-site-association', () => {
     expect(body.applinks.details).toHaveLength(1);
     expect(body.applinks.details[0].appID).toBe('TESTTEAMID.com.reducedrecipes.app');
     expect(body.applinks.details[0].paths).toEqual([
-      '/recipe/*',
-      '/shared/lists/*',
       'NOT /recipe/',
       'NOT /shared/lists/',
+      '/recipe/*',
+      '/shared/lists/*',
     ]);
   });
 

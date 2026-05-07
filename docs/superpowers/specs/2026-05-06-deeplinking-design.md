@@ -53,10 +53,10 @@ Body:
       {
         "appID": "<APPLE_TEAM_ID>.com.reducedrecipes.app",
         "paths": [
-          "/recipe/*",
-          "/shared/lists/*",
           "NOT /recipe/",
-          "NOT /shared/lists/"
+          "NOT /shared/lists/",
+          "/recipe/*",
+          "/shared/lists/*"
         ]
       }
     ]
@@ -64,7 +64,7 @@ Body:
 }
 ```
 
-`<APPLE_TEAM_ID>` is the Apple Developer Team ID associated with the existing iOS provisioning profile. Per the project's sensitive-data policy, this account-identifier value is provided to the Worker as a secret (set via `wrangler secret put`) and never inlined in the repo. The two `NOT` entries exclude bare prefix paths (`/recipe/` and `/shared/lists/`) so iOS does not try to claim those listing-style URLs.
+`<APPLE_TEAM_ID>` is the Apple Developer Team ID associated with the existing iOS provisioning profile. Per the project's sensitive-data policy, this account-identifier value is provided to the Worker as a secret (set via `wrangler secret put`) and never inlined in the repo. The two `NOT` entries exclude bare prefix paths (`/recipe/` and `/shared/lists/`) so iOS does not try to claim those listing-style URLs. **Order matters:** Apple evaluates `paths` top-to-bottom and stops at the first match, so the `NOT` entries must precede the wildcard entries — otherwise a bare `/recipe/` URL would be matched by `/recipe/*` (asterisk matches the empty substring) before the exclusion is ever evaluated.
 
 **`GET /.well-known/assetlinks.json`**
 

@@ -763,10 +763,10 @@ app.get('/.well-known/apple-app-site-association', (c) => {
           {
             appID: `${teamId}.com.reducedrecipes.app`,
             paths: [
-              '/recipe/*',
-              '/shared/lists/*',
               'NOT /recipe/',
               'NOT /shared/lists/',
+              '/recipe/*',
+              '/shared/lists/*',
             ],
           },
         ],
