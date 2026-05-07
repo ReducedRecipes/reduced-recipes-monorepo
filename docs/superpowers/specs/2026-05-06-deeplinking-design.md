@@ -223,3 +223,43 @@ Web fallback:
 ## Open questions
 
 None blocking implementation. The two values that need to be sourced rather than guessed (`<APPLE_TEAM_ID>` and `<PLAY_APP_SIGNING_SHA256>`) will be pulled during the implementation phase from the iOS provisioning profile and Play Console respectively, and stored as Worker secrets.
+
+## Deploy & verification runbook
+
+### One-time secret setup (per Worker environment)
+
+The Apple Team ID is in the Apple Developer Portal under "Membership". The Android signing fingerprint is in Play Console → App signing → "App signing key certificate" → SHA-256 certificate fingerprint.
+
+```bash
+# From repo root, against the production rr-api worker:
+npx wrangler secret put APPLE_TEAM_ID --config packages/workers/wrangler.api.toml
+# (paste the team ID when prompted)
+
+npx wrangler secret put ANDROID_CERT_SHA256 --config packages/workers/wrangler.api.toml
+# (paste the colon-separated 32-pair SHA256 fingerprint when prompted)
+```
+
+### Verify endpoints after deploy
+
+```bash
+curl -sI https://reduced.recipes/.well-known/apple-app-site-association
+# Expect: 200, content-type: application/json, no redirect
+
+curl -s https://reduced.recipes/.well-known/apple-app-site-association | jq .
+# Expect: { "applinks": { "apps": [], "details": [...] } } with the right appID
+
+curl -s https://reduced.recipes/.well-known/assetlinks.json | jq .
+# Expect: array of one statement with the right package_name + fingerprint
+```
+
+Then validate via Apple's [AASA Validator](https://branch.io/resources/aasa-validator/) and Google's [Statement List Tester](https://developers.google.com/digital-asset-links/tools/generator).
+
+### Build + ship the mobile app
+
+After the Worker is deployed and both endpoints return 200:
+
+1. Cut a new EAS build (any channel that picks up the updated `app.json`).
+2. Install on a real iOS and a real Android device.
+3. Run the device-level checks listed in the Testing section above.
+
+If iOS Universal Links don't work on the first install: delete the app, restart the device, reinstall. iOS caches AASA per app-install and doesn't refetch eagerly.
