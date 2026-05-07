@@ -212,6 +212,112 @@ describe("RecipePage", () => {
     expect(schema.name).toBe("Chocolate Cake");
   });
 
+  it("emits prepTime, cookTime, totalTime as ISO 8601 durations", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const schema = JSON.parse(
+      document.head.querySelector('script[type="application/ld+json"]')!
+        .textContent!,
+    );
+    expect(schema.prepTime).toBe("PT20M");
+    expect(schema.cookTime).toBe("PT40M");
+    expect(schema.totalTime).toBe("PT60M");
+  });
+
+  it("emits a description in ld+json", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const schema = JSON.parse(
+      document.head.querySelector('script[type="application/ld+json"]')!
+        .textContent!,
+    );
+    expect(schema.description).toBe(
+      "Recipe for Chocolate Cake with 3 ingredients.",
+    );
+  });
+
+  it("emits HowToStep entries with name and url anchors", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const schema = JSON.parse(
+      document.head.querySelector('script[type="application/ld+json"]')!
+        .textContent!,
+    );
+    expect(schema.recipeInstructions).toHaveLength(3);
+    expect(schema.recipeInstructions[0]).toMatchObject({
+      "@type": "HowToStep",
+      position: 1,
+      name: "Step 1",
+      text: "Preheat oven to 350F",
+    });
+    expect(schema.recipeInstructions[0].url).toMatch(/#step-1$/);
+    expect(schema.recipeInstructions[2].url).toMatch(/#step-3$/);
+  });
+
+  it("renders step <li> elements with matching anchor ids", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    expect(document.getElementById("step-1")).not.toBeNull();
+    expect(document.getElementById("step-2")).not.toBeNull();
+    expect(document.getElementById("step-3")).not.toBeNull();
+  });
+
+  it("emits NutritionInformation when nutrition is present", async () => {
+    mockFetchRecipe.mockResolvedValueOnce({
+      ...mockRecipe,
+      nutrition: {
+        calories: 320,
+        protein_g: 6,
+        fat_g: 12,
+        carbs_g: 48,
+        fiber_g: 2,
+        sodium_mg: 180,
+        source: "schema",
+      },
+    });
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const schema = JSON.parse(
+      document.head.querySelector('script[type="application/ld+json"]')!
+        .textContent!,
+    );
+    expect(schema.nutrition).toMatchObject({
+      "@type": "NutritionInformation",
+      calories: "320 calories",
+      proteinContent: "6 g",
+      fatContent: "12 g",
+      carbohydrateContent: "48 g",
+      fiberContent: "2 g",
+      sodiumContent: "180 mg",
+    });
+  });
+
+  it("omits nutrition when absent", async () => {
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const schema = JSON.parse(
+      document.head.querySelector('script[type="application/ld+json"]')!
+        .textContent!,
+    );
+    expect(schema.nutrition).toBeUndefined();
+  });
+
+  it("omits prepTime/cookTime when null", async () => {
+    mockFetchRecipe.mockResolvedValueOnce({
+      ...mockRecipe,
+      prep_time: null,
+      cook_time: null,
+    });
+    renderPage();
+    await screen.findByText("Chocolate Cake");
+    const schema = JSON.parse(
+      document.head.querySelector('script[type="application/ld+json"]')!
+        .textContent!,
+    );
+    expect(schema.prepTime).toBeUndefined();
+    expect(schema.cookTime).toBeUndefined();
+  });
+
   it("adds SEO meta tags to document head", async () => {
     renderPage();
     await screen.findByText("Chocolate Cake");
