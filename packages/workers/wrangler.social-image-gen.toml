@@ -1,0 +1,22 @@
+name = "rr-social-image-gen"
+main = "src/social/image-gen.ts"
+compatibility_date = "2025-04-01"
+
+[ai]
+binding = "AI"
+
+# Recipes DB — same database as wrangler.api.toml. Houses
+# `social_ingredient_image_cache` (created by ticket 001's migration).
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+migrations_dir = "../../migrations"
+
+[[r2_buckets]]
+binding = "RR_SOCIAL_CACHE"
+bucket_name = "rr-social-cache"
+
+[[r2_buckets]]
+binding = "RR_SOCIAL_ASSETS"
+bucket_name = "rr-social-assets"
