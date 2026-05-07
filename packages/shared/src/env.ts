@@ -55,6 +55,11 @@ export interface Env {
   WEIGHT_LIST_ADD?: string;
   WEIGHT_AUTH_VIEW?: string;
 
-  /** Vectorize — semantic search index. */
+  /** Vectorize -- semantic search index. */
   VECTORIZE?: VectorizeIndex;
+
+  /** Apple Developer Team ID, used in AASA. Set via `wrangler secret put APPLE_TEAM_ID`. */
+  APPLE_TEAM_ID?: string;
+  /** Android Play app-signing SHA256 cert fingerprint, used in assetlinks.json. Set via `wrangler secret put ANDROID_CERT_SHA256`. */
+  ANDROID_CERT_SHA256?: string;
 }
