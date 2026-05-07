@@ -512,6 +512,29 @@ async function keywordSearchIds(
   return (results ?? []).map((r) => (r as { id: string }).id);
 }
 
+/**
+ * Fire-and-forget: increment per-recipe search-hit counters used by the
+ * social-signals-rollup cron. Wrapped in waitUntil at the call site so it
+ * never blocks the user response. If the table doesn't exist (fresh DB),
+ * the rejected promise is consumed silently by waitUntil.
+ */
+function incrementSearchHits(
+  db: D1Database,
+  items: ReadonlyArray<{ id: string }>,
+): Promise<unknown> {
+  if (!items.length) return Promise.resolve();
+  const today = new Date().toISOString().slice(0, 10);
+  return Promise.all(
+    items.map((r) =>
+      db.prepare(
+        `INSERT INTO social_search_hits (recipe_id, date, hits)
+         VALUES (?, ?, 1)
+         ON CONFLICT(recipe_id, date) DO UPDATE SET hits = hits + 1`,
+      ).bind(r.id, today).run(),
+    ),
+  );
+}
+
 /** Reciprocal rank fusion of two ranked ID lists (k = 60). */
 function reciprocalRankFusion(listA: string[], listB: string[], k = 60): string[] {
   const scores = new Map<string, number>();
@@ -625,6 +648,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
       const paged = filtered.slice(offset, offset + limit);
       const body = { items: paged, has_more: filtered.length > offset + limit, search_mode: mode };
       c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+      c.executionCtx.waitUntil(incrementSearchHits(c.env.DB, paged));
       return c.json(body, 200, {
         'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
       });
@@ -634,6 +658,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
 
     const body = { items, has_more, search_mode: mode };
     c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+    c.executionCtx.waitUntil(incrementSearchHits(c.env.DB, items));
     return c.json(body, 200, {
       'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
     });
@@ -697,6 +722,7 @@ app.get('/api/v1/search', optionalAuth, async (c) => {
 
   const body = { items, has_more, search_mode: 'keyword' };
   c.executionCtx.waitUntil(c.env.CACHE_KV.put(cacheKey, JSON.stringify(body), { expirationTtl: 300 }));
+  c.executionCtx.waitUntil(incrementSearchHits(c.env.DB, items));
   return c.json(body, 200, {
     'Cache-Control': 'public, max-age=3600, s-maxage=3600, stale-while-revalidate=7200',
     'X-Cache': 'MISS',
