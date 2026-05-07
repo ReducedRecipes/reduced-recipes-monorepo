@@ -122,6 +122,8 @@ WEIGHT_AUTH_VIEW = "0.1"
 #   GOOGLE_CLIENT_SECRET
 #   GOOGLE_REDIRECT_URI
 #   SESSION_SECRET
+#   APPLE_TEAM_ID            (deeplinking: served in /.well-known/apple-app-site-association)
+#   ANDROID_CERT_SHA256      (deeplinking: served in /.well-known/assetlinks.json)
 
 [env.preview]
 name = "rr-api-preview"
