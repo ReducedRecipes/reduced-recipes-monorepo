@@ -205,7 +205,7 @@ describe('Recipe Detail Screen (S-28)', () => {
 
     it('has share functionality', () => {
       expect(source).toContain('Share.share');
-      expect(source).toContain('reducedrecipes.com/recipe/');
+      expect(source).toContain('reduced.recipes/recipe/');
     });
 
     it('displays cook time and domain metadata inline', () => {

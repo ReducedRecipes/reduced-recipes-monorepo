@@ -43,7 +43,7 @@ export default function RecipeDetailScreen() {
   const handleShare = useCallback(async () => {
     if (!recipe) return;
     await Share.share({
-      message: `Check out this recipe: https://reducedrecipes.com/recipe/${recipe.id}`,
+      message: `Check out this recipe: https://reduced.recipes/recipe/${recipe.id}`,
     });
   }, [recipe]);
 

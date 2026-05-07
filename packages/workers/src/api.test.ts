@@ -779,3 +779,64 @@ describe('GET /api/v1/search/similar/:id', () => {
     );
   });
 });
+
+describe('GET /.well-known/apple-app-site-association', () => {
+  it('returns the AASA JSON with correct content-type and no redirect', async () => {
+    const env = createEnv({ APPLE_TEAM_ID: 'TESTTEAMID' });
+    const res = await req('/.well-known/apple-app-site-association', env);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=3600');
+
+    const body = await res.json() as {
+      applinks: { apps: unknown[]; details: Array<{ appID: string; paths: string[] }> };
+    };
+    expect(body.applinks.apps).toEqual([]);
+    expect(body.applinks.details).toHaveLength(1);
+    expect(body.applinks.details[0]!.appID).toBe('TESTTEAMID.com.reducedrecipes.app');
+    expect(body.applinks.details[0]!.paths).toEqual([
+      'NOT /recipe/',
+      'NOT /shared/lists/',
+      '/recipe/*',
+      '/shared/lists/*',
+    ]);
+  });
+
+  it('returns 503 when APPLE_TEAM_ID is not configured', async () => {
+    const env = createEnv();
+    const res = await req('/.well-known/apple-app-site-association', env);
+    expect(res.status).toBe(503);
+  });
+});
+
+describe('GET /.well-known/assetlinks.json', () => {
+  it('returns assetlinks JSON for the Android app', async () => {
+    const env = createEnv({
+      ANDROID_CERT_SHA256: 'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
+    });
+    const res = await req('/.well-known/assetlinks.json', env);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=3600');
+
+    const body = await res.json() as Array<{
+      relation: string[];
+      target: { namespace: string; package_name: string; sha256_cert_fingerprints: string[] };
+    }>;
+    expect(body).toHaveLength(1);
+    expect(body[0]!.relation).toEqual(['delegate_permission/common.handle_urls']);
+    expect(body[0]!.target.namespace).toBe('android_app');
+    expect(body[0]!.target.package_name).toBe('com.reducedrecipes.app');
+    expect(body[0]!.target.sha256_cert_fingerprints).toEqual([
+      'AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99:AA:BB:CC:DD:EE:FF:00:11:22:33:44:55:66:77:88:99',
+    ]);
+  });
+
+  it('returns 503 when ANDROID_CERT_SHA256 is not configured', async () => {
+    const env = createEnv();
+    const res = await req('/.well-known/assetlinks.json', env);
+    expect(res.status).toBe(503);
+  });
+});

@@ -27,13 +27,22 @@ describe('app.json', () => {
 
   it('has iOS config with bundleIdentifier and associatedDomains', () => {
     expect(expo.ios.bundleIdentifier).toBe('com.reducedrecipes.app');
-    expect(expo.ios.associatedDomains).toContain('applinks:reducedrecipes.com');
+    expect(expo.ios.associatedDomains).toContain('applinks:reduced.recipes');
+    expect(expo.ios.associatedDomains).toContain('webcredentials:reduced.recipes');
   });
 
   it('has Android config with package and intentFilters', () => {
     expect(expo.android.package).toBe('com.reducedrecipes.app');
     expect(expo.android.intentFilters).toHaveLength(1);
-    expect(expo.android.intentFilters[0].data[0].pathPrefix).toBe('/recipe/');
+    const filter = expo.android.intentFilters[0];
+    expect(filter.autoVerify).toBe(true);
+    const prefixes = filter.data.map((d: { pathPrefix: string }) => d.pathPrefix);
+    expect(prefixes).toContain('/recipe/');
+    expect(prefixes).toContain('/shared/lists/');
+    for (const d of filter.data) {
+      expect(d.scheme).toBe('https');
+      expect(d.host).toBe('reduced.recipes');
+    }
   });
 
   it('has all required plugins', () => {

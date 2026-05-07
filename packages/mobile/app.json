@@ -26,8 +26,8 @@
         "NSUserNotificationUsageDescription": "Get notified when new recipes are added from your saved sites."
       },
       "associatedDomains": [
-        "applinks:reducedrecipes.com",
-        "webcredentials:reducedrecipes.com"
+        "applinks:reduced.recipes",
+        "webcredentials:reduced.recipes"
       ]
     },
     "android": {
@@ -46,11 +46,8 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            {
-              "scheme": "https",
-              "host": "reducedrecipes.com",
-              "pathPrefix": "/recipe/"
-            }
+            { "scheme": "https", "host": "reduced.recipes", "pathPrefix": "/recipe/" },
+            { "scheme": "https", "host": "reduced.recipes", "pathPrefix": "/shared/lists/" }
           ],
           "category": [
             "BROWSABLE",
@@ -96,7 +93,7 @@
     "owner": "reduced-recipes",
     "extra": {
       "router": {
-        "origin": "https://reducedrecipes.com"
+        "origin": "https://reduced.recipes"
       },
       "eas": {
         "projectId": "b45c3076-b327-47bf-b371-4b85d75fd9b2"
