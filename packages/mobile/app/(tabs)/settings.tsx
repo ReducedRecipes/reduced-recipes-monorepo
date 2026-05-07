@@ -142,6 +142,39 @@ export default function SettingsScreen() {
     }
   };
 
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      'Delete Account?',
+      'This permanently deletes your account and all your saved recipes, collections, and shopping lists. This cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (!sessionToken) return;
+            setIsLoading(true);
+            try {
+              const res = await fetch(`${API_BASE}/users/me`, {
+                method: 'DELETE',
+                headers: { Authorization: `Bearer ${sessionToken}` },
+              });
+              if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+              clearSession();
+              setUserInfo(null);
+              router.replace('/(tabs)');
+            } catch (err) {
+              const msg = (err as Error).message ?? 'Could not delete account';
+              Alert.alert('Delete Failed', `${msg}\n\nPlease try again or contact support.`);
+            } finally {
+              setIsLoading(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   const handleSignOut = async () => {
     try {
       if (sessionToken) {
@@ -246,6 +279,16 @@ export default function SettingsScreen() {
             </TouchableOpacity>
             <TouchableOpacity style={st.row} onPress={handleSignOut}>
               <Text style={[st.rowLabel, st.destructiveText]}>Sign Out</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={st.row}
+              onPress={handleDeleteAccount}
+              disabled={isLoading}
+              accessibilityLabel="Delete Account"
+            >
+              <Text style={[st.rowLabel, st.destructiveText]}>
+                {isLoading ? 'Deleting…' : 'Delete Account'}
+              </Text>
             </TouchableOpacity>
           </>
         ) : (

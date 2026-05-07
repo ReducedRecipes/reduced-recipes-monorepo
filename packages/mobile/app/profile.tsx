@@ -1,68 +1,23 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   ScrollView,
   TouchableOpacity,
   Image,
-  ActivityIndicator,
   StyleSheet,
 } from 'react-native';
 import { useRouter, Stack } from 'expo-router';
 import { useAuthStore } from '@/stores/auth.store';
 import { colors, fonts } from '@/constants/theme';
 
-const API_BASE = `${process.env.EXPO_PUBLIC_API_BASE || 'https://reducedrecipes.com'}/api/v1`;
-
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-  picture_url?: string;
-  follower_count?: number;
-  following_count?: number;
-  collections?: Collection[];
-}
-
-interface Collection {
-  id: string;
-  name: string;
-  recipe_count: number;
-}
-
 export default function ProfileScreen() {
   const router = useRouter();
-  const sessionToken = useAuthStore((s) => s.sessionToken);
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const user = useAuthStore((s) => s.user);
 
-  useEffect(() => {
-    if (!sessionToken) {
-      setIsLoading(false);
-      return;
-    }
-
-    fetch(`${API_BASE}/users/me`, {
-      headers: { Authorization: `Bearer ${sessionToken}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Failed to load profile');
-        return res.json();
-      })
-      .then((data) => {
-        setProfile(data.user ?? data);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        setError(err.message);
-        setIsLoading(false);
-      });
-  }, [sessionToken]);
-
-  const initials = profile?.name
-    ? profile.name
+  const initials = user?.name
+    ? user.name
         .split(' ')
         .map((w) => w.charAt(0))
         .join('')
@@ -70,38 +25,25 @@ export default function ProfileScreen() {
         .slice(0, 2)
     : '?';
 
-  if (isLoading) {
-    return (
-      <View style={st.centered}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <ActivityIndicator size="large" color={colors.accent} />
-      </View>
-    );
-  }
-
-  if (!isAuthenticated) {
+  if (!isAuthenticated || !user) {
     return (
       <View style={st.centered}>
         <Stack.Screen options={{ headerShown: false }} />
         <Text style={st.ctaTitle}>Your Profile</Text>
-        <Text style={st.ctaSubtitle}>Sign in to view your profile, collections, and followers.</Text>
-        <TouchableOpacity style={st.ctaButton} onPress={() => router.replace('/(tabs)/settings')}>
+        <Text style={st.ctaSubtitle}>
+          Sign in to view your profile, collections, and followers.
+        </Text>
+        <TouchableOpacity
+          style={st.ctaButton}
+          onPress={() => router.replace('/(tabs)/settings')}
+        >
           <Text style={st.ctaButtonText}>SIGN IN →</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={st.backButtonCentered} onPress={() => router.back()}>
+        <TouchableOpacity
+          style={st.backButtonCentered}
+          onPress={() => router.back()}
+        >
           <Text style={st.backButtonText}>← BACK</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  if (error || !profile) {
-    return (
-      <View style={st.centered}>
-        <Stack.Screen options={{ headerShown: false }} />
-        <Text style={st.errorText}>{error || 'Could not load profile'}</Text>
-        <TouchableOpacity style={st.backButtonCentered} onPress={() => router.back()}>
-          <Text style={st.backButtonText}>GO BACK</Text>
         </TouchableOpacity>
       </View>
     );
@@ -111,72 +53,53 @@ export default function ProfileScreen() {
     <ScrollView style={st.container} contentContainerStyle={st.content}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      {/* Header */}
       <View style={st.header}>
         <TouchableOpacity onPress={() => router.back()} style={st.backButton}>
-          <Text style={st.backArrow}>{'\u2190'}</Text>
+          <Text style={st.backArrow}>{'←'}</Text>
         </TouchableOpacity>
         <Text style={st.headerTitle}>Profile</Text>
         <View style={st.backButton} />
       </View>
 
-      {/* Avatar + Name */}
       <View style={st.profileTop}>
-        {profile.picture_url ? (
-          <Image source={{ uri: profile.picture_url }} style={st.avatar} />
+        {user.picture_url ? (
+          <Image source={{ uri: user.picture_url }} style={st.avatar} />
         ) : (
           <View style={[st.avatar, st.avatarFallback]}>
             <Text style={st.avatarInitials}>{initials}</Text>
           </View>
         )}
-        <Text style={st.displayName}>{profile.name}</Text>
-        <Text style={st.email}>{profile.email}</Text>
+        <Text style={st.displayName}>{user.name}</Text>
+        <Text style={st.email}>{user.email}</Text>
       </View>
 
-      {/* Stats Row */}
-      <View style={st.statsRow}>
-        <View style={st.statBox}>
-          <Text style={st.statNumber}>{profile.follower_count ?? 0}</Text>
-          <Text style={st.statLabel}>FOLLOWERS</Text>
-        </View>
-        <View style={[st.statBox, st.statBoxMiddle]}>
-          <Text style={st.statNumber}>{profile.following_count ?? 0}</Text>
-          <Text style={st.statLabel}>FOLLOWING</Text>
-        </View>
-        <View style={st.statBox}>
-          <Text style={st.statNumber}>{profile.collections?.length ?? 0}</Text>
-          <Text style={st.statLabel}>COLLECTIONS</Text>
-        </View>
-      </View>
-
-      {/* Edit Profile Button */}
-      <TouchableOpacity style={st.editButton} onPress={() => {}}>
-        <Text style={st.editButtonText}>EDIT PROFILE</Text>
-      </TouchableOpacity>
-
-      {/* Collections */}
       <View style={st.sectionHeaderRow}>
-        <Text style={st.sectionDiamond}>{'\u25C6'}</Text>
-        <Text style={st.sectionHeaderText}>COLLECTIONS</Text>
+        <Text style={st.sectionDiamond}>{'◆'}</Text>
+        <Text style={st.sectionHeaderText}>ACCOUNT</Text>
         <View style={st.sectionRule} />
       </View>
 
-      {profile.collections && profile.collections.length > 0 ? (
-        <View style={st.collectionsContainer}>
-          {profile.collections.map((collection) => (
-            <View key={collection.id} style={st.collectionRow}>
-              <Text style={st.collectionName}>{collection.name}</Text>
-              <Text style={st.collectionCount}>
-                {collection.recipe_count} {collection.recipe_count === 1 ? 'recipe' : 'recipes'}
-              </Text>
-            </View>
-          ))}
+      <View style={st.infoCard}>
+        <View style={st.infoRow}>
+          <Text style={st.infoLabel}>Member since</Text>
+          <Text style={st.infoValue}>
+            {user.created_at
+              ? new Date(user.created_at).toLocaleDateString(undefined, {
+                  year: 'numeric',
+                  month: 'short',
+                })
+              : '—'}
+          </Text>
         </View>
-      ) : (
-        <View style={st.emptyState}>
-          <Text style={st.emptyText}>No collections yet</Text>
+        <View style={st.infoRow}>
+          <Text style={st.infoLabel}>Tier</Text>
+          <Text style={st.infoValue}>{user.tier ?? 'free'}</Text>
         </View>
-      )}
+      </View>
+
+      <Text style={st.helperText}>
+        To sign out or delete your account, head back to Settings.
+      </Text>
     </ScrollView>
   );
 }
@@ -195,12 +118,6 @@ const st = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
-  },
-  errorText: {
-    fontFamily: fonts.sans,
-    fontSize: 15,
-    color: colors.inkFaint,
-    marginBottom: 16,
   },
   header: {
     flexDirection: 'row',
@@ -233,6 +150,7 @@ const st = StyleSheet.create({
     borderColor: colors.rule,
     paddingHorizontal: 20,
     paddingVertical: 10,
+    marginTop: 16,
   },
   backButtonText: {
     fontFamily: fonts.mono,
@@ -272,55 +190,11 @@ const st = StyleSheet.create({
     fontSize: 13,
     color: colors.inkFaint,
   },
-  statsRow: {
-    flexDirection: 'row',
-    marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.rule,
-    backgroundColor: colors.bgCard,
-  },
-  statBox: {
-    flex: 1,
-    alignItems: 'center',
-    paddingVertical: 14,
-  },
-  statBoxMiddle: {
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: colors.rule,
-  },
-  statNumber: {
-    fontFamily: fonts.serif,
-    fontSize: 22,
-    color: colors.ink,
-  },
-  statLabel: {
-    fontFamily: fonts.mono,
-    fontSize: 9,
-    color: colors.inkFaint,
-    letterSpacing: 1.5,
-    marginTop: 2,
-  },
-  editButton: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    borderWidth: 1,
-    borderColor: colors.rule,
-    paddingVertical: 12,
-    alignItems: 'center',
-    backgroundColor: colors.bgCard,
-  },
-  editButtonText: {
-    fontFamily: fonts.mono,
-    fontSize: 11,
-    color: colors.ink,
-    letterSpacing: 1.5,
-  },
   sectionHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginHorizontal: 16,
-    marginTop: 32,
+    marginTop: 16,
     marginBottom: 12,
   },
   sectionDiamond: {
@@ -341,13 +215,13 @@ const st = StyleSheet.create({
     height: 1,
     backgroundColor: colors.rule,
   },
-  collectionsContainer: {
+  infoCard: {
     marginHorizontal: 16,
     borderWidth: 1,
     borderColor: colors.rule,
     backgroundColor: colors.bgCard,
   },
-  collectionRow: {
+  infoRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
@@ -356,29 +230,24 @@ const st = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: colors.rule,
   },
-  collectionName: {
+  infoLabel: {
     fontFamily: fonts.sans,
     fontSize: 15,
     color: colors.ink,
   },
-  collectionCount: {
+  infoValue: {
     fontFamily: fonts.mono,
-    fontSize: 11,
+    fontSize: 13,
     color: colors.inkFaint,
     letterSpacing: 0.5,
   },
-  emptyState: {
-    marginHorizontal: 16,
-    borderWidth: 1,
-    borderColor: colors.rule,
-    backgroundColor: colors.bgCard,
-    paddingVertical: 24,
-    alignItems: 'center',
-  },
-  emptyText: {
+  helperText: {
     fontFamily: fonts.sans,
-    fontSize: 14,
+    fontSize: 13,
     color: colors.inkFaint,
+    textAlign: 'center',
+    marginTop: 24,
+    paddingHorizontal: 24,
   },
   ctaTitle: {
     fontFamily: fonts.serif,
