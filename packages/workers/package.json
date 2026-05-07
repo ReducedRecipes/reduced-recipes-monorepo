@@ -31,6 +31,7 @@
     "deploy:social-signals-rollup": "wrangler deploy -c wrangler.social-signals-rollup.toml",
     "deploy:social-selector": "wrangler deploy -c wrangler.social-selector.toml",
     "deploy:social-adapter-pinterest": "wrangler deploy -c wrangler.social-adapter-pinterest.toml",
+    "deploy:social-shortlink": "wrangler deploy -c wrangler.social-shortlink.toml",
     "dev:api": "wrangler dev -c wrangler.api.toml",
     "dev:orchestrator": "wrangler dev -c wrangler.orchestrator.toml",
     "dev:crawler": "wrangler dev -c wrangler.crawler.toml",
@@ -42,6 +43,7 @@
     "dev:social-signals-rollup": "wrangler dev -c wrangler.social-signals-rollup.toml",
     "dev:social-selector": "wrangler dev -c wrangler.social-selector.toml",
     "dev:social-adapter-pinterest": "wrangler dev -c wrangler.social-adapter-pinterest.toml",
+    "dev:social-shortlink": "wrangler dev -c wrangler.social-shortlink.toml",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
