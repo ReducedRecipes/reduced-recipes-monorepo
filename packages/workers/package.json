@@ -27,6 +27,7 @@
     "deploy:hot-refresh": "wrangler deploy -c wrangler.hot-refresh.toml",
     "deploy:social-orchestrator": "wrangler deploy -c wrangler.social-orchestrator.toml",
     "deploy:social-signals-rollup": "wrangler deploy -c wrangler.social-signals-rollup.toml",
+    "deploy:social-selector": "wrangler deploy -c wrangler.social-selector.toml",
     "dev:api": "wrangler dev -c wrangler.api.toml",
     "dev:orchestrator": "wrangler dev -c wrangler.orchestrator.toml",
     "dev:crawler": "wrangler dev -c wrangler.crawler.toml",
@@ -36,6 +37,7 @@
     "dev:hot-refresh": "wrangler dev -c wrangler.hot-refresh.toml",
     "dev:social-orchestrator": "wrangler dev -c wrangler.social-orchestrator.toml",
     "dev:social-signals-rollup": "wrangler dev -c wrangler.social-signals-rollup.toml",
+    "dev:social-selector": "wrangler dev -c wrangler.social-selector.toml",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"
