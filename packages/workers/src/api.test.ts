@@ -779,3 +779,31 @@ describe('GET /api/v1/search/similar/:id', () => {
     );
   });
 });
+
+describe('GET /.well-known/apple-app-site-association', () => {
+  it('returns the AASA JSON with correct content-type and no redirect', async () => {
+    const env = createEnv({ APPLE_TEAM_ID: 'TESTTEAMID' });
+    const res = await req('/.well-known/apple-app-site-association', env);
+
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect(res.headers.get('cache-control')).toBe('public, max-age=3600');
+
+    const body = await res.json();
+    expect(body.applinks.apps).toEqual([]);
+    expect(body.applinks.details).toHaveLength(1);
+    expect(body.applinks.details[0].appID).toBe('TESTTEAMID.com.reducedrecipes.app');
+    expect(body.applinks.details[0].paths).toEqual([
+      '/recipe/*',
+      '/shared/lists/*',
+      'NOT /recipe/',
+      'NOT /shared/lists/',
+    ]);
+  });
+
+  it('returns 503 when APPLE_TEAM_ID is not configured', async () => {
+    const env = createEnv();
+    const res = await req('/.well-known/apple-app-site-association', env);
+    expect(res.status).toBe(503);
+  });
+});
