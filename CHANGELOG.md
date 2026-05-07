@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.8.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.7.3...v1.8.0) (2026-05-07)
+
+
+### Features
+
+* **frontend:** expand Recipe JSON-LD for Search Console rich-result eligibility ([c723051](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/c7230510a660dbc65843aa64a83d8575d6f520f1))
+* **frontend:** expand Recipe JSON-LD with nutrition, durations, and step anchors ([bf11129](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/bf1112913d9735f40194ed53dd624d98d682c8e2))
+* **social:** Phase 1 spec + Batch A foundation (D1, social-shared, notifier, orchestrator) ([8809860](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/8809860044469c42fcedf5f852ee0e0f338abdc6))
+
 ## [1.7.3](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.7.2...v1.7.3) (2026-05-07)
 
 
