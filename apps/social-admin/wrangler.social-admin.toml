@@ -1,0 +1,24 @@
+name = "social-admin"
+pages_build_output_dir = "dist"
+compatibility_date = "2025-04-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "reduced-recipes-prod"
+
+[[kv_namespaces]]
+binding = "RR_SOCIAL_TOKENS"
+
+[[kv_namespaces]]
+binding = "RR_SOCIAL_OAUTH_STATE"
+
+[vars]
+PINTEREST_REDIRECT_URI = "https://social-admin.reduced.recipes/oauth/pinterest/callback"
+
+# Secrets (set via `wrangler pages secret put`):
+# - PINTEREST_CLIENT_ID
+# - PINTEREST_CLIENT_SECRET
+#
+# database_id values for d1 + KV `id` values are wired via `wrangler pages
+# project create` and the dashboard, not committed here. See spec/social.md
+# §26 and the deploy runbook for the binding setup.
