@@ -173,7 +173,7 @@ describe('adapter-pinterest queue consumer — happy path', () => {
     const { kv } = makeKv({ 'recipe:rec_carbonara': JSON.stringify(SAMPLE_DOC) });
     const { bucket: assets, calls: assetCalls } = makeBucket();
     const { fetcher: imageGen, fetch: imageGenFetch } = makeImageGen(
-      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.png', bytes: 12345 }), {
+      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.jpg', bytes: 12345 }), {
         status: 200,
         headers: { 'Content-Type': 'application/json' },
       }),
@@ -221,7 +221,7 @@ describe('adapter-pinterest queue consumer — happy path', () => {
     // composePin called with the propagated hero key, pin title, totalTime.
     expect(composePinMock).toHaveBeenCalledTimes(1);
     expect(composePinMock).toHaveBeenCalledWith({
-      heroR2Key: 'drafts/TEST_DRAFT_01/hero.png',
+      heroR2Key: 'drafts/TEST_DRAFT_01/hero.jpg',
       pinTitle: VALID_LLAMA_PAYLOAD.pin_title,
       totalTime: '20 min',
     });
@@ -254,7 +254,7 @@ describe('adapter-pinterest queue consumer — happy path', () => {
     expect(ctaUrl).toContain('utm_medium=organic_social');
     expect(ctaUrl).toContain('utm_campaign=comfort_food');
     expect(ctaUrl).toContain('utm_content=TEST_DRAFT_01');
-    expect(bindings[8]).toBe(JSON.stringify(['drafts/TEST_DRAFT_01/hero.png', 'drafts/TEST_DRAFT_01/pin.png'])); // asset_r2_keys
+    expect(bindings[8]).toBe(JSON.stringify(['drafts/TEST_DRAFT_01/hero.jpg', 'drafts/TEST_DRAFT_01/pin.png'])); // asset_r2_keys
     expect(bindings[9]).toBe(PROMPT_VERSION);                                  // prompt_version
     expect(bindings[10]).toBe(MODEL);                                          // model
     expect(typeof bindings[11]).toBe('number');                                // created_at
@@ -269,7 +269,7 @@ describe('adapter-pinterest queue consumer — happy path', () => {
     const { kv } = makeKv({ 'recipe:rec_carbonara': JSON.stringify(SAMPLE_DOC) });
     const { bucket: assets } = makeBucket();
     const { fetcher: imageGen } = makeImageGen(
-      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.png', bytes: 1 })),
+      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.jpg', bytes: 1 })),
     );
     const { ai } = makeAi({ response: VALID_LLAMA_PAYLOAD });
 
@@ -289,7 +289,7 @@ describe('adapter-pinterest queue consumer — happy path', () => {
     const { kv } = makeKv({ 'recipe:rec_carbonara': JSON.stringify(SAMPLE_DOC) });
     const { bucket: assets } = makeBucket();
     const { fetcher: imageGen } = makeImageGen(
-      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.png' })),
+      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.jpg' })),
     );
     const { ai } = makeAi({ response: JSON.stringify(VALID_LLAMA_PAYLOAD) });
 
@@ -373,7 +373,7 @@ describe('adapter-pinterest queue consumer — failures retry to DLQ', () => {
     const { kv } = makeKv({ 'recipe:rec_carbonara': JSON.stringify(SAMPLE_DOC) });
     const { bucket: assets, calls: assetCalls } = makeBucket();
     const { fetcher: imageGen } = makeImageGen(
-      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.png' })),
+      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.jpg' })),
     );
     const { ai } = makeAi({ response: 'not json at all' });
 
@@ -392,7 +392,7 @@ describe('adapter-pinterest queue consumer — failures retry to DLQ', () => {
     const { kv } = makeKv({ 'recipe:rec_carbonara': JSON.stringify(SAMPLE_DOC) });
     const { bucket: assets, calls: assetCalls } = makeBucket();
     const { fetcher: imageGen } = makeImageGen(
-      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.png' })),
+      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.jpg' })),
     );
     // Missing pin_description — schema mismatch, validate() throws.
     const { ai } = makeAi({ response: { pin_title: 'short', hashtags: ['#a', '#b', '#c', '#d'] } });
@@ -436,7 +436,7 @@ describe('adapter-pinterest queue consumer — failures retry to DLQ', () => {
     const { kv } = makeKv({ 'recipe:rec_carbonara': JSON.stringify(SAMPLE_DOC) });
     const { bucket: assets } = makeBucket();
     const { fetcher: imageGen } = makeImageGen(
-      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.png' })),
+      async () => new Response(JSON.stringify({ r2Key: 'drafts/TEST_DRAFT_01/hero.jpg' })),
     );
     const { ai } = makeAi({ response: VALID_LLAMA_PAYLOAD });
 

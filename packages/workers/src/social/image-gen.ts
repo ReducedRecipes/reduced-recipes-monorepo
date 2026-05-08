@@ -32,36 +32,36 @@ async function generateIngredient(env: Env, req: IngredientReq): Promise<Respons
   const existing = await lookupIngredientImage(env, req.ingredient);
   if (existing) return Response.json({ r2Key: existing.r2_key, cached: true, bytes: existing.bytes });
 
-  const png = await flux(env, ingredientPrompt(key));
-  const r2Key = `ingredients/${PROMPT_VERSION}/${slug(key)}.png`;
-  await env.RR_SOCIAL_CACHE.put(r2Key, png, {
-    httpMetadata: { contentType: 'image/png', cacheControl: 'public, max-age=31536000, immutable' },
+  const jpg = await flux(env, ingredientPrompt(key));
+  const r2Key = `ingredients/${PROMPT_VERSION}/${slug(key)}.jpg`;
+  await env.RR_SOCIAL_CACHE.put(r2Key, jpg, {
+    httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' },
   });
   await recordIngredientImage(env, {
     ingredient: req.ingredient,
-    r2Key, bytes: png.byteLength,
+    r2Key, bytes: jpg.byteLength,
     promptVersion: PROMPT_VERSION, model: MODEL,
   });
-  return Response.json({ r2Key, cached: false, bytes: png.byteLength });
+  return Response.json({ r2Key, cached: false, bytes: jpg.byteLength });
 }
 
 async function generateRecipeShot(env: Env, req: RecipeShotReq): Promise<Response> {
   const prompt = req.slot === 'hero' ? heroPrompt(req.recipe) : finishedPrompt(req.recipe);
-  const png = await flux(env, prompt);
-  const r2Key = `drafts/${req.draftId}/${req.slot}.png`;
-  await env.RR_SOCIAL_ASSETS.put(r2Key, png, {
-    httpMetadata: { contentType: 'image/png', cacheControl: 'public, max-age=31536000, immutable' },
+  const jpg = await flux(env, prompt);
+  const r2Key = `drafts/${req.draftId}/${req.slot}.jpg`;
+  await env.RR_SOCIAL_ASSETS.put(r2Key, jpg, {
+    httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' },
   });
-  return Response.json({ r2Key, bytes: png.byteLength });
+  return Response.json({ r2Key, bytes: jpg.byteLength });
 }
 
 async function generateStepShot(env: Env, req: StepShotReq): Promise<Response> {
-  const png = await flux(env, stepPrompt(req.action));
-  const r2Key = `drafts/${req.draftId}/step-${req.index}.png`;
-  await env.RR_SOCIAL_ASSETS.put(r2Key, png, {
-    httpMetadata: { contentType: 'image/png', cacheControl: 'public, max-age=31536000, immutable' },
+  const jpg = await flux(env, stepPrompt(req.action));
+  const r2Key = `drafts/${req.draftId}/step-${req.index}.jpg`;
+  await env.RR_SOCIAL_ASSETS.put(r2Key, jpg, {
+    httpMetadata: { contentType: 'image/jpeg', cacheControl: 'public, max-age=31536000, immutable' },
   });
-  return Response.json({ r2Key, bytes: png.byteLength });
+  return Response.json({ r2Key, bytes: jpg.byteLength });
 }
 
 // Workers AI Flux response shape varies between revisions; spike A/B observed
