@@ -179,7 +179,7 @@ function makeDraft(id = 'DRAFT_01'): DraftRowFixture {
     caption: 'Garlic butter chicken in 20 minutes',
     hashtags: JSON.stringify(['#dinner', '#chicken']),
     cta_url: 'https://r.reduced.recipes/' + id + '?utm_source=pinterest',
-    asset_r2_keys: JSON.stringify(['social/hero/abc.png', 'social/pin/abc.png']),
+    asset_r2_keys: JSON.stringify(['social/hero/abc.jpg', 'social/pin/abc.png']),
   };
 }
 

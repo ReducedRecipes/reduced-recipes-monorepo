@@ -18,10 +18,10 @@ import {
   heroPrompt, finishedPrompt, ingredientPrompt, stepPrompt, PROMPT_VERSION, MODEL,
 } from './image-gen.prompts';
 
-// ── Fake PNG bytes (header only — enough to verify byteLength + put body) ─
-// PNG signature: 89 50 4E 47 0D 0A 1A 0A
-const FAKE_PNG_BYTES = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x00]);
-const FAKE_PNG_B64 = btoa(String.fromCharCode(...FAKE_PNG_BYTES));
+// ── Fake JPEG bytes (header only — enough to verify byteLength + put body) ─
+// JPEG/JFIF signature: FF D8 FF E0 ... 4A 46 49 46
+const FAKE_JPG_BYTES = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01]);
+const FAKE_JPG_B64 = btoa(String.fromCharCode(...FAKE_JPG_BYTES));
 
 // ── Test doubles ─────────────────────────────────────────────────────────
 
@@ -54,7 +54,7 @@ function makeAi(returnValue: unknown) {
 function makeEnv(opts: { aiReturn?: unknown } = {}) {
   const cache = makeBucket();
   const assets = makeBucket();
-  const ai = makeAi(opts.aiReturn ?? { image: FAKE_PNG_B64 });
+  const ai = makeAi(opts.aiReturn ?? { image: FAKE_JPG_B64 });
   const env = {
     AI: ai.ai,
     DB: makeDb(),
@@ -105,7 +105,7 @@ describe('POST /generate-ingredient', () => {
     const { env, ai, cache } = makeEnv();
     lookupIngredientImage.mockResolvedValueOnce({
       ingredient_key: 'garlic',
-      r2_key: 'ingredients/v1.0/garlic.png',
+      r2_key: 'ingredients/v1.0/garlic.jpg',
       prompt_version: 'v1.0',
       model: MODEL,
       generated_at: 1234567890,
@@ -122,7 +122,7 @@ describe('POST /generate-ingredient', () => {
 
     expect(res.status).toBe(200);
     const json = await res.json() as { r2Key: string; cached: boolean; bytes: number };
-    expect(json).toEqual({ r2Key: 'ingredients/v1.0/garlic.png', cached: true, bytes: 4242 });
+    expect(json).toEqual({ r2Key: 'ingredients/v1.0/garlic.jpg', cached: true, bytes: 4242 });
 
     // Cache-hit means: no AI call, no R2 put, no record.
     expect(ai.run).not.toHaveBeenCalled();
@@ -146,8 +146,8 @@ describe('POST /generate-ingredient', () => {
     expect(res.status).toBe(200);
     const json = await res.json() as { r2Key: string; cached: boolean; bytes: number };
     expect(json.cached).toBe(false);
-    expect(json.r2Key).toBe('ingredients/v1.0/garlic.png');
-    expect(json.bytes).toBe(FAKE_PNG_BYTES.byteLength);
+    expect(json.r2Key).toBe('ingredients/v1.0/garlic.jpg');
+    expect(json.bytes).toBe(FAKE_JPG_BYTES.byteLength);
 
     // AI invoked with the ingredient prompt.
     expect(ai.run).toHaveBeenCalledTimes(1);
@@ -159,10 +159,10 @@ describe('POST /generate-ingredient', () => {
     // R2 put with correct key + cache headers.
     expect(cache.calls).toHaveLength(1);
     const [putCall] = cache.calls;
-    expect(putCall!.key).toBe('ingredients/v1.0/garlic.png');
-    expect((putCall!.body as ArrayBuffer).byteLength).toBe(FAKE_PNG_BYTES.byteLength);
+    expect(putCall!.key).toBe('ingredients/v1.0/garlic.jpg');
+    expect((putCall!.body as ArrayBuffer).byteLength).toBe(FAKE_JPG_BYTES.byteLength);
     expect(putCall!.opts?.httpMetadata).toEqual({
-      contentType: 'image/png',
+      contentType: 'image/jpeg',
       cacheControl: 'public, max-age=31536000, immutable',
     });
 
@@ -170,8 +170,8 @@ describe('POST /generate-ingredient', () => {
     expect(recordIngredientImage).toHaveBeenCalledTimes(1);
     expect(recordIngredientImage).toHaveBeenCalledWith(env, expect.objectContaining({
       ingredient: 'garlic',
-      r2Key: 'ingredients/v1.0/garlic.png',
-      bytes: FAKE_PNG_BYTES.byteLength,
+      r2Key: 'ingredients/v1.0/garlic.jpg',
+      bytes: FAKE_JPG_BYTES.byteLength,
       promptVersion: PROMPT_VERSION,
       model: MODEL,
     }));
@@ -207,14 +207,14 @@ describe('POST /generate-ingredient', () => {
     );
 
     expect(res.status).toBe(200);
-    expect(cache.calls[0]!.key).toBe('ingredients/v1.0/olive-oil.png');
+    expect(cache.calls[0]!.key).toBe('ingredients/v1.0/olive-oil.jpg');
   });
 });
 
 // ── /generate-recipe-shot ────────────────────────────────────────────────
 
 describe('POST /generate-recipe-shot', () => {
-  it('uploads hero shot to RR_SOCIAL_ASSETS at drafts/{draftId}/hero.png', async () => {
+  it('uploads hero shot to RR_SOCIAL_ASSETS at drafts/{draftId}/hero.jpg', async () => {
     const { env, ai, assets, cache } = makeEnv();
 
     const res = await imageGen.fetch(
@@ -231,8 +231,8 @@ describe('POST /generate-recipe-shot', () => {
 
     expect(res.status).toBe(200);
     const json = await res.json() as { r2Key: string; bytes: number };
-    expect(json.r2Key).toBe('drafts/DRAFT123/hero.png');
-    expect(json.bytes).toBe(FAKE_PNG_BYTES.byteLength);
+    expect(json.r2Key).toBe('drafts/DRAFT123/hero.jpg');
+    expect(json.bytes).toBe(FAKE_JPG_BYTES.byteLength);
 
     expect(ai.run).toHaveBeenCalledTimes(1);
     // Modern Pasta Salad does NOT match any cuisine-negation entry, so the
@@ -248,12 +248,12 @@ describe('POST /generate-recipe-shot', () => {
     expect(assets.calls).toHaveLength(1);
     expect(cache.calls).toHaveLength(0);
     expect(assets.calls[0]!.opts?.httpMetadata).toEqual({
-      contentType: 'image/png',
+      contentType: 'image/jpeg',
       cacheControl: 'public, max-age=31536000, immutable',
     });
   });
 
-  it('uploads finished shot to drafts/{draftId}/finished.png with FINISHED prompt', async () => {
+  it('uploads finished shot to drafts/{draftId}/finished.jpg with FINISHED prompt', async () => {
     const { env, ai, assets } = makeEnv();
 
     const res = await imageGen.fetch(
@@ -270,8 +270,8 @@ describe('POST /generate-recipe-shot', () => {
 
     expect(res.status).toBe(200);
     const json = await res.json() as { r2Key: string };
-    expect(json.r2Key).toBe('drafts/DRAFT999/finished.png');
-    expect(assets.calls[0]!.key).toBe('drafts/DRAFT999/finished.png');
+    expect(json.r2Key).toBe('drafts/DRAFT999/finished.jpg');
+    expect(assets.calls[0]!.key).toBe('drafts/DRAFT999/finished.jpg');
 
     const prompt = ai.run.mock.calls[0]![1].prompt as string;
     expect(prompt).toBe(finishedPrompt({ title: 'Modern Pasta Salad', cuisine: null }));
@@ -323,7 +323,7 @@ describe('POST /generate-recipe-shot', () => {
 // ── /generate-step-shot ──────────────────────────────────────────────────
 
 describe('POST /generate-step-shot', () => {
-  it('uploads step shot to drafts/{draftId}/step-{index}.png', async () => {
+  it('uploads step shot to drafts/{draftId}/step-{index}.jpg', async () => {
     const { env, ai, assets } = makeEnv();
 
     const res = await imageGen.fetch(
@@ -341,13 +341,13 @@ describe('POST /generate-step-shot', () => {
 
     expect(res.status).toBe(200);
     const json = await res.json() as { r2Key: string; bytes: number };
-    expect(json.r2Key).toBe('drafts/DRAFT_STEP/step-3.png');
-    expect(json.bytes).toBe(FAKE_PNG_BYTES.byteLength);
+    expect(json.r2Key).toBe('drafts/DRAFT_STEP/step-3.jpg');
+    expect(json.bytes).toBe(FAKE_JPG_BYTES.byteLength);
 
     expect(assets.calls).toHaveLength(1);
-    expect(assets.calls[0]!.key).toBe('drafts/DRAFT_STEP/step-3.png');
+    expect(assets.calls[0]!.key).toBe('drafts/DRAFT_STEP/step-3.jpg');
     expect(assets.calls[0]!.opts?.httpMetadata).toEqual({
-      contentType: 'image/png',
+      contentType: 'image/jpeg',
       cacheControl: 'public, max-age=31536000, immutable',
     });
 
@@ -360,7 +360,7 @@ describe('POST /generate-step-shot', () => {
 
 describe('flux response-shape handling', () => {
   it('handles ArrayBuffer return shape', async () => {
-    const ab = FAKE_PNG_BYTES.buffer.slice(0);
+    const ab = FAKE_JPG_BYTES.buffer.slice(0);
     const { env, cache } = makeEnv({ aiReturn: ab });
     lookupIngredientImage.mockResolvedValueOnce(null);
     recordIngredientImage.mockResolvedValueOnce(undefined);
@@ -373,11 +373,11 @@ describe('flux response-shape handling', () => {
       env as unknown as Parameters<typeof imageGen.fetch>[1],
     );
     expect(res.status).toBe(200);
-    expect((cache.calls[0]!.body as ArrayBuffer).byteLength).toBe(FAKE_PNG_BYTES.byteLength);
+    expect((cache.calls[0]!.body as ArrayBuffer).byteLength).toBe(FAKE_JPG_BYTES.byteLength);
   });
 
   it('handles Uint8Array return shape', async () => {
-    const { env, cache } = makeEnv({ aiReturn: FAKE_PNG_BYTES });
+    const { env, cache } = makeEnv({ aiReturn: FAKE_JPG_BYTES });
     lookupIngredientImage.mockResolvedValueOnce(null);
     recordIngredientImage.mockResolvedValueOnce(undefined);
 
@@ -389,13 +389,13 @@ describe('flux response-shape handling', () => {
       env as unknown as Parameters<typeof imageGen.fetch>[1],
     );
     expect(res.status).toBe(200);
-    expect((cache.calls[0]!.body as ArrayBuffer).byteLength).toBe(FAKE_PNG_BYTES.byteLength);
+    expect((cache.calls[0]!.body as ArrayBuffer).byteLength).toBe(FAKE_JPG_BYTES.byteLength);
   });
 
   it('handles ReadableStream return shape', async () => {
     const stream = new ReadableStream({
       start(controller) {
-        controller.enqueue(FAKE_PNG_BYTES);
+        controller.enqueue(FAKE_JPG_BYTES);
         controller.close();
       },
     });
@@ -411,6 +411,6 @@ describe('flux response-shape handling', () => {
       env as unknown as Parameters<typeof imageGen.fetch>[1],
     );
     expect(res.status).toBe(200);
-    expect((cache.calls[0]!.body as ArrayBuffer).byteLength).toBe(FAKE_PNG_BYTES.byteLength);
+    expect((cache.calls[0]!.body as ArrayBuffer).byteLength).toBe(FAKE_JPG_BYTES.byteLength);
   });
 });
