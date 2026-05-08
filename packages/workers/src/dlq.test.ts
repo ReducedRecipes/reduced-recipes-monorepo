@@ -65,7 +65,7 @@ describe('DLQ Worker', () => {
     await dlq.queue(batch, env);
 
     expect(env.DB.prepare).toHaveBeenCalledWith(
-      'UPDATE crawl_queue SET status = ? WHERE url = ?',
+      "UPDATE crawl_queue SET status = ?, last_crawled = datetime('now') WHERE url = ?",
     );
     const bindMock = env.DB.prepare.mock.results[0].value.bind;
     expect(bindMock).toHaveBeenCalledWith('failed', 'https://example.com/recipe');
