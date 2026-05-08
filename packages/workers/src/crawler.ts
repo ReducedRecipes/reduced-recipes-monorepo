@@ -28,6 +28,7 @@ export default {
         });
 
         if (!response.ok) {
+          console.warn(`CRAWLER: HTTP ${response.status} ${domain} ${url}`);
           throw new Error(`HTTP ${response.status}`);
         }
 
@@ -53,6 +54,9 @@ export default {
         msg.ack();
       } catch (err) {
         const error = err as Error;
+        if (!error.message.startsWith('HTTP ')) {
+          console.error(`CRAWLER: ${domain} threw ${error.message} ${url}`);
+        }
 
         try {
           await crawlDb.prepare(`
@@ -63,7 +67,8 @@ export default {
                 WHEN fail_count + 1 >= 5 THEN 'failed'
                 ELSE 'pending'
               END,
-              next_crawl = datetime('now', '+' || (POWER(2, fail_count + 1) * 60) || ' seconds')
+              next_crawl = datetime('now', '+' || ((1 << (fail_count + 1)) * 60) || ' seconds'),
+              last_crawled = datetime('now')
             WHERE url = ?
           `).bind(url).run();
         } catch {
@@ -86,7 +91,7 @@ async function updateCrawlStatus(
   status: string,
 ): Promise<void> {
   await db.prepare(
-    'UPDATE crawl_queue SET status = ? WHERE url = ?',
+    "UPDATE crawl_queue SET status = ?, last_crawled = datetime('now') WHERE url = ?",
   ).bind(status, url).run();
 }
 

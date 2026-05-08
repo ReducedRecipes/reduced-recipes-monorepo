@@ -72,7 +72,9 @@ describe('Crawler Worker', () => {
 
     expect(msg.ack).toHaveBeenCalledOnce();
     // Should update status to skipped
-    expect(env.DB.prepare).toHaveBeenCalledWith('UPDATE crawl_queue SET status = ? WHERE url = ?');
+    expect(env.DB.prepare).toHaveBeenCalledWith(
+      "UPDATE crawl_queue SET status = ?, last_crawled = datetime('now') WHERE url = ?",
+    );
   });
 
   it('retries when rate limited', async () => {

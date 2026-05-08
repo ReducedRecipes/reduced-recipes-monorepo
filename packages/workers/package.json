@@ -1,12 +1,10 @@
 {
   "name": "@rr/workers",
-  "version": "1.8.0",
+  "version": "1.7.2",
   "type": "module",
   "private": true,
   "dependencies": {
-    "@rr/notifier": "workspace:*",
     "@rr/shared": "workspace:*",
-    "@rr/social-shared": "workspace:*",
     "hono": "^4.3",
     "jose": "^6.2.3"
   },
@@ -15,7 +13,7 @@
     "wrangler": "^3.50"
   },
   "scripts": {
-    "deploy": "wrangler deploy -c wrangler.api.toml && wrangler deploy -c wrangler.orchestrator.toml && wrangler deploy -c wrangler.crawler.toml && wrangler deploy -c wrangler.parser.toml && wrangler deploy -c wrangler.projection.toml && wrangler deploy -c wrangler.dlq.toml && wrangler deploy -c wrangler.hot-refresh.toml && wrangler deploy -c wrangler.billing.toml && wrangler deploy -c wrangler.sitemap.toml",
+    "deploy": "wrangler deploy -c wrangler.api.toml && wrangler deploy -c wrangler.orchestrator.toml && wrangler deploy -c wrangler.crawler.toml && wrangler deploy -c wrangler.parser.toml && wrangler deploy -c wrangler.projection.toml && wrangler deploy -c wrangler.dlq.toml && wrangler deploy -c wrangler.hot-refresh.toml && wrangler deploy -c wrangler.billing.toml && wrangler deploy -c wrangler.sitemap.toml && wrangler deploy -c wrangler.spider.toml",
     "deploy:billing": "wrangler deploy -c wrangler.billing.toml",
     "deploy:sitemap": "wrangler deploy -c wrangler.sitemap.toml",
     "deploy:api": "wrangler deploy -c wrangler.api.toml",
@@ -25,9 +23,7 @@
     "deploy:projection": "wrangler deploy -c wrangler.projection.toml",
     "deploy:dlq": "wrangler deploy -c wrangler.dlq.toml",
     "deploy:hot-refresh": "wrangler deploy -c wrangler.hot-refresh.toml",
-    "deploy:social-orchestrator": "wrangler deploy -c wrangler.social-orchestrator.toml",
-    "deploy:social-signals-rollup": "wrangler deploy -c wrangler.social-signals-rollup.toml",
-    "deploy:social-selector": "wrangler deploy -c wrangler.social-selector.toml",
+    "deploy:spider": "wrangler deploy -c wrangler.spider.toml",
     "dev:api": "wrangler dev -c wrangler.api.toml",
     "dev:orchestrator": "wrangler dev -c wrangler.orchestrator.toml",
     "dev:crawler": "wrangler dev -c wrangler.crawler.toml",
@@ -35,9 +31,6 @@
     "dev:projection": "wrangler dev -c wrangler.projection.toml",
     "dev:dlq": "wrangler dev -c wrangler.dlq.toml",
     "dev:hot-refresh": "wrangler dev -c wrangler.hot-refresh.toml",
-    "dev:social-orchestrator": "wrangler dev -c wrangler.social-orchestrator.toml",
-    "dev:social-signals-rollup": "wrangler dev -c wrangler.social-signals-rollup.toml",
-    "dev:social-selector": "wrangler dev -c wrangler.social-selector.toml",
     "build": "tsc --noEmit",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

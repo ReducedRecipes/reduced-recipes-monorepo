@@ -173,6 +173,6 @@ async function updateCrawlStatus(
   status: string,
 ): Promise<void> {
   await db.prepare(
-    'UPDATE crawl_queue SET status = ? WHERE url = ?',
+    "UPDATE crawl_queue SET status = ?, last_crawled = datetime('now') WHERE url = ?",
   ).bind(status, url).run();
 }

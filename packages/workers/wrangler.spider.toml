@@ -1,0 +1,15 @@
+name = "rr-spider"
+main = "src/spider.ts"
+compatibility_date = "2024-05-01"
+
+[triggers]
+crons = ["0 * * * *"]  # hourly
+
+[[d1_databases]]
+binding = "CRAWL_DB"
+database_id = "372e4627-76ea-4692-84f3-8dbf33e59e05"
+database_name = "reduced-recipes-crawl"
+
+[vars]
+BOT_USER_AGENT = "ReducedRecipesBot/1.0"
+ENVIRONMENT = "production"

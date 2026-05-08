@@ -26,7 +26,7 @@ export default {
         // For crawl-dlq messages: mark the URL as failed in crawl_queue
         if (queueName === 'crawl-dlq' && body?.url) {
           await crawlDb.prepare(
-            'UPDATE crawl_queue SET status = ? WHERE url = ?',
+            "UPDATE crawl_queue SET status = ?, last_crawled = datetime('now') WHERE url = ?",
           )
             .bind('failed', body.url)
             .run();
