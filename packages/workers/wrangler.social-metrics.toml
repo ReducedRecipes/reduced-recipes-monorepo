@@ -1,0 +1,42 @@
+name = "rr-social-metrics"
+main = "src/social/metrics.ts"
+compatibility_date = "2025-04-01"
+
+# Hourly. The worker decides per-post sampling cadence internally
+# (hourly for <24h, daily for <14d, weekly for <90d) -- one cron with
+# bucketing rather than separate hourly + daily crons.
+[triggers]
+crons = ["0 * * * *"]
+
+# Recipes DB -- houses social_posts, social_metrics_snapshots,
+# social_attribution, social_shortlink_hits, social_search_hits,
+# social_orchestrator_runs.
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+migrations_dir = "../../migrations"
+
+# Killswitch namespace shared with social-orchestrator and
+# social-publisher-pinterest. We trip key 'pinterest' when the day-30+
+# rolling baseline check fails.
+[[kv_namespaces]]
+binding = "RR_SOCIAL_KILLSWITCH"
+# id = "<paste from wrangler.social-orchestrator.toml at deploy time>"
+
+# Pinterest OAuth tokens. `getValidPinterestAccessToken` reads + refreshes
+# tokens stored under the key 'pinterest:default'. If the bundle isn't
+# present (pre-bootstrap), the snapshot pass is a no-op.
+[[kv_namespaces]]
+binding = "RR_SOCIAL_TOKENS"
+# id = "<paste at deploy time>"
+
+[vars]
+NOTIFIER_FROM = "social-bot@reduced.recipes"
+NOTIFIER_FROM_NAME = "RR Social"
+NOTIFIER_CHANNEL = "email"
+
+# secrets (via `wrangler secret put`):
+# - PINTEREST_CLIENT_ID
+# - PINTEREST_CLIENT_SECRET
+# - NOTIFIER_TO

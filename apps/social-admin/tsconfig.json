@@ -1,0 +1,16 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "types": ["vite/client", "@cloudflare/workers-types"],
+    "jsx": "react-jsx",
+    "outDir": "dist",
+    "skipLibCheck": true,
+    "noEmit": true,
+    "paths": {
+      "@rr/social-shared": ["../../packages/social-shared/src/types"],
+      "@rr/social-shared/*": ["../../packages/social-shared/src/*"]
+    }
+  },
+  "include": ["src", "functions"]
+}

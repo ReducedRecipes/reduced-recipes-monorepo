@@ -101,3 +101,128 @@ gives Cloudflare's CDN max headroom in front of R2.
   not here.
 - Custom-domain binding is dashboard-only today. If Cloudflare exposes it via
   Wrangler in the future, fold the step into a deploy script.
+
+## Ticket 016 — DNS + Worker route for `r.reduced.recipes`
+
+### What it does
+
+Stands up `r.reduced.recipes` as the dedicated subdomain for the
+`social-shortlink` Worker (ticket 010). It serves three URL patterns:
+
+| Path | Purpose | Access |
+|------|---------|--------|
+| `/:draftId` | Outbound CTA from Pinterest pins, email digests, etc. Redirects to canonical recipe URL with UTM. | Public |
+| `/approve/:draftId` | One-click approve from the editorial digest email. | CF Access (owner only) |
+| `/reject/:draftId` | One-click reject from the editorial digest email. | CF Access (owner only) |
+
+The Worker route binding lives in `packages/workers/wrangler.social-shortlink.toml`:
+
+```toml
+routes = [
+  { pattern = "r.reduced.recipes/*", zone_name = "reduced.recipes" }
+]
+```
+
+### DNS record (dashboard step)
+
+Wrangler does not manage zone DNS records, so this is done once in the
+Cloudflare dashboard:
+
+1. Cloudflare dashboard -> `reduced.recipes` -> DNS -> Records
+2. Add record:
+   - Type: `AAAA`
+   - Name: `r`
+   - IPv6: `100::` (the reserved discard prefix; the Worker route intercepts before this is ever resolved)
+   - Proxy status: Proxied (orange cloud) — required so the Worker route binding actually fires
+3. Save. DNS is live within seconds inside Cloudflare's network.
+
+A `CNAME r -> reduced.recipes` (proxied) works equivalently. `AAAA 100::` is
+the convention used elsewhere in the zone for proxy-only records that have
+no real origin.
+
+Verify with `dig`:
+
+```sh
+dig r.reduced.recipes
+# Expect an answer (A or AAAA) once the dashboard step is complete.
+# Until then: NXDOMAIN.
+```
+
+### CF Access setup (dashboard step)
+
+The `/approve/*` and `/reject/*` paths must be locked down so only the owner
+can act on a digest email. The bare `/:draftId` redirect stays public.
+
+1. Cloudflare Zero Trust -> Access -> Applications -> Add an application
+2. Select **Self-hosted**
+3. Application configuration:
+   - Application name: `rr-social-shortlink approve`
+   - Session duration: 24 hours (or shorter if preferred)
+   - Application domain: `r.reduced.recipes`
+   - Path: `approve/*`
+4. Identity providers: One-time PIN (or Google, if preferred)
+5. Add a policy:
+   - Policy name: `Owner only`
+   - Action: Allow
+   - Configure rules: Include -> Emails -> owner email (see GitHub secrets / 1Password for the canonical owner address)
+6. Save.
+7. Repeat steps 1-6 for the reject path:
+   - Application name: `rr-social-shortlink reject`
+   - Path: `reject/*`
+   - Same Allow policy.
+
+Do **not** create an Access app on the bare `r.reduced.recipes` host or on
+`/*` — the public outbound CTA path must stay open.
+
+### Verification
+
+After ticket 010's Worker is deployed AND the DNS record is in place:
+
+```sh
+# 1. DNS resolves through Cloudflare.
+dig r.reduced.recipes
+
+# 2. Public bare-path: hits the Worker, which 404s for an unknown draftId.
+#    Crucial: the response must come from the Worker, not the Cloudflare
+#    placeholder page that appears when the route binding hasn't activated.
+curl -I https://r.reduced.recipes/nonexistent-draft-id
+# Expect: HTTP/2 404
+#         server: cloudflare
+#         cf-ray: <id>
+# Look for any `x-` header set by the Worker (e.g. cache-control from the
+# Worker handler) to confirm Worker execution. A generic Cloudflare 1xxx
+# error page or the orange-cloud placeholder means the route binding has
+# not bound — fix wrangler config or zone before continuing.
+
+# 3. Protected path: should bounce to the CF Access login page, not the
+#    Worker's handler.
+curl -IL https://r.reduced.recipes/approve/test
+# Expect: 302 -> https://<team>.cloudflareaccess.com/cdn-cgi/access/login/...
+
+# 4. Optional: tail the Worker while curling to confirm execution.
+pnpm exec wrangler tail rr-social-shortlink &
+curl -I https://r.reduced.recipes/
+```
+
+### Per-environment shortlink domains (future)
+
+Production uses `r.reduced.recipes`. When preview environments are added,
+mirror this setup with a separate subdomain — e.g. `r.preview.reduced.recipes`
+— and wire it via a `[env.preview]` block in
+`packages/workers/wrangler.social-shortlink.toml`:
+
+```toml
+[env.preview]
+routes = [
+  { pattern = "r.preview.reduced.recipes/*", zone_name = "reduced.recipes" }
+]
+```
+
+Repeat the DNS + CF Access dashboard steps for the preview hostname (the
+owner email policy on `/approve/*` and `/reject/*` should match prod).
+
+### Notes
+
+- One-time ops setup; no application code changes after the Worker (ticket 010) is deployed.
+- The wrangler config is already in place. Validation via `pnpm exec wrangler deploy --config packages/workers/wrangler.social-shortlink.toml --dry-run` only fails on the placeholder D1 `database_id` (intentional until deploy time); the route binding parses cleanly.
+- If `curl -I` returns a Cloudflare branded HTML page (1016, 522, etc.) instead of a Worker response, the DNS record is likely not proxied. Re-check the orange cloud in the DNS dashboard.

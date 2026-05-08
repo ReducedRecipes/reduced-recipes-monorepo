@@ -1,0 +1,37 @@
+name = "rr-social-adapter-pinterest"
+main = "src/social/adapter-pinterest.ts"
+compatibility_date = "2025-04-01"
+
+[ai]
+binding = "AI"
+
+# Recipes DB — same database as wrangler.api.toml. Houses
+# `social_source_candidates` and `social_drafts` (created by ticket 001).
+[[d1_databases]]
+binding = "DB"
+database_id = "e0ecb67a-9cb4-41fa-979b-10599a02c6cb"
+database_name = "reduced-recipes-prod"
+migrations_dir = "../../migrations"
+
+# Canonical RecipeDocument store. Must match the RECIPES_KV id from
+# wrangler.api.toml so the same records are read here.
+[[kv_namespaces]]
+binding = "RECIPES_KV"
+id = "1ca521a6b82b499b802318ee8bf747db"
+
+[[r2_buckets]]
+binding = "RR_SOCIAL_ASSETS"
+bucket_name = "rr-social-assets"
+
+# Service binding to the image-gen Worker (ticket 007). Calls
+# POST /generate-recipe-shot to produce the hero PNG.
+[[services]]
+binding = "IMAGE_GEN"
+service = "rr-social-image-gen"
+
+[[queues.consumers]]
+queue = "rr-social-pinterest-jobs"
+max_batch_size = 5
+max_batch_timeout = 30
+max_retries = 3
+dead_letter_queue = "rr-social-pinterest-dlq"

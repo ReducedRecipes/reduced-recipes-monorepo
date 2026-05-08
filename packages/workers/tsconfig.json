@@ -3,6 +3,7 @@
   "compilerOptions": {
     "outDir": "dist",
     "types": ["@cloudflare/workers-types"],
+    "jsx": "react-jsx",
     "paths": {
       "@rr/shared": ["../shared/src/types"],
       "@rr/shared/*": ["../shared/src/*"]

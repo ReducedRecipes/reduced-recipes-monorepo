@@ -1,0 +1,16 @@
+name = "rr-social-shortlink"
+main = "src/social/shortlink.ts"
+compatibility_date = "2025-04-01"
+
+# r.reduced.recipes is the dedicated subdomain for shortlinks (ticket 016).
+# CF Access policies on /approve/* and /reject/* are configured at the
+# route level in the dashboard — the bare /<draftId> path stays public.
+routes = [
+  { pattern = "r.reduced.recipes/*", zone_name = "reduced.recipes" }
+]
+
+[[d1_databases]]
+binding = "DB"
+# from packages/workers/wrangler.api.toml -- recipes DB
+# database_name = "reduced-recipes-prod"
+# database_id = "<paste from wrangler.api.toml at deploy time>"
