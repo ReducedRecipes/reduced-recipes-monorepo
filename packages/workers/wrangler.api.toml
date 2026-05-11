@@ -10,6 +10,7 @@ routes = [
   { pattern = "reducedrecipes.com/robots.txt", zone_name = "reducedrecipes.com" },
   { pattern = "reduced.recipes/sitemap*", zone_name = "reduced.recipes" },
   { pattern = "reduced.recipes/robots.txt", zone_name = "reduced.recipes" },
+  { pattern = "reduced.recipes/.well-known/*", zone_name = "reduced.recipes" },
 ]
 
 [[d1_databases]]
