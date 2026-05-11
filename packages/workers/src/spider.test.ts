@@ -79,4 +79,52 @@ describe('Spider Worker', () => {
     const response = await spider.fetch(new Request('http://localhost/unknown'), env);
     expect(response.status).toBe(404);
   });
+
+  it('updates last_spidered even when parseSitemap throws (cron must not lock on bad domain)', async () => {
+    const env = createEnv();
+
+    env.CRAWL_DB.prepare.mockReturnValueOnce({
+      first: vi.fn().mockResolvedValue({ domain: 'broken.com', sitemap_url: 'https://broken.com/sitemap.xml' }),
+    });
+
+    (parseSitemap as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('XML parse failed'));
+
+    const response = await spider.fetch(new Request('http://localhost/trigger'), env);
+    const body = await response.json() as { ok: boolean; domain: string | null; inserted: number; error?: string };
+
+    expect(body.ok).toBe(true);
+    expect(body.domain).toBe('broken.com');
+    expect(body.inserted).toBe(0);
+    expect(body.error).toMatch(/XML parse failed/);
+
+    const prepareCalls = (env.CRAWL_DB.prepare as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c: unknown[]) => c[0] as string,
+    );
+    expect(prepareCalls.some((sql) => sql.includes('UPDATE domains SET last_spidered'))).toBe(true);
+  });
+
+  it('updates last_spidered even when db.batch throws', async () => {
+    const env = createEnv();
+
+    env.CRAWL_DB.prepare.mockReturnValueOnce({
+      first: vi.fn().mockResolvedValue({ domain: 'flaky.com', sitemap_url: 'https://flaky.com/sitemap.xml' }),
+    });
+    env.CRAWL_DB.batch.mockRejectedValueOnce(new Error('D1 transient failure'));
+
+    (parseSitemap as ReturnType<typeof vi.fn>).mockResolvedValue(['https://flaky.com/recipes/a']);
+    (isRecipeUrl as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    const response = await spider.fetch(new Request('http://localhost/trigger'), env);
+    const body = await response.json() as { ok: boolean; domain: string | null; inserted: number; error?: string };
+
+    expect(body.ok).toBe(true);
+    expect(body.domain).toBe('flaky.com');
+    expect(body.inserted).toBe(0);
+    expect(body.error).toMatch(/D1 transient failure/);
+
+    const prepareCalls = (env.CRAWL_DB.prepare as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c: unknown[]) => c[0] as string,
+    );
+    expect(prepareCalls.some((sql) => sql.includes('UPDATE domains SET last_spidered'))).toBe(true);
+  });
 });
