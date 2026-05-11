@@ -1,5 +1,28 @@
 # Changelog
 
+## [1.9.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.8.0...v1.9.0) (2026-05-11)
+
+
+### Features
+
+* **social:** add social-admin Pages app with swipe UI and OAuth bootstrap (ticket 011) ([60dba9b](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/60dba9b6b2556272b3456ef5c4a77f9a9c40063f))
+* **social:** add social-metrics worker with snapshots, attribution, killswitch, and pruning (ticket 012) ([e418737](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/e418737d6f16bdf1d351dacdd1e558ff8a15c109))
+* **social:** add social-publisher-pinterest cron with kill-switch + warm-up + bootstrap floor (ticket 009) ([d6cf3e6](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/d6cf3e656a84ec88d45810f6acc85a610fa036fb))
+* **social:** Phase 1 Batch B — input layer (015 014 005 013 006 017) ([5865bd5](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/5865bd54791edc044f100d094c1e89022ae7cea9))
+* **social:** Phase 1 Batches C + D — generation, publish, review, measure (007 008 010 016 009 011 012) ([6cf1dbb](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/6cf1dbbfc80bc990a98020042f67681533c225e2))
+* Universal Links and App Links for reduced.recipes ([5ce0a76](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/5ce0a76b3c8475a02e6d4caac047a413275e1201))
+
+
+### Bug Fixes
+
+* **social:** label Flux Schnell output as JPEG, not PNG ([62ae1f2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/62ae1f20c90e4585ba3b27fb5c634aebc40115ee))
+* **social:** label Flux Schnell output as JPEG, not PNG ([b58af1d](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/b58af1d3f0c3b2fcf0f6e64b1e723816086b49a6))
+* **workers:** add rr-spider worker, fix POWER() backoff, restore sitemap ingest ([08970d4](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/08970d4e0c87c4387d77ebdee4039970470d107b))
+* **workers:** add rr-spider, fix POWER() backoff, restore sitemap ingest ([ac89fe9](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/ac89fe9578e93af89a7bc01009ae5c1a3df9d5b4))
+* **workers:** restore @rr/notifier and @rr/social-shared deps to package.json ([093dcb2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/093dcb2c040c7cea77bf5c938b6716e20770bed9))
+* **workers:** route /.well-known/* on reduced.recipes to rr-api ([5b48461](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/5b484617ae629daa60d378602ffa942fd8ef64ae))
+* **workers:** route /.well-known/* on reduced.recipes to rr-api ([c70b16c](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/c70b16c48b0355dce483de3767aa5417b1425efc))
+
 ## [1.8.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.7.3...v1.8.0) (2026-05-07)
 
 
