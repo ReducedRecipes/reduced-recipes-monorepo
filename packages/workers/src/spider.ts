@@ -11,15 +11,15 @@ async function runSpider(
   const db = env.CRAWL_DB ?? env.DB;
 
   const domain = targetDomain
-    ? await db.prepare('SELECT domain, sitemap_url FROM domains WHERE domain = ? AND active = 1')
+    ? await db.prepare('SELECT domain, sitemap_url, recipe_url_pattern FROM domains WHERE domain = ? AND active = 1')
         .bind(targetDomain)
-        .first<{ domain: string; sitemap_url: string | null }>()
+        .first<{ domain: string; sitemap_url: string | null; recipe_url_pattern: string | null }>()
     : await db.prepare(`
-        SELECT domain, sitemap_url FROM domains
+        SELECT domain, sitemap_url, recipe_url_pattern FROM domains
         WHERE active = 1 AND (last_spidered IS NULL OR last_spidered < datetime('now', '-7 days'))
         ORDER BY last_spidered ASC NULLS FIRST
         LIMIT 1
-      `).first<{ domain: string; sitemap_url: string | null }>();
+      `).first<{ domain: string; sitemap_url: string | null; recipe_url_pattern: string | null }>();
 
   if (!domain) {
     console.log('SPIDER: no domain due');
@@ -47,8 +47,10 @@ async function runSpider(
     }
 
     const urls = await parseSitemap(sitemapUrl);
-    const recipeUrls = urls.filter((u) => isRecipeUrl(u, domain.domain)).slice(0, MAX_URLS_PER_RUN);
-    console.log(`SPIDER: ${domain.domain} — ${urls.length} URLs, ${recipeUrls.length} recipe URLs (capped at ${MAX_URLS_PER_RUN})`);
+    const recipeUrls = urls
+      .filter((u) => isRecipeUrl(u, domain.domain, domain.recipe_url_pattern))
+      .slice(0, MAX_URLS_PER_RUN);
+    console.log(`SPIDER: ${domain.domain} — ${urls.length} URLs, ${recipeUrls.length} recipe URLs (capped at ${MAX_URLS_PER_RUN}, pattern=${domain.recipe_url_pattern ?? 'default'})`);
 
     const stmts = recipeUrls.map((url) =>
       db.prepare(`
