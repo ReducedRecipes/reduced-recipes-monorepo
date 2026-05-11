@@ -4,7 +4,10 @@ import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
 const MAX_URLS_PER_RUN = 5000;
 
-async function runSpider(env: Env, targetDomain?: string): Promise<{ domain: string | null; inserted: number }> {
+async function runSpider(
+  env: Env,
+  targetDomain?: string,
+): Promise<{ domain: string | null; inserted: number; error?: string }> {
   const db = env.CRAWL_DB ?? env.DB;
 
   const domain = targetDomain
@@ -25,44 +28,55 @@ async function runSpider(env: Env, targetDomain?: string): Promise<{ domain: str
 
   console.log(`SPIDER: processing ${domain.domain} (sitemap: ${domain.sitemap_url ?? 'none'})`);
 
-  let sitemapUrl = domain.sitemap_url;
-  if (!sitemapUrl) {
-    sitemapUrl = await discoverSitemap(domain.domain);
-    if (sitemapUrl) {
-      console.log(`SPIDER: discovered ${sitemapUrl} for ${domain.domain}`);
-      await db.prepare('UPDATE domains SET sitemap_url = ? WHERE domain = ?')
-        .bind(sitemapUrl, domain.domain).run();
-    } else {
-      console.log(`SPIDER: no sitemap for ${domain.domain}, seeding homepage`);
-      await db.prepare(`
-        INSERT OR IGNORE INTO crawl_queue (url, domain, priority, status, next_crawl)
-        VALUES (?, ?, 1, 'pending', datetime('now'))
-      `).bind(`https://www.${domain.domain}/`, domain.domain).run();
+  try {
+    let sitemapUrl = domain.sitemap_url;
+    if (!sitemapUrl) {
+      sitemapUrl = await discoverSitemap(domain.domain);
+      if (sitemapUrl) {
+        console.log(`SPIDER: discovered ${sitemapUrl} for ${domain.domain}`);
+        await db.prepare('UPDATE domains SET sitemap_url = ? WHERE domain = ?')
+          .bind(sitemapUrl, domain.domain).run();
+      } else {
+        console.log(`SPIDER: no sitemap for ${domain.domain}, seeding homepage`);
+        await db.prepare(`
+          INSERT OR IGNORE INTO crawl_queue (url, domain, priority, status, next_crawl)
+          VALUES (?, ?, 1, 'pending', datetime('now'))
+        `).bind(`https://www.${domain.domain}/`, domain.domain).run();
+        return { domain: domain.domain, inserted: 1 };
+      }
+    }
+
+    const urls = await parseSitemap(sitemapUrl);
+    const recipeUrls = urls.filter((u) => isRecipeUrl(u, domain.domain)).slice(0, MAX_URLS_PER_RUN);
+    console.log(`SPIDER: ${domain.domain} — ${urls.length} URLs, ${recipeUrls.length} recipe URLs (capped at ${MAX_URLS_PER_RUN})`);
+
+    const stmts = recipeUrls.map((url) =>
+      db.prepare(`
+        INSERT OR IGNORE INTO crawl_queue (url, domain, status, next_crawl)
+        VALUES (?, ?, 'pending', datetime('now'))
+      `).bind(url, domain.domain),
+    );
+
+    for (const c of chunks(stmts, 100)) {
+      await db.batch(c);
+    }
+
+    return { domain: domain.domain, inserted: recipeUrls.length };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`SPIDER: ${domain.domain} failed: ${message}`);
+    return { domain: domain.domain, inserted: 0, error: message };
+  } finally {
+    // ALWAYS advance last_spidered so the cron moves to the next domain on its
+    // next run. Without this, a single failing sitemap locks the cron on that
+    // domain forever.
+    try {
       await db.prepare("UPDATE domains SET last_spidered = datetime('now') WHERE domain = ?")
         .bind(domain.domain).run();
-      return { domain: domain.domain, inserted: 1 };
+    } catch (err) {
+      console.error(`SPIDER: failed to update last_spidered for ${domain.domain}:`, err);
     }
   }
-
-  const urls = await parseSitemap(sitemapUrl);
-  const recipeUrls = urls.filter((u) => isRecipeUrl(u, domain.domain)).slice(0, MAX_URLS_PER_RUN);
-  console.log(`SPIDER: ${domain.domain} — ${urls.length} URLs, ${recipeUrls.length} recipe URLs (capped at ${MAX_URLS_PER_RUN})`);
-
-  const stmts = recipeUrls.map((url) =>
-    db.prepare(`
-      INSERT OR IGNORE INTO crawl_queue (url, domain, status, next_crawl)
-      VALUES (?, ?, 'pending', datetime('now'))
-    `).bind(url, domain.domain),
-  );
-
-  for (const c of chunks(stmts, 100)) {
-    await db.batch(c);
-  }
-
-  await db.prepare("UPDATE domains SET last_spidered = datetime('now') WHERE domain = ?")
-    .bind(domain.domain).run();
-
-  return { domain: domain.domain, inserted: recipeUrls.length };
 }
 
 async function discoverSitemap(domain: string): Promise<string | null> {
