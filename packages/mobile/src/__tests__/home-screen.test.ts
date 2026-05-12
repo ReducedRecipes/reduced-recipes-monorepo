@@ -49,6 +49,20 @@ vi.mock('@/hooks/useFunding', () => ({
   }),
 }));
 
+vi.mock('@/hooks/useHealth', () => ({
+  useHealth: () => ({
+    data: null,
+  }),
+}));
+
+vi.mock('expo-image', () => ({
+  Image: vi.fn(() => ({ type: 'Image' })),
+}));
+
+vi.mock('@/hooks/useHeart', () => ({
+  useHeart: () => ({ hearted: false, count: 0, toggle: vi.fn() }),
+}));
+
 vi.mock('@/components/RecipeCard', () => ({
   RecipeCard: vi.fn(() => ({ type: 'RecipeCard' })),
 }));
@@ -87,11 +101,12 @@ describe('HomeScreen (S-26)', () => {
     expect(content).toContain("useRecipes");
   });
 
-  it('renders 4 sections: greeting, featured, quick & easy, cuisines, recently added', () => {
+  it('renders sections: feature of the week, trending, quick & easy, cuisines, recently added', () => {
     const filePath = resolve(__dirname, '../../app/(tabs)/index.tsx');
     const content = readFileSync(filePath, 'utf-8');
-    expect(content).toContain('Featured');
-    expect(content).toContain('Quick');
+    expect(content).toContain('FEATURE OF THE WEEK');
+    expect(content).toContain('TRENDING');
+    expect(content).toContain('QUICK & EASY');
     expect(content).toContain('Cuisines');
     expect(content).toContain('Recently Added');
   });
@@ -112,16 +127,29 @@ describe('HomeScreen (S-26)', () => {
     expect(content).toContain("Search recipes");
   });
 
-  it('fetches featured recipes with limit 5', () => {
+  it('fetches trending recipes sorted by hot_score', () => {
     const filePath = resolve(__dirname, '../../app/(tabs)/index.tsx');
     const content = readFileSync(filePath, 'utf-8');
-    expect(content).toContain('useRecipes({ limit: 5 })');
+    expect(content).toContain("sort: 'hot'");
   });
 
-  it('fetches quick & easy recipes filtered by max_time 30', () => {
+  it('uses featured_recipe_id from /health to drive the singular hero', () => {
     const filePath = resolve(__dirname, '../../app/(tabs)/index.tsx');
     const content = readFileSync(filePath, 'utf-8');
-    expect(content).toContain('max_time: 30');
+    expect(content).toContain('useHealth');
+    expect(content).toContain('featured_recipe_id');
+  });
+
+  it('fetches quick & easy recipes filtered by max_time 20', () => {
+    const filePath = resolve(__dirname, '../../app/(tabs)/index.tsx');
+    const content = readFileSync(filePath, 'utf-8');
+    expect(content).toContain('max_time: 20');
+  });
+
+  it('deduplicates recipes across sections', () => {
+    const filePath = resolve(__dirname, '../../app/(tabs)/index.tsx');
+    const content = readFileSync(filePath, 'utf-8');
+    expect(content).toContain('excludedIds');
   });
 
   it('includes pull-to-refresh via RefreshControl', () => {

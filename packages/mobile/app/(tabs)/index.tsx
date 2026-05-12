@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,8 +9,10 @@ import {
   ActivityIndicator,
   Linking,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { useFunding } from '@/hooks/useFunding';
+import { useHealth } from '@/hooks/useHealth';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRecipes } from '@/hooks/useRecipes';
 import { RecipeCard } from '@/components/RecipeCard';
@@ -18,6 +20,23 @@ import { ErrorState } from '@/components/ErrorState';
 import { SearchIcon } from '@/components/icons';
 import { colors, fonts } from '@/constants/theme';
 import type { RecipeSummary } from '@rr/shared';
+
+function pickFeatured(items: RecipeSummary[]): RecipeSummary | null {
+  return (
+    items.find((r) => r.image_url && r.total_time && r.total_time > 0) ??
+    items.find((r) => r.image_url) ??
+    items[0] ??
+    null
+  );
+}
+
+function formatTime(minutes: number | null | undefined): string | null {
+  if (minutes == null || minutes <= 0) return null;
+  if (minutes < 60) return `${minutes} min`;
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return m > 0 ? `${h}h ${m}m` : `${h}h`;
+}
 
 const CUISINES = [
   'Italian', 'Mexican', 'Chinese', 'Japanese', 'Indian',
@@ -31,6 +50,40 @@ function SectionLabel({ label }: { label: string }) {
       <Text style={s.sectionLabel}>{label}</Text>
       <View style={s.sectionRule} />
     </View>
+  );
+}
+
+function FeatureHero({ recipe }: { recipe: RecipeSummary }) {
+  const router = useRouter();
+  const time = formatTime(recipe.total_time ?? recipe.cook_time);
+
+  return (
+    <Pressable
+      onPress={() => router.push(`/recipe/${recipe.id}`)}
+      style={s.heroCard}
+      accessible
+      accessibilityRole="button"
+      accessibilityLabel={`Open recipe: ${recipe.title}`}
+    >
+      {recipe.image_url && (
+        <Image
+          source={{ uri: recipe.image_url }}
+          style={s.heroImage}
+          contentFit="cover"
+          transition={200}
+          recyclingKey={recipe.id}
+        />
+      )}
+      <View style={s.heroBody}>
+        <Text style={s.heroEyebrow}>◆ THIS WEEK</Text>
+        <Text style={s.heroTitle} numberOfLines={3}>{recipe.title}</Text>
+        <View style={s.heroMeta}>
+          {recipe.domain ? <Text style={s.heroDomain}>{recipe.domain}</Text> : null}
+          {recipe.domain && time ? <Text style={s.heroDot}> · </Text> : null}
+          {time ? <Text style={s.heroTime}>{time}</Text> : null}
+        </View>
+      </View>
+    </Pressable>
   );
 }
 
@@ -109,22 +162,49 @@ export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const featured = useRecipes({ limit: 5 });
-  const quickEasy = useRecipes({ max_time: 30, limit: 10 });
-  const recent = useRecipes({});
+  const trending = useRecipes({ sort: 'hot', limit: 12 });
+  const quickEasy = useRecipes({ max_time: 20, limit: 10 });
+  const recent = useRecipes({ sort: 'newest' });
+  const { data: health } = useHealth();
 
-  const isLoading = featured.isLoading || quickEasy.isLoading || recent.isLoading;
-  const isError = featured.isError && quickEasy.isError && recent.isError;
+  const isLoading = trending.isLoading || quickEasy.isLoading || recent.isLoading;
+  const isError = trending.isError && quickEasy.isError && recent.isError;
 
   const handleRefresh = useCallback(() => {
-    featured.refetch();
+    trending.refetch();
     quickEasy.refetch();
     recent.refetch();
-  }, [featured, quickEasy, recent]);
+  }, [trending, quickEasy, recent]);
 
-  const featuredRecipes = featured.data?.pages.flatMap((p) => p.items).slice(0, 5) ?? [];
-  const quickRecipes = quickEasy.data?.pages.flatMap((p) => p.items) ?? [];
-  const recentRecipes = recent.data?.pages.flatMap((p) => p.items) ?? [];
+  const trendingItems = trending.data?.pages.flatMap((p) => p.items) ?? [];
+
+  const featuredRecipe = useMemo(() => {
+    if (health?.featured_recipe_id) {
+      const fromTrending = trendingItems.find((r) => r.id === health.featured_recipe_id);
+      if (fromTrending) return fromTrending;
+    }
+    return pickFeatured(trendingItems);
+  }, [health?.featured_recipe_id, trendingItems]);
+
+  const trendingShelf = useMemo(
+    () =>
+      trendingItems
+        .filter((r) => r.id !== featuredRecipe?.id)
+        .slice(0, 8),
+    [trendingItems, featuredRecipe?.id],
+  );
+
+  const excludedIds = useMemo(() => {
+    const set = new Set<string>();
+    if (featuredRecipe) set.add(featuredRecipe.id);
+    for (const r of trendingShelf) set.add(r.id);
+    return set;
+  }, [featuredRecipe, trendingShelf]);
+
+  const quickRecipes = (quickEasy.data?.pages.flatMap((p) => p.items) ?? [])
+    .filter((r) => !excludedIds.has(r.id));
+  const recentRecipes = (recent.data?.pages.flatMap((p) => p.items) ?? [])
+    .filter((r) => !excludedIds.has(r.id));
 
   const handleEndReached = useCallback(() => {
     if (recent.hasNextPage && !recent.isFetchingNextPage) {
@@ -191,15 +271,25 @@ export default function HomeScreen() {
         <Text style={s.fridgeCtaAction}>→ GET STARTED</Text>
       </Pressable>
 
-      {/* Featured */}
-      {featuredRecipes.length > 0 && (
+      {/* Feature of the Week: singular curated hero */}
+      {featuredRecipe && (
         <View style={s.section}>
           <SectionLabel label="FEATURE OF THE WEEK" />
-          <HorizontalRecipeList recipes={featuredRecipes} />
+          <View style={{ paddingHorizontal: 16 }}>
+            <FeatureHero recipe={featuredRecipe} />
+          </View>
         </View>
       )}
 
-      {/* Quick & Easy */}
+      {/* Trending: hot_score shelf */}
+      {trendingShelf.length > 0 && (
+        <View style={s.section}>
+          <SectionLabel label="TRENDING" />
+          <HorizontalRecipeList recipes={trendingShelf} />
+        </View>
+      )}
+
+      {/* Quick & Easy: under 20 min */}
       {quickRecipes.length > 0 && (
         <View style={s.section}>
           <SectionLabel label="QUICK & EASY" />
@@ -369,6 +459,53 @@ const s = StyleSheet.create({
   },
   section: {
     marginTop: 32,
+  },
+  heroCard: {
+    borderWidth: 1,
+    borderColor: colors.rule,
+    backgroundColor: colors.bgCard,
+    overflow: 'hidden',
+  },
+  heroImage: {
+    width: '100%',
+    aspectRatio: 4 / 3,
+  },
+  heroBody: {
+    padding: 16,
+  },
+  heroEyebrow: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.accent,
+    letterSpacing: 1.5,
+    marginBottom: 8,
+  },
+  heroTitle: {
+    fontFamily: fonts.serif,
+    fontSize: 24,
+    color: colors.ink,
+    lineHeight: 30,
+  },
+  heroMeta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 10,
+  },
+  heroDomain: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.accent,
+    letterSpacing: 0.5,
+  },
+  heroDot: {
+    color: colors.inkFaint,
+    fontSize: 12,
+  },
+  heroTime: {
+    fontFamily: fonts.mono,
+    fontSize: 12,
+    color: colors.inkFaint,
+    letterSpacing: 0.5,
   },
   sectionLabelRow: {
     flexDirection: 'row',

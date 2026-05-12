@@ -122,6 +122,25 @@ vi.mock('@/components/icons', () => ({
   HeartIcon: vi.fn(() => ({ type: 'HeartIcon' })),
 }));
 
+vi.mock('@/components/AddToShoppingListSheet', () => ({
+  AddToShoppingListSheet: vi.fn(() => ({ type: 'AddToShoppingListSheet' })),
+}));
+
+vi.mock('@/stores/auth.store', () => ({
+  useAuthStore: Object.assign(
+    (selector: any) => selector({ isAuthenticated: false }),
+    { getState: () => ({ isAuthenticated: false, sessionToken: null }) },
+  ),
+}));
+
+vi.mock('@/stores/shopping.store', () => ({
+  useShoppingStore: Object.assign(
+    (selector: any) =>
+      selector({ selectList: vi.fn(), activeListId: null }),
+    { getState: () => ({ selectList: vi.fn(), activeListId: null }) },
+  ),
+}));
+
 vi.mock('@/constants/theme', () => ({
   colors: {
     bg: '#FAFAF8',

@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
@@ -20,6 +20,12 @@ import { useHeart } from "@/hooks/useHeart";
 import { useSimilarRecipes } from "@/hooks/useSimilarRecipes";
 import { RecipeCard } from "@/components/RecipeCard";
 import { NutritionPanel } from "@/components/NutritionPanel";
+import {
+  AddToShoppingListSheet,
+  type AddToShoppingListSheetRef,
+} from "@/components/AddToShoppingListSheet";
+import { useAuthStore } from "@/stores/auth.store";
+import { useShoppingStore } from "@/stores/shopping.store";
 import { colors, fonts } from "@/constants/theme";
 
 type Tab = "ingredients" | "instructions";
@@ -31,6 +37,29 @@ export default function RecipeDetailScreen() {
   const [activeTab, setActiveTab] = useState<Tab>("ingredients");
   const heart = useHeart(id ?? "", recipe?.vote_count);
   const { data: similarRecipes } = useSimilarRecipes(id ?? "");
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const shoppingSheetRef = useRef<AddToShoppingListSheetRef>(null);
+  const [addedTo, setAddedTo] = useState<{ listId: string; listName: string } | null>(null);
+  const selectList = useShoppingStore((state) => state.selectList);
+  const activeListId = useShoppingStore((state) => state.activeListId);
+
+  useEffect(() => {
+    if (!addedTo) return;
+    const timer = setTimeout(() => setAddedTo(null), 4000);
+    return () => clearTimeout(timer);
+  }, [addedTo]);
+
+  const handleAddedToList = useCallback(
+    (listId: string, listName: string) => {
+      setAddedTo({ listId, listName });
+      // Refresh the active list if it's the one we just added to so items show up
+      // when the user navigates to the shopping list tab.
+      if (activeListId === listId) {
+        selectList(listId);
+      }
+    },
+    [activeListId, selectList],
+  );
 
   const scrollY = useRef(new Animated.Value(0)).current;
 
@@ -191,7 +220,42 @@ export default function RecipeDetailScreen() {
         {/* Tab content */}
         <View style={s.tabContent}>
           {activeTab === "ingredients" ? (
-            <IngredientList ingredients={recipe.ingredients} />
+            <>
+              <IngredientList ingredients={recipe.ingredients} />
+              {isAuthenticated && recipe.ingredients.length > 0 && (
+                <View style={s.shoppingPillWrap}>
+                  <Pressable
+                    onPress={() =>
+                      shoppingSheetRef.current?.open({
+                        recipeId: recipe.id,
+                        recipeTitle: recipe.title,
+                        ingredients: recipe.ingredients,
+                      })
+                    }
+                    style={s.shoppingPill}
+                    accessibilityRole="button"
+                    accessibilityLabel="Add ingredients to shopping list"
+                  >
+                    <Text style={s.shoppingPillText}>+ ADD TO SHOPPING LIST</Text>
+                  </Pressable>
+                  {addedTo && (
+                    <Pressable
+                      onPress={() => {
+                        setAddedTo(null);
+                        router.push("/(tabs)/list");
+                      }}
+                      style={s.shoppingConfirm}
+                      accessibilityRole="button"
+                      accessibilityLabel={`View ${addedTo.listName}`}
+                    >
+                      <Text style={s.shoppingConfirmText}>
+                        Added to {addedTo.listName} · View →
+                      </Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+            </>
           ) : (
             <InstructionList instructions={recipe.instructions} />
           )}
@@ -247,6 +311,8 @@ export default function RecipeDetailScreen() {
 
         <View style={{ height: 40 }} />
       </Animated.ScrollView>
+
+      <AddToShoppingListSheet ref={shoppingSheetRef} onAdded={handleAddedToList} />
     </>
   );
 }
@@ -306,6 +372,28 @@ const s = StyleSheet.create({
   segmentTextActive: { color: "#FFFFFF" },
 
   tabContent: { paddingHorizontal: 16 },
+
+  shoppingPillWrap: { marginTop: 20, alignItems: "flex-start" },
+  shoppingPill: {
+    borderWidth: 1,
+    borderColor: colors.rule,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  shoppingPillText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.accent,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  shoppingConfirm: { marginTop: 8 },
+  shoppingConfirmText: {
+    fontFamily: fonts.mono,
+    fontSize: 11,
+    color: colors.accent,
+    letterSpacing: 0.5,
+  },
 
   actions: { paddingHorizontal: 16, marginTop: 24, gap: 10 },
   primaryBtn: {

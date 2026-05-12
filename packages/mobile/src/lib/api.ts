@@ -69,6 +69,18 @@ export interface RecipeListParams {
   min_time?: number;
   cursor?: string;
   limit?: number;
+  sort?: "hot" | "top" | "newest" | "time" | "rating" | "cook_time";
+}
+
+export interface HealthResponse {
+  ok: boolean;
+  total_recipes: number;
+  featured_recipe_id: string | null;
+  featured_recipe_title: string | null;
+}
+
+export function fetchHealth(): Promise<HealthResponse> {
+  return request<HealthResponse>("/health");
 }
 
 // ── Mock data for development ──────────────────────────────────────
@@ -526,6 +538,24 @@ export async function getShoppingList(
     list: listFields,
     items: [...unchecked, ...checked],
   };
+}
+
+export interface AddRecipeToListResponse {
+  items: { id: string; original_text: string }[];
+  already_added?: boolean;
+}
+
+export function addRecipeToList(
+  listId: string,
+  body: { recipe_id: string; ingredients: string[] },
+): Promise<AddRecipeToListResponse> {
+  return request<AddRecipeToListResponse>(
+    `/shopping-lists/${encodeURIComponent(listId)}/recipes`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+  );
 }
 
 export function addShoppingListItem(
