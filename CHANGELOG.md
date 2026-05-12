@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.10.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.9.0...v1.10.0) (2026-05-12)
+
+
+### Features
+
+* **mobile:** home Feature of the Week + shopping list flow ([caf8d1f](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/caf8d1f49d249c240a34a969a17b8ec6e830a7f2))
+* **mobile:** home screen Feature of the Week + shopping list integration ([ff38dee](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/ff38dee2ed31fc583eeacd17145882aa7dc62bed))
+
+
+### Bug Fixes
+
+* **auth:** proxy Firebase auth handler through reduced.recipes to fix iOS sign-in ([51558d2](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/51558d23dfde417d0767db2fe19c682d4e800d9d))
+* **auth:** proxy Firebase auth handler to fix iOS sign-in ([6895c9f](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/6895c9f2c49ad3b2022458d70439bc40de03c697))
+* **spider:** per-domain recipe URL pattern + newest-first sitemap parsing ([b97eea9](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/b97eea986a43edccd62b352ae3b817aa7a784060))
+* **spider:** per-domain recipe URL pattern + newest-first sitemap parsing ([b6a551a](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/b6a551a4b00b91ba355ce739a2c18a0ed8cf0b6b))
+* **spider:** replace 5000-URL cap with wall-clock budget ([23daa88](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/23daa889256ced4fcc8dcd8cd8549875bd7cb145))
+* **spider:** replace MAX_URLS_PER_RUN cap with wall-clock budget ([68eac9f](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/68eac9f6554dccb724b66ba488303b44b5188aef))
+
 ## [1.9.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.8.0...v1.9.0) (2026-05-11)
 
 
