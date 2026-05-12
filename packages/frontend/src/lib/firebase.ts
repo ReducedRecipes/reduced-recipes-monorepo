@@ -11,7 +11,12 @@ import { getAuth, GoogleAuthProvider, OAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDqJceLhCOUs-ViAtmdGy_5hmaLp9Fj7MY',
-  authDomain: 'reducedrecipes.firebaseapp.com',
+  // Custom auth domain on the app's own eTLD+1. The Pages Function at
+  // packages/frontend/functions/__/auth/[[path]].ts reverse-proxies these
+  // reserved paths to reducedrecipes.firebaseapp.com so the Firebase auth
+  // iframe is same-origin with the SPA. Required to make signInWithRedirect
+  // work on iOS Safari / Chrome (ITP partitions third-party storage).
+  authDomain: 'reduced.recipes',
   projectId: 'reducedrecipes',
   appId: '1:185737034001:web:bd59e775cb6809a4cd74b0',
 };
