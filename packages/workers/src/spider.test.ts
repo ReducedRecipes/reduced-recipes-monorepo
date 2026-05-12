@@ -103,6 +103,62 @@ describe('Spider Worker', () => {
     expect(prepareCalls.some((sql) => sql.includes('UPDATE domains SET last_spidered'))).toBe(true);
   });
 
+  it('queues every recipe URL when sitemap is larger than the old 5000 cap', async () => {
+    const env = createEnv();
+
+    // 6000 URLs > the historical MAX_URLS_PER_RUN cap of 5000. After the fix we
+    // should ingest all of them in a single run.
+    const sitemapUrls = Array.from({ length: 6000 }, (_, i) => `https://example.com/recipes/${i}`);
+
+    env.CRAWL_DB.prepare.mockReturnValueOnce({
+      first: vi.fn().mockResolvedValue({ domain: 'example.com', sitemap_url: 'https://example.com/sitemap.xml' }),
+    });
+
+    (parseSitemap as ReturnType<typeof vi.fn>).mockResolvedValue(sitemapUrls);
+    (isRecipeUrl as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    const response = await spider.fetch(new Request('http://localhost/trigger'), env);
+    const body = await response.json() as { ok: boolean; inserted: number; truncated?: boolean };
+
+    expect(body.ok).toBe(true);
+    expect(body.inserted).toBe(6000);
+    expect(body.truncated).toBeUndefined();
+  });
+
+  it('reports truncated=true and partial count when wall-clock budget is exceeded', async () => {
+    const env = createEnv();
+
+    const sitemapUrls = Array.from({ length: 1000 }, (_, i) => `https://slow.com/recipes/${i}`);
+
+    env.CRAWL_DB.prepare.mockReturnValueOnce({
+      first: vi.fn().mockResolvedValue({ domain: 'slow.com', sitemap_url: 'https://slow.com/sitemap.xml' }),
+    });
+
+    (parseSitemap as ReturnType<typeof vi.fn>).mockResolvedValue(sitemapUrls);
+    (isRecipeUrl as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    // Make each batch take 30s of wall-clock so the 50s budget is blown after
+    // the second batch. We use a fake clock so the test runs instantly.
+    const realNow = Date.now.bind(Date);
+    let virtualNow = realNow();
+    const nowSpy = vi.spyOn(Date, 'now').mockImplementation(() => virtualNow);
+    env.CRAWL_DB.batch.mockImplementation(async () => {
+      virtualNow += 30_000;
+      return [];
+    });
+
+    const response = await spider.fetch(new Request('http://localhost/trigger'), env);
+    const body = await response.json() as { ok: boolean; inserted: number; truncated?: boolean; total?: number };
+
+    expect(body.ok).toBe(true);
+    expect(body.truncated).toBe(true);
+    expect(body.total).toBe(1000);
+    expect(body.inserted).toBeLessThan(1000);
+    expect(body.inserted).toBeGreaterThan(0);
+
+    nowSpy.mockRestore();
+  });
+
   it('updates last_spidered even when db.batch throws', async () => {
     const env = createEnv();
 

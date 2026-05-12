@@ -2,12 +2,22 @@ import type { Env } from '@rr/shared/env';
 import { chunks } from '@rr/shared/utils';
 import { parseSitemap, isRecipeUrl } from '@rr/shared/sitemap';
 
-const MAX_URLS_PER_RUN = 5000;
+// Wall-clock budget for the URL-insert loop. We used to hard-cap at 5000 URLs
+// per run, which prevented us from ever fully ingesting large catalogues (some
+// recipe sites have 50k+ entries). With newest-first sitemap sorting we get
+// fresh content either way, but the cap left the long tail of older recipes
+// uncrawled forever.
+//
+// Instead, walk the whole filtered sitemap and rely on a wall-clock budget to
+// stop before the Worker is killed. INSERT OR IGNORE makes each run idempotent,
+// so the next cron tick on the same domain just picks up where this one left
+// off.
+const URL_INSERT_BUDGET_MS = 50_000;
 
 async function runSpider(
   env: Env,
   targetDomain?: string,
-): Promise<{ domain: string | null; inserted: number; error?: string }> {
+): Promise<{ domain: string | null; inserted: number; error?: string; truncated?: boolean; total?: number }> {
   const db = env.CRAWL_DB ?? env.DB;
 
   const domain = targetDomain
@@ -47,10 +57,8 @@ async function runSpider(
     }
 
     const urls = await parseSitemap(sitemapUrl);
-    const recipeUrls = urls
-      .filter((u) => isRecipeUrl(u, domain.domain, domain.recipe_url_pattern))
-      .slice(0, MAX_URLS_PER_RUN);
-    console.log(`SPIDER: ${domain.domain} — ${urls.length} URLs, ${recipeUrls.length} recipe URLs (capped at ${MAX_URLS_PER_RUN}, pattern=${domain.recipe_url_pattern ?? 'default'})`);
+    const recipeUrls = urls.filter((u) => isRecipeUrl(u, domain.domain, domain.recipe_url_pattern));
+    console.log(`SPIDER: ${domain.domain} — ${urls.length} URLs, ${recipeUrls.length} recipe URLs (pattern=${domain.recipe_url_pattern ?? 'default'})`);
 
     const stmts = recipeUrls.map((url) =>
       db.prepare(`
@@ -59,11 +67,20 @@ async function runSpider(
       `).bind(url, domain.domain),
     );
 
+    const startedAt = Date.now();
+    let queued = 0;
+    let truncated = false;
     for (const c of chunks(stmts, 100)) {
+      if (Date.now() - startedAt > URL_INSERT_BUDGET_MS) {
+        truncated = true;
+        console.log(`SPIDER: ${domain.domain} hit ${URL_INSERT_BUDGET_MS}ms budget at ${queued}/${recipeUrls.length}, deferring rest to next run`);
+        break;
+      }
       await db.batch(c);
+      queued += c.length;
     }
 
-    return { domain: domain.domain, inserted: recipeUrls.length };
+    return { domain: domain.domain, inserted: queued, ...(truncated ? { truncated: true, total: recipeUrls.length } : {}) };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error(`SPIDER: ${domain.domain} failed: ${message}`);
