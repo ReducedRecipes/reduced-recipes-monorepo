@@ -60,7 +60,7 @@ function SignInMenu({
           }
           setOpen((v) => !v);
         }}
-        className="rounded-lg bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+        className="rounded border border-accent bg-accent px-3 py-1.5 text-sm font-medium text-bg transition-opacity hover:opacity-90"
       >
         Sign in
       </button>
@@ -112,7 +112,7 @@ export function LoginButton({ className = "" }: { className?: string }) {
 
   if (isLoading) {
     return (
-      <div className={`h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-green-600 ${className}`} />
+      <div className={`h-8 w-8 animate-spin rounded-full border-2 border-rule border-t-accent ${className}`} />
     );
   }
 
@@ -194,7 +194,7 @@ export function LoginButton({ className = "" }: { className?: string }) {
             className="h-8 w-8 rounded-full object-cover"
           />
         ) : (
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-green-600 text-xs font-bold text-white">
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-accent text-xs font-bold text-bg">
             {initials}
           </div>
         )}
