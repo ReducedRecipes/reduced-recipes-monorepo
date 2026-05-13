@@ -1,14 +1,17 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../hooks/useAuth";
+import { useAuthStore } from "../stores/auth.store";
 import { isInAppBrowser } from "../lib/in-app-browser";
+import type { FirebaseSessionResponse } from "../lib/auth-firebase";
 
 function SignInMenu({
   className,
   onSignedIn,
 }: {
   className?: string;
-  onSignedIn: (token: string) => void;
+  onSignedIn: (result: FirebaseSessionResponse) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -37,8 +40,8 @@ function SignInMenu({
     setBusy(p);
     try {
       const { signInWithFirebaseProvider } = await import('../lib/auth-firebase');
-      const { token } = await signInWithFirebaseProvider(p);
-      onSignedIn(token);
+      const result = await signInWithFirebaseProvider(p);
+      onSignedIn(result);
     } catch (err) {
       const msg = (err as Error).message ?? 'Sign-in failed';
       // Suppress cancellation noise; the user knows they cancelled.
@@ -89,6 +92,7 @@ function SignInMenu({
 
 export function LoginButton({ className = "" }: { className?: string }) {
   const { user, isLoading, isAuthenticated, logout } = useAuth();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [showInAppWarning, setShowInAppWarning] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
@@ -162,10 +166,14 @@ export function LoginButton({ className = "" }: { className?: string }) {
     return (
       <SignInMenu
         className={className}
-        onSignedIn={(token) => {
-          localStorage.setItem('session_token', token);
-          // Force the useAuth /auth/me query to re-run and pick up the new session.
-          window.location.reload();
+        onSignedIn={(result) => {
+          // Hydrate the store + TanStack cache from the callback response
+          // directly. Reloading and letting useAuth re-call /auth/me used to
+          // race the SESSION_KV propagation window and silently log the user
+          // out for ~30-60s until a second manual refresh.
+          useAuthStore.getState().setToken(result.token);
+          useAuthStore.getState().setUser(result.user, result.is_new_user);
+          queryClient.setQueryData(['auth', 'me'], { user: result.user });
         }}
       />
     );

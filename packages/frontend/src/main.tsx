@@ -45,9 +45,15 @@ function AppRoot() {
         const { handleFirebaseRedirect } = await import('./lib/firebase-redirect-handler');
         const result = await handleFirebaseRedirect();
         if (cancelled || !result) return;
-        localStorage.setItem('session_token', result.token);
-        // Force a refresh so useAuth's /auth/me query re-runs with the new session.
-        window.location.reload();
+        // Hydrate state from the callback response directly. The old code did
+        // localStorage.setItem + window.location.reload(), which forced
+        // useAuth to re-call /auth/me before SESSION_KV had finished
+        // propagating to the read edge. /auth/me 401'd, the user got cleared,
+        // and the UI sat on "Sign in" until a second manual refresh.
+        const { useAuthStore } = await import('./stores/auth.store');
+        useAuthStore.getState().setToken(result.token);
+        useAuthStore.getState().setUser(result.user, result.is_new_user);
+        queryClient.setQueryData(['auth', 'me'], { user: result.user });
       } catch (err) {
         console.error('Firebase redirect handler failed', err);
       }
