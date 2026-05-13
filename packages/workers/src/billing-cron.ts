@@ -34,6 +34,9 @@ const PRICING = {
 
   // Workers base plan
   workers_base: 5.00,
+
+  // Expo / EAS Production plan (mobile app builds + submissions)
+  expo_monthly: 19.00,
 };
 
 interface GraphQLResponse {
@@ -108,6 +111,7 @@ function computeCosts(data: GraphQLResponse) {
     durable_objects: 0,
     r2: 0,
     workers_base: PRICING.workers_base,
+    expo: PRICING.expo_monthly,
     other: 0,
     raw: { d1Reads, d1Writes, neurons, kvOps, queueOps },
   };
@@ -151,14 +155,14 @@ export default {
 
       const total = round(
         costs.d1_reads + costs.workers_ai + costs.kv + costs.queues +
-        costs.durable_objects + costs.r2 + costs.workers_base + costs.other
+        costs.durable_objects + costs.r2 + costs.workers_base + costs.expo + costs.other
       );
 
       const notes = `Auto-updated ${today} | D1: ${costs.raw.d1Reads} rows read, AI: ${Math.round(costs.raw.neurons)} neurons, KV: ${costs.raw.kvOps} ops, Queues: ${costs.raw.queueOps} ops`;
 
       await env.FUNDING_DB.prepare(
-        `INSERT INTO monthly_costs (month, d1_reads, workers_ai, queues, kv, durable_objects, r2, workers_base, other, total, notes)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `INSERT INTO monthly_costs (month, d1_reads, workers_ai, queues, kv, durable_objects, r2, workers_base, expo, other, total, notes)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
          ON CONFLICT(month) DO UPDATE SET
            d1_reads = excluded.d1_reads,
            workers_ai = excluded.workers_ai,
@@ -167,11 +171,12 @@ export default {
            durable_objects = excluded.durable_objects,
            r2 = excluded.r2,
            workers_base = excluded.workers_base,
+           expo = excluded.expo,
            other = excluded.other,
            total = excluded.total,
            notes = excluded.notes,
            updated_at = datetime('now')`,
-      ).bind(month, costs.d1_reads, costs.workers_ai, costs.queues, costs.kv, costs.durable_objects, costs.r2, costs.workers_base, costs.other, total, notes).run();
+      ).bind(month, costs.d1_reads, costs.workers_ai, costs.queues, costs.kv, costs.durable_objects, costs.r2, costs.workers_base, costs.expo, costs.other, total, notes).run();
 
       console.log(`Billing cron: updated ${month} — total $${total}`);
     } catch (err) {
