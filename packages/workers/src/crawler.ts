@@ -1,6 +1,7 @@
 import type { Env } from '@rr/shared/env';
 import type { CrawlJob, ParseJob } from '@rr/shared';
 import { checkRobots } from '@rr/shared/robots';
+import { decodeHtml } from '@rr/shared/html-decode';
 
 export default {
   async queue(batch: MessageBatch<CrawlJob>, env: Env) {
@@ -39,7 +40,12 @@ export default {
           continue;
         }
 
-        const html = await response.text();
+        // Honour the response charset (Content-Type then <meta>) instead of
+        // assuming UTF-8 — say7.info and other non-Latin sites serve
+        // Windows-1251, Shift_JIS etc., and Response.text() silently corrupts
+        // them, which then causes the translator LLM to hallucinate.
+        const buffer = await response.arrayBuffer();
+        const html = decodeHtml(buffer, contentType);
 
         // ── store HTML in KV (queues have 128KB limit) ────────
         const htmlKey = `html:${encodeURIComponent(url)}`;

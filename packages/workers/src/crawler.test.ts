@@ -104,17 +104,12 @@ describe('Crawler Worker', () => {
     const batch = createBatch([msg]);
     const env = createEnv();
 
-    vi.stubGlobal('fetch', vi.fn(async () => ({
-      ok: true,
-      headers: new Map([['content-type', 'text/html']]) as any,
-      text: async () => '<html><body>Recipe page</body></html>',
-    })));
-
-    // Mock headers.get
+    const html = '<html><body>Recipe page</body></html>';
+    const buffer = new TextEncoder().encode(html).buffer;
     const mockResponse = {
       ok: true,
-      headers: { get: vi.fn((key: string) => key === 'content-type' ? 'text/html' : null) },
-      text: vi.fn(async () => '<html><body>Recipe page</body></html>'),
+      headers: { get: vi.fn((key: string) => key === 'content-type' ? 'text/html; charset=utf-8' : null) },
+      arrayBuffer: vi.fn(async () => buffer),
     };
     vi.stubGlobal('fetch', vi.fn(async () => mockResponse));
 
