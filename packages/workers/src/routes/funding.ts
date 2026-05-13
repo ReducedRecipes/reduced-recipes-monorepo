@@ -170,6 +170,7 @@ funding.post('/api/v1/funding/costs', async (c) => {
     durable_objects?: number;
     r2?: number;
     workers_base?: number;
+    expo?: number;
     other?: number;
     notes?: string;
   }>();
@@ -185,12 +186,13 @@ funding.post('/api/v1/funding/costs', async (c) => {
   const durable = body.durable_objects ?? 0;
   const r2 = body.r2 ?? 0;
   const base = body.workers_base ?? 5;
+  const expo = body.expo ?? 0;
   const other = body.other ?? 0;
-  const total = d1 + ai + queues + kv + durable + r2 + base + other;
+  const total = d1 + ai + queues + kv + durable + r2 + base + expo + other;
 
   await db.prepare(
-    `INSERT INTO monthly_costs (month, d1_reads, workers_ai, queues, kv, durable_objects, r2, workers_base, other, total, notes)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `INSERT INTO monthly_costs (month, d1_reads, workers_ai, queues, kv, durable_objects, r2, workers_base, expo, other, total, notes)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
      ON CONFLICT(month) DO UPDATE SET
        d1_reads = excluded.d1_reads,
        workers_ai = excluded.workers_ai,
@@ -199,11 +201,12 @@ funding.post('/api/v1/funding/costs', async (c) => {
        durable_objects = excluded.durable_objects,
        r2 = excluded.r2,
        workers_base = excluded.workers_base,
+       expo = excluded.expo,
        other = excluded.other,
        total = excluded.total,
        notes = excluded.notes,
        updated_at = datetime('now')`,
-  ).bind(body.month, d1, ai, queues, kv, durable, r2, base, other, total, body.notes ?? null).run();
+  ).bind(body.month, d1, ai, queues, kv, durable, r2, base, expo, other, total, body.notes ?? null).run();
 
   return c.json({ ok: true, month: body.month, total });
 });

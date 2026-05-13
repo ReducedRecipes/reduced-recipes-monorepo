@@ -10,6 +10,7 @@ const COST_LABELS: Record<string, string> = {
   durable_objects: "Durable Objects (shopping lists)",
   r2: "R2 image storage",
   workers_base: "Workers Paid plan",
+  expo: "Expo / EAS (mobile app builds)",
   other: "Other",
 };
 
