@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.11.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.10.0...v1.11.0) (2026-05-13)
+
+
+### Features
+
+* **funding:** track Expo / EAS subscription on the transparency page ([5721145](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/57211457cde8c6703eeb42200ad004f035215745))
+* **funding:** track Expo subscription on transparency page ([b650f4f](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/b650f4f695d6af00e85ec0b9f234841a1b62506e))
+
+
+### Bug Fixes
+
+* **ingest:** honour non-UTF-8 page charset and stop translator hallucinating ([5bbdda0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/5bbdda041bf44413b55acc9ec38d5dc28fb5bd55))
+* **ingest:** honour non-UTF-8 page charset, stop translator hallucinating ([f751c27](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/f751c273b5c7332397375e4068718f5ffb24fa27))
+* **mobile:** shopping list create flow + auth hydration ([ded06ff](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/ded06ff2d310f22a6fd38761a7dd6d13684b6c33))
+* **mobile:** shopping list create flow + auth hydration ([380bf78](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/380bf78e04b0fec89eec2cffb83c503d925efe9e))
+
 ## [1.10.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.9.0...v1.10.0) (2026-05-12)
 
 
