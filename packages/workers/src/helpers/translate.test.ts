@@ -198,4 +198,57 @@ describe('translateRecipe', () => {
     expect(doc.title).toBe(originalTitle);
     expect(result).not.toBe(doc);
   });
+
+  it('skips translation entirely when the document title is mojibake', async () => {
+    // Real-world example: say7.info Russian title corrupted by UTF-8 decoding
+    // of Windows-1251 bytes. Half the characters are U+FFFD replacement chars.
+    const mojibake = '������� ����';
+    const doc = createRecipeDoc({ title: mojibake, ingredients: ['ok'], instructions: ['ok'] });
+    const ai = createMockAi();
+
+    const result = await translateRecipe(doc, ai);
+
+    expect(result.title).toBe(mojibake);
+    expect(ai.run).not.toHaveBeenCalled();
+  });
+
+  it('rejects title responses that smell like hallucinated full recipes', async () => {
+    // Llama wandered into generating a full recipe — Ingredients: leakage.
+    const doc = createRecipeDoc({ title: 'Куриное филе', original_language: 'ru' });
+    const ai = createMockAi({
+      'Куриное филе': 'Borscht\n\nIngredients:\n- beets\n- onions',
+    });
+
+    const result = await translateRecipe(doc, ai);
+    expect(result.title).toBe('Куриное филе');
+  });
+
+  it('rejects instruction responses that include ingredient list leakage', async () => {
+    const doc = createRecipeDoc({
+      instructions: ['Жарить курицу 10 минут'],
+      ingredients: [],
+      original_language: 'ru',
+    });
+    const ai = createMockAi({
+      'Жарить курицу 10 минут': 'Fry chicken for 10 minutes.\nIngredients:\n- chicken\n- oil',
+    });
+
+    const result = await translateRecipe(doc, ai);
+    expect(result.instructions).toEqual(['Жарить курицу 10 минут']);
+  });
+
+  it('rejects body responses that are dramatically longer than the input', async () => {
+    const doc = createRecipeDoc({
+      instructions: ['Stir.'],
+      ingredients: [],
+      original_language: 'de',
+    });
+    // 6-char input expanding to a 500-char response is a hallucinated novella.
+    const ai = createMockAi({
+      'Stir.': 'A'.repeat(500),
+    });
+
+    const result = await translateRecipe(doc, ai);
+    expect(result.instructions).toEqual(['Stir.']);
+  });
 });

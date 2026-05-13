@@ -11,7 +11,8 @@
     "./utils": "./src/utils.ts",
     "./dietary": "./src/dietary.ts",
     "./env": "./src/env.ts",
-    "./build-query": "./src/build-query.ts"
+    "./build-query": "./src/build-query.ts",
+    "./html-decode": "./src/html-decode.ts"
   },
   "files": [
     "src"
