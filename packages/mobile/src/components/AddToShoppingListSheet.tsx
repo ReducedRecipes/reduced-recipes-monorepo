@@ -17,11 +17,8 @@ import {
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { BottomSheet, type BottomSheetRef } from '@/components/BottomSheet';
-import {
-  addRecipeToList,
-  createShoppingList,
-  fetchShoppingLists,
-} from '@/lib/api';
+import { addRecipeToList, fetchShoppingLists } from '@/lib/api';
+import { useShoppingStore } from '@/stores/shopping.store';
 import type { ShoppingList } from '@rr/shared';
 import { colors, fonts } from '@/constants/theme';
 
@@ -104,6 +101,9 @@ export const AddToShoppingListSheet = forwardRef<
           setError('Ingredients already on this list');
           return;
         }
+        // Make the list active and pull the freshly-added items so the LIST tab
+        // shows the right list when the user taps "View →".
+        await useShoppingStore.getState().selectList(listId);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         onAdded?.(listId, listName);
         setVisible(false);
@@ -123,7 +123,13 @@ export const AddToShoppingListSheet = forwardRef<
     setCreating(true);
     setError(null);
     try {
-      const list = await createShoppingList({ name });
+      // Use the store's createList so the new list lands in the local `lists`
+      // array (the list picker chips on the LIST tab read from there).
+      const list = await useShoppingStore.getState().createList(name);
+      if (!list) {
+        setError('Could not create list. Try again.');
+        return;
+      }
       const res = await addRecipeToList(list.id, {
         recipe_id: target.recipeId,
         ingredients: target.ingredients,
@@ -132,6 +138,8 @@ export const AddToShoppingListSheet = forwardRef<
         setError('Ingredients already on this list');
         return;
       }
+      // Switch the active list to the new one so View → lands on it.
+      await useShoppingStore.getState().selectList(list.id);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onAdded?.(list.id, name);
       setVisible(false);

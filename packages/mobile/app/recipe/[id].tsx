@@ -25,7 +25,6 @@ import {
   type AddToShoppingListSheetRef,
 } from "@/components/AddToShoppingListSheet";
 import { useAuthStore } from "@/stores/auth.store";
-import { useShoppingStore } from "@/stores/shopping.store";
 import { colors, fonts } from "@/constants/theme";
 
 type Tab = "ingredients" | "instructions";
@@ -40,8 +39,6 @@ export default function RecipeDetailScreen() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const shoppingSheetRef = useRef<AddToShoppingListSheetRef>(null);
   const [addedTo, setAddedTo] = useState<{ listId: string; listName: string } | null>(null);
-  const selectList = useShoppingStore((state) => state.selectList);
-  const activeListId = useShoppingStore((state) => state.activeListId);
 
   useEffect(() => {
     if (!addedTo) return;
@@ -49,17 +46,11 @@ export default function RecipeDetailScreen() {
     return () => clearTimeout(timer);
   }, [addedTo]);
 
-  const handleAddedToList = useCallback(
-    (listId: string, listName: string) => {
-      setAddedTo({ listId, listName });
-      // Refresh the active list if it's the one we just added to so items show up
-      // when the user navigates to the shopping list tab.
-      if (activeListId === listId) {
-        selectList(listId);
-      }
-    },
-    [activeListId, selectList],
-  );
+  const handleAddedToList = useCallback((listId: string, listName: string) => {
+    // The sheet already switched the active list and fetched its items via the
+    // shopping store, so View → just needs to navigate.
+    setAddedTo({ listId, listName });
+  }, []);
 
   const scrollY = useRef(new Animated.Value(0)).current;
 

@@ -72,7 +72,7 @@ describe("useAuthStore", () => {
     expect(SecureStore.deleteItemAsync).toHaveBeenCalledWith("session_token");
   });
 
-  it("hydrateFromStorage restores token from SecureStore", async () => {
+  it("hydrateFromStorage restores token and marks user as authenticated", async () => {
     (SecureStore as unknown as { __store: Map<string, string> }).__store.set(
       "session_token",
       "tok-hydrated",
@@ -82,8 +82,10 @@ describe("useAuthStore", () => {
 
     const state = useAuthStore.getState();
     expect(state.sessionToken).toBe("tok-hydrated");
+    // user stays null until a /users/me call repopulates it; that's OK because
+    // API calls only read sessionToken and UI gates only check isAuthenticated.
     expect(state.user).toBeNull();
-    expect(state.isAuthenticated).toBe(false);
+    expect(state.isAuthenticated).toBe(true);
   });
 
   it("hydrateFromStorage does nothing when no token stored", async () => {

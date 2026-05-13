@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>()((set) => ({
   hydrateFromStorage: async () => {
     const token = await getToken();
     if (token) {
-      set({ sessionToken: token });
+      set({ sessionToken: token, isAuthenticated: true });
     }
   },
 }));

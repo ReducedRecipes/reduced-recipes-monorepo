@@ -22,6 +22,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text } from 'react-native';
 import { SplashLogo } from '@/components/SplashLogo';
+import { useAuthStore } from '@/stores/auth.store';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -63,6 +64,10 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    useAuthStore.getState().hydrateFromStorage();
+  }, []);
 
   if (error) {
     return <ErrorFallback error={error} />;
