@@ -9,11 +9,12 @@
  */
 
 import { getRedirectResult } from 'firebase/auth';
+import type { User } from '@rr/shared';
 import { auth } from './firebase';
 
 export interface FirebaseRedirectResult {
   token: string;
-  user: { id: string; email: string; name: string } & Record<string, unknown>;
+  user: User;
   is_new_user: boolean;
 }
 
