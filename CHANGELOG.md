@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.11.1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.11.0...v1.11.1) (2026-05-14)
+
+
+### Bug Fixes
+
+* **frontend:** deploy Pages Functions for Firebase auth proxy + restyle Sign-in ([#338](https://github.com/ReducedRecipes/reduced-recipes-monorepo/issues/338)) ([745c437](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/745c4376acf8b7321a28ff36f8ba32ff8b81673a))
+* **frontend:** hydrate auth from sign-in response, drop the reload ([#341](https://github.com/ReducedRecipes/reduced-recipes-monorepo/issues/341)) ([e3631b5](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/e3631b523b0dd645e8b30ebfd015d5f128485a4d))
+* **frontend:** use _worker.js for Firebase auth proxy (direct-upload deploy) ([#340](https://github.com/ReducedRecipes/reduced-recipes-monorepo/issues/340)) ([b57902d](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/b57902d4aaeba8543a8dfe75dbb58517e2673bdb))
+
 ## [1.11.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.10.0...v1.11.0) (2026-05-13)
 
 
