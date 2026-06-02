@@ -193,6 +193,32 @@ describe('GET /api/v1/search/by-ingredients', () => {
     const body = await res.json() as { items: { id: string }[] };
     expect(body.items.map((i) => i.id)).toEqual(['r1']);
   });
+
+  it('returns 400 for non-integer max_missing', async () => {
+    const env = createEnv();
+    const res = await mockRequest('http://localhost/api/v1/search/by-ingredients?have=beef&max_missing=2.5', env);
+    expect(res.status).toBe(400);
+    const body = await res.json() as { error: { code: string } };
+    expect(body.error.code).toBe('INVALID_INPUT');
+  });
+
+  it('max_missing=0 keeps only exact-pantry matches', async () => {
+    // r1 has 3 ingredients (beef, potato, carrot). have=beef,potato,carrot -> missing=0 (exact match).
+    // We mock match_count=3 to indicate all three pantry ingredients matched.
+    const env = createEnv({
+      DB: createDB([
+        { recipe_id: 'r1', match_count: 3 },
+      ]) as unknown as D1Database,
+    });
+    const res = await mockRequest(
+      'http://localhost/api/v1/search/by-ingredients?have=beef,potato,carrot&max_missing=0',
+      env,
+    );
+    expect(res.status).toBe(200);
+    const body = await res.json() as { items: { id: string; match: { missing: string[] } }[] };
+    expect(body.items.map((i) => i.id)).toEqual(['r1']);
+    expect(body.items[0].match.missing).toEqual([]);
+  });
 });
 
 describe('GET /api/v1/ingredients/suggest', () => {

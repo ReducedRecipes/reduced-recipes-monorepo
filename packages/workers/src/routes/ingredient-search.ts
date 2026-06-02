@@ -69,9 +69,9 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
 
   const maxMissingRaw = c.req.query('max_missing');
   let maxMissing: number | null = null;
-  if (maxMissingRaw !== undefined) {
-    const parsed = parseInt(maxMissingRaw, 10);
-    if (Number.isNaN(parsed) || parsed < 0) {
+  if (maxMissingRaw !== undefined && maxMissingRaw !== '') {
+    const parsed = Number(maxMissingRaw);
+    if (!Number.isInteger(parsed) || parsed < 0) {
       return c.json({ error: { code: 'INVALID_INPUT', message: 'max_missing must be a non-negative integer' } }, 400);
     }
     maxMissing = parsed;
