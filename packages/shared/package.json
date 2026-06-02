@@ -12,7 +12,8 @@
     "./dietary": "./src/dietary.ts",
     "./env": "./src/env.ts",
     "./build-query": "./src/build-query.ts",
-    "./html-decode": "./src/html-decode.ts"
+    "./html-decode": "./src/html-decode.ts",
+    "./pantry": "./src/pantry.ts"
   },
   "files": [
     "src"
