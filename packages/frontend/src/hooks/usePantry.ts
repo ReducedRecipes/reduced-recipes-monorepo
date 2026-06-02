@@ -25,8 +25,8 @@ export function usePantry(): UsePantry {
           setPantry(res.pantry);
           saveLocalPantry(res.pantry);
         })
-        .catch(() => {
-          // Stay with local state on failure.
+        .catch((err) => {
+          console.warn('[pantry] server sync failed, keeping local state', err);
         });
     }
   }, []);
