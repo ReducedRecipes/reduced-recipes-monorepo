@@ -31,8 +31,7 @@ export function usePantry(): UsePantry {
     }
   }, []);
 
-  const persist = useCallback((next: PantryState) => {
-    setPantry(next);
+  const sideEffect = useCallback((next: PantryState) => {
     saveLocalPantry(next);
     if (isSignedIn()) {
       putPantry(next).catch(() => { /* best-effort */ });
@@ -40,12 +39,20 @@ export function usePantry(): UsePantry {
   }, []);
 
   const setHave = useCallback((next: string[]) => {
-    persist({ have: next, exclude: pantry.exclude });
-  }, [pantry.exclude, persist]);
+    setPantry((prev) => {
+      const updated = { have: next, exclude: prev.exclude };
+      sideEffect(updated);
+      return updated;
+    });
+  }, [sideEffect]);
 
   const setExclude = useCallback((next: string[]) => {
-    persist({ have: pantry.have, exclude: next });
-  }, [pantry.have, persist]);
+    setPantry((prev) => {
+      const updated = { have: prev.have, exclude: next };
+      sideEffect(updated);
+      return updated;
+    });
+  }, [sideEffect]);
 
   return { pantry, setHave, setExclude, hydrated };
 }
