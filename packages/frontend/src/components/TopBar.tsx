@@ -53,8 +53,8 @@ export default function TopBar({ recipeCount = 0 }: TopBarProps) {
             <Link to="/search" className="transition-colors hover:text-ink">
               Browse
             </Link>
-            <Link to="/search?q=ingredients" className="transition-colors hover:text-ink">
-              Ingredients
+            <Link to="/ingredients" className="transition-colors hover:text-ink">
+              Pantry
             </Link>
             {isAuthenticated && (
               <Link to="/saved" className="transition-colors hover:text-ink">
