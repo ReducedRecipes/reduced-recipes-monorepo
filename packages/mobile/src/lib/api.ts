@@ -10,6 +10,7 @@ import type {
   ShoppingListItemSyncAction,
   ShoppingListItemSyncResult,
 } from "@rr/shared";
+import type { PantryState, PantryRecipeResult } from "@rr/shared/pantry";
 import { buildQuery } from "@rr/shared/build-query";
 import { useAuthStore } from "../stores/auth.store";
 
@@ -685,8 +686,6 @@ export const api = USE_MOCK ? mockApi : realApi;
 
 // ── Pantry ────────────────────────────────────────────────────────
 
-import type { PantryState, PantryRecipeResult } from '@rr/shared/pantry';
-
 export function searchByPantry(
   have: string[],
   exclude: string[],
@@ -707,7 +706,6 @@ export function getPantry(): Promise<{ pantry: PantryState }> {
 export function putPantry(pantry: PantryState): Promise<{ pantry: PantryState }> {
   return request('/me/pantry', {
     method: 'PUT',
-    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({ pantry }),
   });
 }
