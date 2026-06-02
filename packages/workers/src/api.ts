@@ -18,6 +18,7 @@ import heartRoutes from './routes/hearts';
 import fundingRoutes from './routes/funding';
 import searchSimilarRoutes from './routes/search-similar';
 import firebaseAuthRoutes from './routes/firebase-auth';
+import pantryRoutes from './routes/pantry';
 
 type AppBindings = { Bindings: Env; Variables: { userId?: string; user?: User } };
 const app = new Hono<AppBindings>();
@@ -1097,6 +1098,7 @@ app.route('/', ingredientSearchRoutes);
 app.route('/', heartRoutes);
 app.route('/', fundingRoutes);
 app.route('/', searchSimilarRoutes);
+app.route('/', pantryRoutes);
 
 // ── Global error handler ────────────────────────────────────────────────
 app.onError((err, c) => {

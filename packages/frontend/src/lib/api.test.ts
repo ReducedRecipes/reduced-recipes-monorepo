@@ -26,6 +26,9 @@ import {
   searchBookmarks,
   syncBookmarks,
   createBookmark,
+  searchByIngredients,
+  getPantry,
+  putPantry,
 } from './api';
 
 function jsonResponse(data: unknown, status = 200) {
@@ -194,5 +197,36 @@ describe('createBookmark with collection_id', () => {
     await createBookmark('r1');
     const [, init] = mockFetch.mock.calls[0]!;
     expect(JSON.parse(init.body)).toEqual({ recipe_id: 'r1', collection_id: null });
+  });
+});
+
+describe('pantry api client', () => {
+  it('searchByIngredients includes max_missing in query when set', async () => {
+    mockFetch.mockReturnValue(jsonResponse({ items: [], has_more: false }));
+    await searchByIngredients(['beef'], [], 24, 0, 0);
+    const url = mockFetch.mock.calls[0]![0] as string;
+    expect(url).toMatch(/max_missing=0/);
+  });
+
+  it('searchByIngredients omits max_missing when undefined', async () => {
+    mockFetch.mockReturnValue(jsonResponse({ items: [], has_more: false }));
+    await searchByIngredients(['beef'], [], 24, 0);
+    const url = mockFetch.mock.calls[0]![0] as string;
+    expect(url).not.toMatch(/max_missing/);
+  });
+
+  it('getPantry GETs /me/pantry', async () => {
+    mockFetch.mockReturnValue(jsonResponse({ pantry: { have: ['beef'], exclude: [] } }));
+    const res = await getPantry();
+    expect(res).toEqual({ pantry: { have: ['beef'], exclude: [] } });
+    expect((mockFetch.mock.calls[0]![0] as string).endsWith('/me/pantry')).toBe(true);
+  });
+
+  it('putPantry PUTs JSON body', async () => {
+    mockFetch.mockReturnValue(jsonResponse({ pantry: { have: ['beef'], exclude: [] } }));
+    await putPantry({ have: ['beef'], exclude: [] });
+    const init = mockFetch.mock.calls[0]![1] as RequestInit;
+    expect(init.method).toBe('PUT');
+    expect(init.body).toBe(JSON.stringify({ pantry: { have: ['beef'], exclude: [] } }));
   });
 });
