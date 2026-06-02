@@ -65,9 +65,9 @@ describe('app/(tabs)/_layout.tsx (tab layout)', () => {
     expect(existsSync(resolve(appDir, '(tabs)/_layout.tsx'))).toBe(true);
   });
 
-  it('renders 5 tab screens', () => {
+  it('renders 6 tab screens', () => {
     const tabScreenCount = (content.match(/Tabs\.Screen/g) || []).length;
-    expect(tabScreenCount).toBe(5);
+    expect(tabScreenCount).toBe(6);
   });
 
   it('has Index tab with HomeIcon', () => {
@@ -88,6 +88,11 @@ describe('app/(tabs)/_layout.tsx (tab layout)', () => {
   it('has List tab with ShoppingCartIcon', () => {
     expect(content).toContain("title: 'List'");
     expect(content).toContain('ShoppingCartIcon');
+  });
+
+  it('has Pantry tab with PantryIcon', () => {
+    expect(content).toContain("title: 'Pantry'");
+    expect(content).toContain('PantryIcon');
   });
 
   it('has Settings tab with SettingsIcon', () => {

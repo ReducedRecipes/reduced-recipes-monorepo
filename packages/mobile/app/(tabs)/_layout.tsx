@@ -7,6 +7,7 @@ import {
   BookmarkIcon,
   ShoppingCartIcon,
   SettingsIcon,
+  PantryIcon,
 } from '@/components/icons';
 
 export default function TabLayout() {
@@ -41,6 +42,13 @@ export default function TabLayout() {
         options={{
           title: 'Search',
           tabBarIcon: ({ color, size }) => <SearchIcon color={color} size={size} />,
+        }}
+      />
+      <Tabs.Screen
+        name="pantry"
+        options={{
+          title: 'Pantry',
+          tabBarIcon: ({ color, size }) => <PantryIcon color={color} size={size} />,
         }}
       />
       <Tabs.Screen
