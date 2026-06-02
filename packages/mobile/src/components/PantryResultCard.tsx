@@ -1,5 +1,6 @@
 import { Link } from 'expo-router';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { colors, fonts } from '@/constants/theme';
 import type { PantryRecipeResult } from '@rr/shared/pantry';
 
@@ -9,7 +10,13 @@ export function PantryResultCard({ recipe }: { recipe: PantryRecipeResult }) {
     <Link href={`/recipe/${recipe.id}`} asChild>
       <View style={s.row}>
         {recipe.image_url ? (
-          <Image source={{ uri: recipe.image_url }} style={s.thumb} />
+          <Image
+            source={{ uri: recipe.image_url }}
+            style={s.thumb}
+            contentFit="cover"
+            transition={200}
+            recyclingKey={recipe.id}
+          />
         ) : (
           <View style={[s.thumb, s.thumbFallback]} />
         )}

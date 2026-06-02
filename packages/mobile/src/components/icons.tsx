@@ -111,7 +111,7 @@ export function PantryIcon({ color = DEFAULT_COLOR, size = DEFAULT_SIZE }: IconP
         strokeLinejoin="round"
       />
       <Path
-        d="M9 6v0M9 15v3"
+        d="M9 5v3M9 14v4"
         stroke={color}
         strokeWidth={2}
         strokeLinecap="round"

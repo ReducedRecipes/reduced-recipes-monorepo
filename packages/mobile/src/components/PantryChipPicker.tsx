@@ -33,6 +33,8 @@ export function PantryChipPicker({ label, items, onAdd, onRemove, negative }: Pr
         onChangeText={setValue}
         onSubmitEditing={submit}
         returnKeyType="done"
+        autoCapitalize="none"
+        autoCorrect={false}
         placeholder={negative ? 'Add to avoid…' : 'Add ingredient…'}
         placeholderTextColor={colors.ink2}
         style={s.input}
