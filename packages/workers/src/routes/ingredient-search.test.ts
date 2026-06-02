@@ -217,7 +217,7 @@ describe('GET /api/v1/search/by-ingredients', () => {
     expect(res.status).toBe(200);
     const body = await res.json() as { items: { id: string; match: { missing: string[] } }[] };
     expect(body.items.map((i) => i.id)).toEqual(['r1']);
-    expect(body.items[0].match.missing).toEqual([]);
+    expect(body.items[0]!.match.missing).toEqual([]);
   });
 });
 

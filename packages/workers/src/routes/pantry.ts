@@ -44,7 +44,7 @@ pantry.get('/api/v1/me/pantry', requireAuth, async (c) => {
 
 pantry.put('/api/v1/me/pantry', requireAuth, async (c) => {
   const userId = c.get('userId');
-  const body = await c.req.json<{ pantry?: unknown }>().catch(() => ({}));
+  const body = await c.req.json<{ pantry?: unknown }>().catch((): { pantry?: unknown } => ({}));
   if (!isPantryState(body.pantry)) {
     return c.json({ error: { code: 'INVALID_INPUT', message: 'pantry must be { have: string[], exclude: string[] }' } }, 400);
   }
