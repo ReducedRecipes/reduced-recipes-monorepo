@@ -682,3 +682,32 @@ export function fetchSharedList(
 }
 
 export const api = USE_MOCK ? mockApi : realApi;
+
+// ── Pantry ────────────────────────────────────────────────────────
+
+import type { PantryState, PantryRecipeResult } from '@rr/shared/pantry';
+
+export function searchByPantry(
+  have: string[],
+  exclude: string[],
+  limit = 24,
+  offset = 0,
+  maxMissing?: number,
+): Promise<{ items: PantryRecipeResult[]; has_more: boolean }> {
+  const params = new URLSearchParams({ have: have.join(','), limit: String(limit), offset: String(offset) });
+  if (exclude.length > 0) params.set('exclude', exclude.join(','));
+  if (maxMissing !== undefined) params.set('max_missing', String(maxMissing));
+  return request(`/search/by-ingredients?${params.toString()}`);
+}
+
+export function getPantry(): Promise<{ pantry: PantryState }> {
+  return request('/me/pantry');
+}
+
+export function putPantry(pantry: PantryState): Promise<{ pantry: PantryState }> {
+  return request('/me/pantry', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ pantry }),
+  });
+}
