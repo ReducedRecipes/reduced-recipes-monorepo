@@ -1,5 +1,9 @@
 import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification, Collection, BookmarkSyncAction, BookmarkSyncResult, ShoppingList, ShoppingListItem, SmartRollupItem } from "@rr/shared";
 import { buildQuery } from "@rr/shared/build-query";
+import type { PantryRecipeResult, PantryState } from '@rr/shared/pantry';
+export type { PantryRecipeResult, PantryState };
+// Backwards-compatible alias for existing imports across the frontend:
+export type IngredientSearchResult = PantryRecipeResult;
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE || ""}/api/v1`;
 
@@ -130,23 +134,29 @@ export function suggestIngredients(q: string, limit = 10): Promise<{ items: { na
   return apiFetch<{ items: { name: string; count: number }[] }>(`/ingredients/suggest${buildQuery({ q, limit })}`);
 }
 
-export interface IngredientSearchResult {
-  id: string;
-  title: string;
-  domain: string;
-  image_url: string | null;
-  total_time: number | null;
-  cook_time: number | null;
-  yields: string | null;
-  cuisine: string | null;
-  category: string | null;
-  match: { have: number; total: number; missing: string[] };
+export function searchByIngredients(
+  have: string[],
+  exclude: string[],
+  limit = 24,
+  offset = 0,
+  maxMissing?: number,
+): Promise<{ items: PantryRecipeResult[]; has_more: boolean }> {
+  const params: Record<string, string | number> = { have: have.join(','), limit, offset };
+  if (exclude.length > 0) params.exclude = exclude.join(',');
+  if (maxMissing !== undefined) params.max_missing = maxMissing;
+  return apiFetch<{ items: PantryRecipeResult[]; has_more: boolean }>(`/search/by-ingredients${buildQuery(params)}`);
 }
 
-export function searchByIngredients(have: string[], exclude: string[], limit = 24, offset = 0): Promise<{ items: IngredientSearchResult[]; has_more: boolean }> {
-  const params: Record<string, string | number> = { have: have.join(","), limit, offset };
-  if (exclude.length > 0) params.exclude = exclude.join(",");
-  return apiFetch<{ items: IngredientSearchResult[]; has_more: boolean }>(`/search/by-ingredients${buildQuery(params)}`);
+export function getPantry(): Promise<{ pantry: PantryState }> {
+  return apiFetch('/me/pantry');
+}
+
+export function putPantry(pantry: PantryState): Promise<{ pantry: PantryState }> {
+  return apiFetch('/me/pantry', {
+    method: 'PUT',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ pantry }),
+  });
 }
 
 export function fetchTags(): Promise<{ tag: string; count: number }[]> {
