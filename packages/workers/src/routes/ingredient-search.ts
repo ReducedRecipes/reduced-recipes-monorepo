@@ -67,6 +67,16 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
     return c.json({ error: { code: 'INVALID_INPUT', message: "mode must be 'exact' or 'semantic'" } }, 400);
   }
 
+  const maxMissingRaw = c.req.query('max_missing');
+  let maxMissing: number | null = null;
+  if (maxMissingRaw !== undefined) {
+    const parsed = parseInt(maxMissingRaw, 10);
+    if (Number.isNaN(parsed) || parsed < 0) {
+      return c.json({ error: { code: 'INVALID_INPUT', message: 'max_missing must be a non-negative integer' } }, 400);
+    }
+    maxMissing = parsed;
+  }
+
   const have = haveParam.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
   const exclude = excludeParam.split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
 
@@ -180,10 +190,15 @@ ingredientSearch.get('/api/v1/search/by-ingredients', async (c) => {
     });
   }
 
-  // Sort by fewest missing ingredients, then most matched
-  items.sort((a, b) => a.match.missing.length - b.match.missing.length || b.match.have - a.match.have);
+  const maxMissingThreshold = maxMissing;
+  const filtered = maxMissingThreshold === null
+    ? items
+    : items.filter((i) => i.match.missing.length <= maxMissingThreshold);
 
-  return c.json({ items, has_more: hasMore }, 200, {
+  // Sort by fewest missing ingredients, then most matched
+  filtered.sort((a, b) => a.match.missing.length - b.match.missing.length || b.match.have - a.match.have);
+
+  return c.json({ items: filtered, has_more: hasMore }, 200, {
     'Cache-Control': 'public, max-age=30, s-maxage=120, stale-while-revalidate=300',
   });
 });
