@@ -1,12 +1,21 @@
-import { useState } from "react";
-import { useSearchParams, Link } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { searchByIngredients } from "../lib/api";
-import type { IngredientSearchResult } from "../lib/api";
+import { usePantry } from "../hooks/usePantry";
 import IngredientBoard from "../components/IngredientBoard";
 import { Ticker } from "../components/design-system";
+import type { PantryRecipeResult } from "@rr/shared/pantry";
 
-function ResultCard({ recipe }: { recipe: IngredientSearchResult }) {
+type Mode = "all" | "exact" | "almost";
+
+function maxMissingFor(mode: Mode): number | undefined {
+  if (mode === "exact") return 0;
+  if (mode === "almost") return 3;
+  return undefined;
+}
+
+function ResultCard({ recipe }: { recipe: PantryRecipeResult }) {
   const [imgFailed, setImgFailed] = useState(false);
   const pct = recipe.match.total > 0
     ? Math.round((recipe.match.have / recipe.match.total) * 100)
@@ -74,68 +83,74 @@ function ResultCard({ recipe }: { recipe: IngredientSearchResult }) {
 }
 
 export default function IngredientsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const { pantry, setHave, setExclude, hydrated } = usePantry();
+  const [mode, setMode] = useState<Mode>("all");
 
-  // Derive from URL — single source of truth
-  const have = (searchParams.get("have") ?? "").split(",").filter(Boolean);
-  const excluded = (searchParams.get("exclude") ?? "").split(",").filter(Boolean);
-
-  const updateIngredients = (nextHave: string[], nextExcluded: string[]) => {
-    const next = new URLSearchParams();
-    if (nextHave.length > 0) next.set("have", nextHave.join(","));
-    if (nextExcluded.length > 0) next.set("exclude", nextExcluded.join(","));
-    setSearchParams(next, { replace: true });
-  };
+  const maxMissing = useMemo(() => maxMissingFor(mode), [mode]);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["ingredient-search", have, excluded],
-    queryFn: () => searchByIngredients(have, excluded, 48),
-    enabled: have.length > 0,
+    queryKey: ["ingredient-search", pantry.have, pantry.exclude, maxMissing],
+    queryFn: () => searchByIngredients(pantry.have, pantry.exclude, 48, 0, maxMissing),
+    enabled: hydrated && pantry.have.length > 0,
   });
 
   const results = data?.items ?? [];
 
   return (
     <main style={{ minHeight: "80vh" }}>
-      {/* Ingredient boards */}
       <section style={{ padding: "40px 0", borderBottom: "1px solid var(--rule)" }}>
-        <div className="caps" style={{ color: "var(--accent-ink)", marginBottom: 12 }}>
-          ◆ What&rsquo;s in your fridge
-        </div>
+        <div className="caps" style={{ color: "var(--accent-ink)", marginBottom: 12 }}>◆ Your pantry</div>
         <h1 className="serif" style={{
           fontSize: "clamp(36px, 5vw, 56px)", fontStyle: "italic", lineHeight: 0.95,
           letterSpacing: "-0.02em", margin: "0 0 28px", fontWeight: 400,
         }}>
-          Search by ingredients
+          Cook from your pantry
         </h1>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40 }}>
           <IngredientBoard
             title="Have"
-            items={have}
-            onAdd={(it) => updateIngredients([...have, it], excluded)}
-            onRemove={(it) => updateIngredients(have.filter((x) => x !== it), excluded)}
+            items={pantry.have}
+            onAdd={(it) => setHave([...pantry.have, it])}
+            onRemove={(it) => setHave(pantry.have.filter((x) => x !== it))}
           />
           <IngredientBoard
             title="Exclude"
-            items={excluded}
-            onAdd={(it) => updateIngredients(have, [...excluded, it])}
-            onRemove={(it) => updateIngredients(have, excluded.filter((x) => x !== it))}
+            items={pantry.exclude}
+            onAdd={(it) => setExclude([...pantry.exclude, it])}
+            onRemove={(it) => setExclude(pantry.exclude.filter((x) => x !== it))}
             negative
           />
         </div>
-        {have.length > 0 && (
-          <div className="mono" style={{ fontSize: 12, color: "var(--ink-2)", marginTop: 16 }}>
-            <Ticker value={results.length} /> recipes match · sorted by fewest extra ingredients
+
+        {pantry.have.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: 16, marginTop: 24 }}>
+            {(["all", "exact", "almost"] as const).map((m) => (
+              <button
+                key={m}
+                onClick={() => setMode(m)}
+                className="mono"
+                style={{
+                  fontSize: 11, padding: "6px 12px", textTransform: "uppercase",
+                  background: m === mode ? "var(--ink)" : "transparent",
+                  color: m === mode ? "var(--bg)" : "var(--ink)",
+                  border: "1px solid var(--rule-2)", cursor: "pointer",
+                }}
+              >
+                {m === "all" ? "All" : m === "exact" ? "Exact match" : "Almost there"}
+              </button>
+            ))}
+            <div className="mono" style={{ fontSize: 12, color: "var(--ink-2)" }}>
+              <Ticker value={results.length} /> recipes
+            </div>
           </div>
         )}
       </section>
 
-      {/* Results */}
       <section style={{ padding: "40px 0" }}>
-        {have.length === 0 ? (
+        {!hydrated ? null : pantry.have.length === 0 ? (
           <div style={{ padding: "60px 40px", textAlign: "center", border: "1px dashed var(--rule-2)" }}>
             <div className="serif" style={{ fontSize: 28, fontStyle: "italic", color: "var(--ink-3)", marginBottom: 8 }}>
-              Add ingredients to search
+              Add ingredients to your pantry
             </div>
             <div style={{ fontSize: 14, color: "var(--ink-2)" }}>
               Type an ingredient in the &ldquo;Have&rdquo; box above to find recipes you can cook.
@@ -151,14 +166,12 @@ export default function IngredientsPage() {
               No recipes found
             </div>
             <div style={{ fontSize: 14, color: "var(--ink-2)" }}>
-              Try different ingredients or remove some exclusions.
+              {mode === "exact" ? "Try \"Almost there\" or add more ingredients." : "Try different ingredients or relax your exclusions."}
             </div>
           </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))", gap: 24 }}>
-            {results.map((r) => (
-              <ResultCard key={r.id} recipe={r} />
-            ))}
+            {results.map((r) => <ResultCard key={r.id} recipe={r} />)}
           </div>
         )}
       </section>

@@ -2,8 +2,6 @@ import type { RecipeDocument, RecipeSummary, User, Bookmark, Notification, Colle
 import { buildQuery } from "@rr/shared/build-query";
 import type { PantryRecipeResult, PantryState } from '@rr/shared/pantry';
 export type { PantryRecipeResult, PantryState };
-// Backwards-compatible alias for existing imports across the frontend:
-export type IngredientSearchResult = PantryRecipeResult;
 
 const BASE_URL = `${import.meta.env.VITE_API_BASE || ""}/api/v1`;
 
