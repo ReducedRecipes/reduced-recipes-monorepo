@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.12.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.11.1...v1.12.0) (2026-06-02)
+
+
+### Features
+
+* pantry reverse search across web and mobile ([#342](https://github.com/ReducedRecipes/reduced-recipes-monorepo/issues/342)) ([28472f3](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/28472f38686858f52387da4e9964af98934ca11d))
+
+
+### Bug Fixes
+
+* **frontend:** point nav 'Pantry' link to /ingredients (was /search?q=ingredients) ([#344](https://github.com/ReducedRecipes/reduced-recipes-monorepo/issues/344)) ([64415f6](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/64415f65641e92745f4da0173185e945763a44ac))
+
 ## [1.11.1](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.11.0...v1.11.1) (2026-05-14)
 
 
