@@ -73,7 +73,7 @@ export function AppSmartBanner() {
   };
 
   return (
-    <div className="flex items-center gap-3 border-b border-rule bg-bg-2 px-4 py-2">
+    <div data-no-print className="flex items-center gap-3 border-b border-rule bg-bg-2 px-4 py-2">
       <img
         src="/icon-192.png"
         alt=""
