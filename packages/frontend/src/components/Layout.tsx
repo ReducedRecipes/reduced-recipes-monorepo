@@ -3,6 +3,7 @@ import { Outlet } from "react-router-dom";
 import TopBar from "./TopBar";
 import ScrollToTop from "./ScrollToTop";
 import { DietaryOnboarding } from "./DietaryOnboarding";
+import { AppSmartBanner } from "./AppSmartBanner";
 import { useHealth } from "../hooks/useHealth";
 import { useTheme } from "../hooks/useTheme";
 
@@ -31,6 +32,7 @@ export default function Layout() {
         isOpen={showDietaryOnboarding}
         onClose={handleDietaryOnboardingClose}
       />
+      <AppSmartBanner />
       <TopBar recipeCount={recipeCount} />
       <main className="mx-auto max-w-7xl px-4 py-6">
         <Outlet />
