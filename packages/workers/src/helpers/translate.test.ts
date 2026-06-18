@@ -3,8 +3,10 @@ import { translateRecipe } from './translate';
 import type { RecipeDocument } from '@rr/shared';
 
 /**
- * The current translateRecipe uses Llama 3.1 (messages API) for all translations.
- * ai.run('@cf/meta/llama-3.1-8b-instruct', { messages, max_tokens }) → { response }
+ * The current translateRecipe uses Llama 3.1 8B FP8 (messages API) for all
+ * translations. The non-FP8 '@cf/meta/llama-3.1-8b-instruct' was deprecated by
+ * Workers AI on 2026-05-30 (AiError 5028), so we use the current FP8 variant.
+ * ai.run('@cf/meta/llama-3.1-8b-instruct-fp8', { messages, max_tokens }) → { response }
  */
 
 function createMockAi(responseMap: Record<string, string> = {}) {
@@ -80,7 +82,7 @@ describe('translateRecipe', () => {
     const ai = createMockAi();
     await translateRecipe(doc, ai);
 
-    expect(ai.run).toHaveBeenCalledWith('@cf/meta/llama-3.1-8b-instruct', expect.objectContaining({
+    expect(ai.run).toHaveBeenCalledWith('@cf/meta/llama-3.1-8b-instruct-fp8', expect.objectContaining({
       messages: expect.arrayContaining([
         expect.objectContaining({ role: 'system' }),
         expect.objectContaining({ role: 'user', content: doc.title }),

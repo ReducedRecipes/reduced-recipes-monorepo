@@ -6,6 +6,7 @@
  */
 
 import type { RecipeDocument } from '@rr/shared';
+import { TEXT_GEN_MODEL } from './ai-models';
 
 const LANG_NAMES: Record<string, string> = {
   it: 'Italian', de: 'German', fr: 'French', es: 'Spanish',
@@ -84,7 +85,7 @@ async function translateWithLlama(
     ? `Translate this ${langName} recipe title to English. Output only the translated title, nothing else. Keep well-known dish names in their original form.`
     : `You are a culinary translator. Translate ${langName} recipe ${context} into natural English. Keep well-known dish names in their original form. Keep quantities and units as-is. Output only the translation. Do not add explanations, ingredient lists, or any extra recipes.`;
 
-  const result = (await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+  const result = (await ai.run(TEXT_GEN_MODEL, {
     messages: [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: text },

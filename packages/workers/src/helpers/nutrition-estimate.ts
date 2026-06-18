@@ -1,4 +1,5 @@
 import type { RecipeDocument } from '@rr/shared';
+import { TEXT_GEN_MODEL } from './ai-models';
 
 /**
  * Estimate nutrition per serving from a recipe's ingredient list using Workers AI.
@@ -13,7 +14,7 @@ export async function estimateNutrition(
   const ingredientList = doc.ingredients.join('\n');
   const servings = doc.yields ?? 'unknown servings';
 
-  const result = (await ai.run('@cf/meta/llama-3.1-8b-instruct', {
+  const result = (await ai.run(TEXT_GEN_MODEL, {
     messages: [
       {
         role: 'system',
