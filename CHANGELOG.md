@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.13.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.12.0...v1.13.0) (2026-06-18)
+
+
+### Features
+
+* **frontend:** mobile app smart banner ([#345](https://github.com/ReducedRecipes/reduced-recipes-monorepo/issues/345)) ([abca215](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/abca21509cc9d3b247a0ad4aaed3fa5fa3bcb92e))
+
+
+### Bug Fixes
+
+* **spider:** bound sitemap parsing so a large sitemap index can't stall crawling ([#347](https://github.com/ReducedRecipes/reduced-recipes-monorepo/issues/347)) ([3cbf2e5](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/3cbf2e52904928121af851923dff93ed1127b015))
+* **workers:** replace deprecated Workers AI model in translation and nutrition ([#348](https://github.com/ReducedRecipes/reduced-recipes-monorepo/issues/348)) ([4e2fe63](https://github.com/ReducedRecipes/reduced-recipes-monorepo/commit/4e2fe63d846abe733d8a4f9f484665a8b8275a79))
+
 ## [1.12.0](https://github.com/ReducedRecipes/reduced-recipes-monorepo/compare/v1.11.1...v1.12.0) (2026-06-02)
 
 
