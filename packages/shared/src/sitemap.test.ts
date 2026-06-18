@@ -167,6 +167,68 @@ describe('parseSitemap', () => {
     ]);
   });
 
+  it('caps the number of child sitemaps fetched from an index', async () => {
+    // A sitemap index with 5 children. With maxChildSitemaps=2 we must fetch
+    // the index plus at most 2 children — never recursing into all 5. This is
+    // what prevents the subrequest/CPU blow-up (error 1102) that wedged the
+    // spider on large sitemap indexes.
+    const children = Array.from({ length: 5 }, (_, i) =>
+      `<sitemap><loc>https://example.com/sitemap-${i}.xml</loc><lastmod>2026-05-${String(10 - i).padStart(2, '0')}</lastmod></sitemap>`,
+    ).join('');
+    const indexXml = `<?xml version="1.0" encoding="UTF-8"?><sitemapindex>${children}</sitemapindex>`;
+    const childXml = (i: number) =>
+      `<?xml version="1.0" encoding="UTF-8"?><urlset><url><loc>https://example.com/recipe/${i}</loc></url></urlset>`;
+
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      text: async () => {
+        const m = url.match(/sitemap-(\d+)\.xml/);
+        return m ? childXml(Number(m[1])) : indexXml;
+      },
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    const urls = await parseSitemap('https://example.com/sitemap.xml', { maxChildSitemaps: 2 });
+
+    // index fetch + 2 child fetches = 3 total, no more
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(urls).toEqual([
+      'https://example.com/recipe/0',
+      'https://example.com/recipe/1',
+    ]);
+  });
+
+  it('caps the total number of URLs returned', async () => {
+    const urlsXml = Array.from({ length: 5 }, (_, i) =>
+      `<url><loc>https://example.com/recipe/${i}</loc></url>`,
+    ).join('');
+    const xml = `<?xml version="1.0" encoding="UTF-8"?><urlset>${urlsXml}</urlset>`;
+
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, text: async () => xml })));
+
+    const urls = await parseSitemap('https://example.com/sitemap.xml', { maxUrls: 3 });
+    expect(urls).toHaveLength(3);
+  });
+
+  it('stops recursing into child sitemaps once the deadline has passed', async () => {
+    const indexXml = `<?xml version="1.0" encoding="UTF-8"?><sitemapindex>
+      <sitemap><loc>https://example.com/sitemap-a.xml</loc></sitemap>
+    </sitemapindex>`;
+    const childXml = `<?xml version="1.0" encoding="UTF-8"?><urlset><url><loc>https://example.com/recipe/a</loc></url></urlset>`;
+
+    const fetchMock = vi.fn(async (url: string) => ({
+      ok: true,
+      text: async () => (url.includes('sitemap-a.xml') ? childXml : indexXml),
+    }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    // deadline already in the past: we fetch the index but must not recurse.
+    const urls = await parseSitemap('https://example.com/sitemap.xml', { deadline: 0 });
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(urls).toEqual([]);
+  });
+
   it('falls back to bare <loc> when no <url> wrapper present', async () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <bareloc>

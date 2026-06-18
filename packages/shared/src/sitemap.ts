@@ -79,8 +79,53 @@ function byLastmodDesc(a: SitemapEntry, b: SitemapEntry): number {
  * site has 50k URLs in document order (oldest first) and we slice the first
  * 5,000, we never reach the new content. Sorting by lastmod descending puts
  * fresh URLs at the head of the list.
+ *
+ * Bounded by `limits`: a large sitemap index recurses into every child
+ * sequentially, which previously blew the Worker's CPU/subrequest budget and
+ * got the isolate killed (error 1102) before it could finish. A killed isolate
+ * skips the spider's `last_spidered` bookkeeping, so the cron kept re-picking
+ * the same oversized domain and stalled URL discovery entirely. These caps make
+ * the parse physically unable to exceed the Worker limits.
  */
-export async function parseSitemap(sitemapUrl: string): Promise<string[]> {
+export interface ParseSitemapLimits {
+  /** Max child sitemaps to recurse into from an index, across the whole tree. */
+  maxChildSitemaps?: number;
+  /** Max total URLs to collect. */
+  maxUrls?: number;
+  /** Absolute `Date.now()` timestamp after which recursion stops. */
+  deadline?: number;
+}
+
+const DEFAULT_MAX_CHILD_SITEMAPS = 50;
+const DEFAULT_MAX_URLS = 20_000;
+const DEFAULT_PARSE_BUDGET_MS = 20_000;
+
+interface SitemapBudget {
+  childrenRemaining: number;
+  maxUrls: number;
+  deadline: number;
+  visited: Set<string>;
+}
+
+export async function parseSitemap(
+  sitemapUrl: string,
+  limits: ParseSitemapLimits = {},
+): Promise<string[]> {
+  const budget: SitemapBudget = {
+    childrenRemaining: limits.maxChildSitemaps ?? DEFAULT_MAX_CHILD_SITEMAPS,
+    maxUrls: limits.maxUrls ?? DEFAULT_MAX_URLS,
+    deadline: limits.deadline ?? Date.now() + DEFAULT_PARSE_BUDGET_MS,
+    visited: new Set(),
+  };
+  return parseSitemapWithin(sitemapUrl, budget);
+}
+
+async function parseSitemapWithin(sitemapUrl: string, budget: SitemapBudget): Promise<string[]> {
+  // Cycle guard: self-referential or mutually-referential sitemap indexes would
+  // otherwise recurse forever.
+  if (budget.visited.has(sitemapUrl)) return [];
+  budget.visited.add(sitemapUrl);
+
   try {
     const res = await fetch(sitemapUrl, {
       headers: { 'User-Agent': 'ReducedRecipesBot/1.0' },
@@ -96,8 +141,15 @@ export async function parseSitemap(sitemapUrl: string): Promise<string[]> {
       indexEntries.sort(byLastmodDesc);
       const urls: string[] = [];
       for (const entry of indexEntries) {
-        const childUrls = await parseSitemap(entry.loc);
-        urls.push(...childUrls);
+        if (urls.length >= budget.maxUrls) break;
+        if (budget.childrenRemaining <= 0) break;
+        if (Date.now() > budget.deadline) break;
+        budget.childrenRemaining--;
+        const childUrls = await parseSitemapWithin(entry.loc, budget);
+        for (const u of childUrls) {
+          if (urls.length >= budget.maxUrls) break;
+          urls.push(u);
+        }
       }
       return urls;
     }
@@ -106,7 +158,7 @@ export async function parseSitemap(sitemapUrl: string): Promise<string[]> {
     const urlEntries = parseEntries(text, /<url>([\s\S]*?)<\/url>/gi);
     if (urlEntries.length > 0) {
       urlEntries.sort(byLastmodDesc);
-      return urlEntries.map((e) => e.loc);
+      return urlEntries.slice(0, budget.maxUrls).map((e) => e.loc);
     }
 
     // Fallback: some non-standard sitemaps have bare <loc> tags without
@@ -118,6 +170,7 @@ export async function parseSitemap(sitemapUrl: string): Promise<string[]> {
     while ((m = locRegex.exec(text)) !== null) {
       const loc = m[1];
       if (loc) fallback.push(loc.trim());
+      if (fallback.length >= budget.maxUrls) break;
     }
     return fallback;
   } catch {
