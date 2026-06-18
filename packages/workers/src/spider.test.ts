@@ -159,6 +159,43 @@ describe('Spider Worker', () => {
     nowSpy.mockRestore();
   });
 
+  it('claims the domain (updates last_spidered) BEFORE parsing the sitemap', async () => {
+    // If the Worker is killed mid-parse (e.g. an oversized sitemap exceeds the
+    // CPU/subrequest budget → error 1102), the finally block never runs. By
+    // advancing last_spidered up front, a killed run still moves the cron on to
+    // the next domain instead of re-selecting the same poison domain forever.
+    const env = createEnv();
+    const events: string[] = [];
+
+    const chainable = {
+      bind: vi.fn().mockReturnValue({ run: vi.fn().mockResolvedValue({}), first: vi.fn().mockResolvedValue(null) }),
+      first: vi.fn().mockResolvedValue(null),
+      run: vi.fn().mockResolvedValue({}),
+    };
+
+    let firstCall = true;
+    (env.CRAWL_DB.prepare as ReturnType<typeof vi.fn>).mockImplementation((sql: string) => {
+      if (firstCall) {
+        firstCall = false;
+        return { first: vi.fn().mockResolvedValue({ domain: 'big.com', sitemap_url: 'https://big.com/sitemap.xml' }) };
+      }
+      if (sql.includes('UPDATE domains SET last_spidered')) events.push('claim');
+      return chainable;
+    });
+
+    (parseSitemap as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      events.push('parse');
+      return ['https://big.com/recipes/a'];
+    });
+    (isRecipeUrl as ReturnType<typeof vi.fn>).mockReturnValue(true);
+
+    await spider.fetch(new Request('http://localhost/trigger'), env);
+
+    expect(events).toContain('claim');
+    expect(events).toContain('parse');
+    expect(events.indexOf('claim')).toBeLessThan(events.indexOf('parse'));
+  });
+
   it('updates last_spidered even when db.batch throws', async () => {
     const env = createEnv();
 

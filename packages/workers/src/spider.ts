@@ -38,6 +38,17 @@ async function runSpider(
 
   console.log(`SPIDER: processing ${domain.domain} (sitemap: ${domain.sitemap_url ?? 'none'})`);
 
+  // Claim the domain up front: advance last_spidered BEFORE the expensive parse.
+  // If the Worker is killed mid-parse (an oversized sitemap exceeding the
+  // CPU/subrequest budget → error 1102), no post-parse bookkeeping runs — not
+  // even a finally block, because the isolate is terminated rather than throwing.
+  // Claiming here guarantees the cron advances to the next domain instead of
+  // re-selecting the same poison domain on every tick (which previously stalled
+  // URL discovery entirely). parseSitemap is independently bounded so it should
+  // not hit the limit, but this makes a stall structurally impossible.
+  await db.prepare("UPDATE domains SET last_spidered = datetime('now') WHERE domain = ?")
+    .bind(domain.domain).run();
+
   try {
     let sitemapUrl = domain.sitemap_url;
     if (!sitemapUrl) {
@@ -85,16 +96,6 @@ async function runSpider(
     const message = err instanceof Error ? err.message : String(err);
     console.error(`SPIDER: ${domain.domain} failed: ${message}`);
     return { domain: domain.domain, inserted: 0, error: message };
-  } finally {
-    // ALWAYS advance last_spidered so the cron moves to the next domain on its
-    // next run. Without this, a single failing sitemap locks the cron on that
-    // domain forever.
-    try {
-      await db.prepare("UPDATE domains SET last_spidered = datetime('now') WHERE domain = ?")
-        .bind(domain.domain).run();
-    } catch (err) {
-      console.error(`SPIDER: failed to update last_spidered for ${domain.domain}:`, err);
-    }
   }
 }
 
