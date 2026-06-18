@@ -2,7 +2,7 @@
   "expo": {
     "name": "ReducedRecipes",
     "slug": "reducedrecipes",
-    "version": "1.12.0",
+    "version": "1.13.0",
     "scheme": "reducedrecipes",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
